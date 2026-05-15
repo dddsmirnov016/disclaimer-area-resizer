@@ -174,21 +174,49 @@
     width: 100%;
   }
 
-  .error-box {
-    display: none;
+  /* Слот под ошибку/успех — всегда занимает место, кнопка не прыгает */
+  .feedback-slot {
+    position: relative;
+    min-height: 80px;
+    width: 100%;
+    flex-shrink: 0;
+  }
+
+  .error-box,
+  .success-box {
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
     padding: 16px;
     border-radius: 20px;
-    background: rgba(255, 0, 0, 0.1);
     font-size: 18px;
     font-weight: 400;
     line-height: 24px;
-    color: #ff0000;
     word-break: break-word;
-    width: 100%;
+    visibility: hidden;
+    opacity: 0;
+    pointer-events: none;
+  }
+
+  .error-box {
+    background: rgba(255, 0, 0, 0.1);
+    color: #ff0000;
   }
 
   .error-box.visible {
-    display: block;
+    visibility: visible;
+    opacity: 1;
+  }
+
+  .success-box {
+    background: rgba(0, 169, 65, 0.1);
+    color: #00a941;
+  }
+
+  .success-box.visible {
+    visibility: visible;
+    opacity: 1;
   }
 
   #applyBtn {
@@ -216,13 +244,6 @@
     cursor: not-allowed;
   }
 
-  .feedback-success {
-    font-size: 18px;
-    font-weight: 400;
-    line-height: 24px;
-    color: #00a941;
-    word-break: break-word;
-  }
 </style>
 </head>
 <body>
@@ -272,9 +293,11 @@
   </div>
 
   <div class="actions">
-    <div id="errorBox" class="error-box"></div>
+    <div class="feedback-slot">
+      <div id="errorBox" class="error-box"></div>
+      <div id="successMsg" class="success-box"></div>
+    </div>
     <button id="applyBtn" disabled>Применить</button>
-    <div id="successMsg" class="feedback-success" style="display:none"></div>
   </div>
 </div>
 
@@ -283,7 +306,6 @@
   var WINDOW_W = 432;
   var HEIGHT_BASE = 632;
   var HEIGHT_CUSTOM = 712;
-  var HEIGHT_ERROR = 632;
 
   var state = null;
   var presets = {};
@@ -357,11 +379,7 @@
   }
 
   function updateWindowHeight() {
-    var h = HEIGHT_BASE;
-    if (presetSelect.value === 'custom') h = HEIGHT_CUSTOM;
-    if (errorBox.classList.contains('visible')) {
-      h = presetSelect.value === 'custom' ? HEIGHT_CUSTOM + 80 : HEIGHT_ERROR;
-    }
+    var h = presetSelect.value === 'custom' ? HEIGHT_CUSTOM : HEIGHT_BASE;
     sendResize(h);
   }
 
@@ -400,23 +418,21 @@
     errorBox.textContent = text;
     errorBox.classList.add('visible');
     hideSuccess();
-    updateWindowHeight();
   }
 
   function hideError() {
     errorBox.classList.remove('visible');
     errorBox.textContent = '';
-    updateWindowHeight();
   }
 
   function showSuccess(text) {
     successMsg.textContent = text;
-    successMsg.style.display = '';
+    successMsg.classList.add('visible');
     hideError();
   }
 
   function hideSuccess() {
-    successMsg.style.display = 'none';
+    successMsg.classList.remove('visible');
     successMsg.textContent = '';
   }
 
