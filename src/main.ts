@@ -268,7 +268,7 @@ figma.on("selectionchange", () => {
   sendState();
 });
 
-figma.ui.onmessage = (msg: UiMessage) => {
+figma.ui.on("message", (msg: UiMessage) => {
   try {
     if (msg.type === "request-state") {
       sendState();
@@ -356,19 +356,23 @@ figma.ui.onmessage = (msg: UiMessage) => {
 
       // Для auto-layout children: переключаем нужные оси с HUG на FIXED,
       // иначе resizeWithoutConstraints не имеет эффекта
-      if ("layoutSizingVertical" in node) {
-        const fn = node as FrameNode;
+      if ("layoutSizingVertical" in node && "layoutSizingHorizontal" in node) {
+        type AutoLayoutChild = SceneNode & {
+          layoutSizingVertical: "FIXED" | "HUG" | "FILL";
+          layoutSizingHorizontal: "FIXED" | "HUG" | "FILL";
+        };
+        const lNode = node as AutoLayoutChild;
         if (
           (msg.direction === "height" || msg.direction === "proportional") &&
-          fn.layoutSizingVertical === "HUG"
+          lNode.layoutSizingVertical === "HUG"
         ) {
-          fn.layoutSizingVertical = "FIXED";
+          lNode.layoutSizingVertical = "FIXED";
         }
         if (
           (msg.direction === "width" || msg.direction === "proportional") &&
-          fn.layoutSizingHorizontal === "HUG"
+          lNode.layoutSizingHorizontal === "HUG"
         ) {
-          fn.layoutSizingHorizontal = "FIXED";
+          lNode.layoutSizingHorizontal = "FIXED";
         }
       }
 
@@ -395,4 +399,4 @@ figma.ui.onmessage = (msg: UiMessage) => {
       message: "Ошибка: " + String(err),
     });
   }
-};
+});

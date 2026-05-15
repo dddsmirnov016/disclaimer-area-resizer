@@ -8,6 +8,6 @@
   },
   "devDependencies": {
     "typescript": "^5.4.5",
-    "@figma/plugin-typings": "^1.94.0"
+    "@figma/plugin-typings": "^1.124.0"
   }
 }
