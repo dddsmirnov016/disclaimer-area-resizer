@@ -1,0 +1,13 @@
+{
+  "name": "disclaimer-area-resizer",
+  "version": "1.0.0",
+  "private": true,
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "watch": "tsc -w -p tsconfig.json"
+  },
+  "devDependencies": {
+    "typescript": "^5.4.5",
+    "@figma/plugin-typings": "^1.94.0"
+  }
+}
