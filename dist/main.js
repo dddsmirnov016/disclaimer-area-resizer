@@ -164,7 +164,7 @@ function buildState() {
     };
 }
 // ─── Plugin entrypoint ─────────────────────────────────────────────────────
-figma.showUI(__html__, { width: 420, height: 630 });
+figma.showUI(__html__, { width: 432, height: 632 });
 function sendState() {
     figma.ui.postMessage(buildState());
 }
