@@ -57,24 +57,20 @@ function nodeHasAutoLayout(node) {
     return false;
 }
 function findBannerFrame(node) {
-    const ancestors = [];
+    let result = null;
     let current = node.parent;
     while (current && current.type !== "PAGE" && current.type !== "DOCUMENT") {
-        ancestors.push(current);
+        if (current.type === "FRAME" ||
+            current.type === "COMPONENT" ||
+            current.type === "INSTANCE") {
+            const f = current;
+            if (f.width > 0 && f.height > 0) {
+                result = f;
+            }
+        }
         current = current.parent;
     }
-    if (ancestors.length === 0)
-        return null;
-    const topmost = ancestors[ancestors.length - 1];
-    if (topmost.type === "FRAME" ||
-        topmost.type === "COMPONENT" ||
-        topmost.type === "INSTANCE") {
-        const f = topmost;
-        if (f.width > 0 && f.height > 0) {
-            return f;
-        }
-    }
-    return null;
+    return result;
 }
 function round2(n) {
     return Math.round(n * 100) / 100;

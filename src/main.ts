@@ -117,30 +117,24 @@ function nodeHasAutoLayout(node: SceneNode): boolean {
 function findBannerFrame(
   node: SceneNode
 ): FrameNode | ComponentNode | InstanceNode | null {
-  const ancestors: BaseNode[] = [];
+  let result: FrameNode | ComponentNode | InstanceNode | null = null;
   let current: BaseNode | null = node.parent;
 
   while (current && current.type !== "PAGE" && current.type !== "DOCUMENT") {
-    ancestors.push(current);
+    if (
+      current.type === "FRAME" ||
+      current.type === "COMPONENT" ||
+      current.type === "INSTANCE"
+    ) {
+      const f = current as FrameNode | ComponentNode | InstanceNode;
+      if (f.width > 0 && f.height > 0) {
+        result = f;
+      }
+    }
     current = current.parent;
   }
 
-  if (ancestors.length === 0) return null;
-
-  const topmost = ancestors[ancestors.length - 1];
-
-  if (
-    topmost.type === "FRAME" ||
-    topmost.type === "COMPONENT" ||
-    topmost.type === "INSTANCE"
-  ) {
-    const f = topmost as FrameNode | ComponentNode | InstanceNode;
-    if (f.width > 0 && f.height > 0) {
-      return f;
-    }
-  }
-
-  return null;
+  return result;
 }
 
 function round2(n: number): number {
