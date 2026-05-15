@@ -2,345 +2,213 @@
 <html lang="ru">
 <head>
 <meta charset="UTF-8" />
-<meta name="viewport" content="width=device-width, initial-scale=1" />
 <title>Disclaimer Area Resizer</title>
 <style>
   *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
   body {
-    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
-    font-size: 12px;
-    color: var(--figma-color-text, #1a1a1a);
-    background: var(--figma-color-bg, #ffffff);
-    padding: 12px;
-    line-height: 1.5;
-  }
-
-  h1 {
-    font-size: 13px;
-    font-weight: 600;
-    margin-bottom: 12px;
-    color: var(--figma-color-text, #1a1a1a);
-  }
-
-  .section {
-    background: var(--figma-color-bg-secondary, #f5f5f5);
-    border-radius: 6px;
-    padding: 10px 12px;
-    margin-bottom: 10px;
-  }
-
-  .section-title {
-    font-size: 10px;
-    font-weight: 600;
-    text-transform: uppercase;
-    letter-spacing: 0.5px;
-    color: var(--figma-color-text-secondary, #666);
-    margin-bottom: 6px;
-  }
-
-  .row {
+    font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+    background: #fff;
+    color: #000;
+    padding: 34px 29px 41px;
     display: flex;
-    justify-content: space-between;
-    align-items: baseline;
-    margin-bottom: 3px;
-    gap: 8px;
+    flex-direction: column;
+    width: 420px;
   }
 
-  .row-label {
-    color: var(--figma-color-text-secondary, #666);
-    flex-shrink: 0;
-  }
-
-  .row-value {
-    font-weight: 500;
-    text-align: right;
-    word-break: break-all;
-  }
-
-  .row-value.name {
-    color: var(--figma-color-text-brand, #0d99ff);
-    font-weight: 600;
-  }
-
-  .status-badge {
-    display: inline-block;
-    padding: 2px 8px;
-    border-radius: 4px;
-    font-size: 11px;
-    font-weight: 600;
-    margin-bottom: 8px;
-  }
-
-  .status-ready    { background: #e6f7ee; color: #0a7844; }
-  .status-no-sel   { background: #fff3cd; color: #856404; }
-  .status-invalid  { background: #fde8e8; color: #c0392b; }
-
-  .error-text {
-    color: var(--figma-color-text-danger, #c0392b);
-    font-size: 11px;
-    margin-top: 2px;
-  }
-
-  .warn-box {
-    font-size: 11px;
-    margin-top: 6px;
-    padding: 6px 8px;
-    background: #fffbeb;
-    border-radius: 4px;
-    border-left: 3px solid #f59e0b;
-    color: #92400e;
-    line-height: 1.4;
-  }
-
-  .form-label {
-    display: block;
-    font-size: 11px;
-    color: var(--figma-color-text-secondary, #666);
-    margin-bottom: 3px;
-    margin-top: 8px;
-  }
-
-  select, input[type="number"] {
-    width: 100%;
-    padding: 6px 8px;
-    border: 1px solid var(--figma-color-border, #e0e0e0);
-    border-radius: 4px;
-    font-size: 12px;
-    background: var(--figma-color-bg, #fff);
-    color: var(--figma-color-text, #1a1a1a);
-    outline: none;
-  }
-
-  select:focus, input[type="number"]:focus {
-    border-color: var(--figma-color-border-selected, #0d99ff);
-  }
-
-  input[type="number"]:disabled {
-    opacity: 0.4;
-    cursor: not-allowed;
-    background: var(--figma-color-bg-secondary, #f5f5f5);
-  }
-
-  .checkbox-row {
+  /* ── Monitor ─────────────────────────────────────── */
+  .monitor {
     display: flex;
-    align-items: center;
-    gap: 6px;
-    margin-top: 8px;
-    cursor: pointer;
-    user-select: none;
+    flex-direction: column;
+    gap: 20px;
+    margin-bottom: 35px;
   }
 
-  .checkbox-row input[type="checkbox"] {
-    width: 14px;
-    height: 14px;
-    margin: 0;
-    cursor: pointer;
-    flex-shrink: 0;
-  }
-
-  .checkbox-row span {
-    font-size: 12px;
-    color: var(--figma-color-text, #1a1a1a);
-  }
-
-  .preview-block {
-    background: var(--figma-color-bg-secondary, #f5f5f5);
-    border-radius: 6px;
-    padding: 10px 12px;
-    margin-top: 10px;
-    margin-bottom: 10px;
-  }
-
-  .preview-new-size {
+  .metric-label {
     font-size: 14px;
-    font-weight: 700;
-    color: var(--figma-color-text-brand, #0d99ff);
-    margin-top: 4px;
+    font-weight: 400;
+    line-height: 18px;
+    color: #000;
   }
 
-  .preview-note {
-    font-size: 11px;
-    color: var(--figma-color-text-secondary, #888);
-    font-style: italic;
-    margin-top: 3px;
+  .metric-value {
+    font-size: 56px;
+    font-weight: 900;
+    line-height: 60px;
+    color: #000;
+    word-break: break-word;
   }
 
-  .separator {
-    height: 1px;
-    background: var(--figma-color-border, #e0e0e0);
-    margin: 6px 0;
+  .metric-value.green  { color: #00a941; }
+  .metric-value.muted  { color: rgba(0, 0, 0, 0.2); }
+
+  /* ── Controls ────────────────────────────────────── */
+  .field-label {
+    display: block;
+    font-size: 14px;
+    font-weight: 400;
+    line-height: 18px;
+    color: #000;
+    margin-bottom: 11px;
+  }
+
+  .field-label.secondary {
+    color: rgba(0, 0, 0, 0.5);
+    margin-top: 16px;
+  }
+
+  .select-wrapper {
+    position: relative;
+  }
+
+  select,
+  .custom-input {
+    width: 100%;
+    padding: 19px;
+    border: 1px solid rgba(0, 0, 0, 0.3);
+    border-radius: 20px;
+    font-family: inherit;
+    font-size: 18px;
+    font-weight: 500;
+    line-height: 22px;
+    color: #000;
+    background: #fff;
+    outline: none;
+    appearance: none;
+    -webkit-appearance: none;
+  }
+
+  select {
+    padding-right: 52px;
+    cursor: pointer;
+  }
+
+  select:focus,
+  .custom-input:focus {
+    border-color: rgba(0, 0, 0, 0.6);
+  }
+
+  .select-arrow {
+    position: absolute;
+    right: 20px;
+    top: 50%;
+    transform: translateY(-50%);
+    pointer-events: none;
+    line-height: 0;
+  }
+
+  .custom-block {
+    margin-top: 12px;
+  }
+
+  /* ── Button ──────────────────────────────────────── */
+  .btn-area {
+    margin-top: 94px;
+    display: flex;
+    flex-direction: column;
+    gap: 0;
   }
 
   #applyBtn {
     display: block;
     width: 100%;
-    padding: 9px;
-    background: var(--figma-color-bg-brand, #0d99ff);
+    padding: 20px;
+    background: #0d99ff;
     color: #fff;
     border: none;
-    border-radius: 6px;
-    font-size: 13px;
-    font-weight: 600;
+    border-radius: 20px;
+    font-family: inherit;
+    font-size: 18px;
+    font-weight: 500;
+    line-height: 22px;
+    text-align: center;
     cursor: pointer;
-    transition: background 0.15s;
-    margin-top: 10px;
+    transition: background 0.12s;
   }
 
-  #applyBtn:hover:not(:disabled) { background: #0080d9; }
+  #applyBtn:hover:not(:disabled) { background: #0088e8; }
+  #applyBtn:active:not(:disabled) { background: #006ec4; }
 
   #applyBtn:disabled {
-    background: var(--figma-color-bg-disabled, #b0b0b0);
+    background: rgba(13, 153, 255, 0.35);
     cursor: not-allowed;
   }
 
-  .result-msg {
-    margin-top: 8px;
-    padding: 7px 10px;
-    border-radius: 4px;
-    font-size: 11px;
-    font-weight: 500;
+  /* ── Feedback ────────────────────────────────────── */
+  .feedback {
+    font-size: 14px;
+    font-weight: 400;
+    line-height: 18px;
+    margin-top: 14px;
   }
 
-  .result-success { background: #e6f7ee; color: #0a7844; }
-  .result-error   { background: #fde8e8; color: #c0392b; }
-
-  .legal-note {
-    font-size: 10px;
-    color: var(--figma-color-text-secondary, #888);
-    margin-top: 10px;
-    padding: 6px 8px;
-    border-radius: 4px;
-    background: var(--figma-color-bg-secondary, #f5f5f5);
-    line-height: 1.4;
-  }
+  .feedback.error   { color: #d0021b; }
+  .feedback.success { color: #00a941; }
 </style>
 </head>
 <body>
 
-<h1>Disclaimer Area Resizer</h1>
-
-<!-- Selection status -->
-<div class="section">
-  <div class="section-title">Выбранный слой</div>
-  <span id="statusBadge" class="status-badge status-no-sel">Нет выбора</span>
-  <div id="errorLine" class="error-text" style="display:none"></div>
-
-  <div id="infoBlock" style="display:none">
-    <div class="row">
-      <span class="row-label">Disclaimer:</span>
-      <span class="row-value name" id="infoDisclaimerName"></span>
-    </div>
-    <div class="row">
-      <span class="row-label">Размер:</span>
-      <span class="row-value" id="infoDisclaimerSize"></span>
-    </div>
-    <div class="separator"></div>
-    <div class="row">
-      <span class="row-label">Баннер:</span>
-      <span class="row-value name" id="infoBannerName"></span>
-    </div>
-    <div class="row">
-      <span class="row-label">Размер баннера:</span>
-      <span class="row-value" id="infoBannerSize"></span>
-    </div>
-    <div class="separator"></div>
-    <div class="row">
-      <span class="row-label">Текущий %:</span>
-      <span class="row-value" id="infoCurrentPercent"></span>
-    </div>
-    <div id="textWarn" class="warn-box" style="display:none">
-      ⚠ Выбран текстовый слой. Площадь считается по bounding box.
-      Для юридически точной проверки рекомендуется выделять frame вокруг текста дисклеймера.
-    </div>
-    <div id="autoLayoutWarn" class="warn-box" style="display:none">
-      ⚠ У слоя или родителя может быть auto layout. Figma может повести себя иначе из-за layout constraints.
-    </div>
+<!-- Info -->
+<div class="monitor">
+  <div>
+    <div class="metric-label">Баннер</div>
+    <div class="metric-value muted" id="bannerVal">—</div>
+  </div>
+  <div>
+    <div class="metric-label">Дисклеймер</div>
+    <div class="metric-value muted" id="disclaimerVal">—</div>
+  </div>
+  <div>
+    <div class="metric-label">Текущий процент</div>
+    <div class="metric-value green muted" id="percentVal">—</div>
   </div>
 </div>
 
 <!-- Controls -->
-<div id="controlsBlock">
-  <label class="form-label" for="presetSelect">Тип дисклеймера</label>
-  <select id="presetSelect"></select>
-
-  <div id="customPercentRow" style="display:none">
-    <label class="form-label" for="customPercent">Кастомный процент (%)</label>
-    <input type="number" id="customPercent" min="0.01" max="100" step="0.01"
-           placeholder="например, 7.5" disabled />
-  </div>
-
-  <label class="form-label" for="directionSelect">Направление изменения размера</label>
-  <select id="directionSelect">
-    <option value="height">По высоте (только высота)</option>
-    <option value="width">По ширине (только ширина)</option>
-    <option value="proportional">Пропорционально</option>
-  </select>
-
-  <label class="checkbox-row" for="onlyEnlargeCheck">
-    <input type="checkbox" id="onlyEnlargeCheck" checked />
-    <span>Только увеличивать, не уменьшать</span>
-  </label>
-</div>
-
-<!-- Preview -->
-<div class="preview-block" id="previewBlock" style="display:none">
-  <div class="section-title">Предпросмотр</div>
-  <div class="row">
-    <span class="row-label">Целевой %:</span>
-    <span class="row-value" id="previewTargetPct"></span>
-  </div>
-  <div class="row">
-    <span class="row-label">Новые размеры:</span>
-    <div>
-      <div class="preview-new-size" id="previewNewSize"></div>
-      <div class="preview-note" id="previewNote" style="display:none"></div>
+<div>
+  <label class="field-label" for="presetSelect">Тип дисклеймера</label>
+  <div class="select-wrapper">
+    <select id="presetSelect"></select>
+    <div class="select-arrow">
+      <svg width="14" height="9" viewBox="0 0 14 9" fill="none">
+        <path d="M1 1L7 7L13 1" stroke="#000" stroke-width="2"
+              stroke-linecap="round" stroke-linejoin="round"/>
+      </svg>
     </div>
   </div>
+
+  <div id="customBlock" class="custom-block" style="display:none">
+    <label class="field-label secondary" for="customInput">Процент (%)</label>
+    <input type="number" id="customInput" class="custom-input"
+           min="0.01" max="100" step="0.01" placeholder="например, 7.5" />
+  </div>
 </div>
 
-<button id="applyBtn" disabled>Применить</button>
-<div id="resultMsg" style="display:none"></div>
-
-<div class="legal-note">
-  Плагин считает геометрию макета и не является юридическим заключением.
-  Проценты можно изменить в конфиге <code>DISCLAIMER_PRESETS</code> в <code>src/main.ts</code>
-  под требования юриста/клиента.
+<!-- Button + feedback -->
+<div class="btn-area">
+  <button id="applyBtn" disabled>Применить</button>
+  <div id="feedback" class="feedback" style="display:none"></div>
 </div>
 
 <script>
 (function () {
-  // ── State ──────────────────────────────────────────────────────────────
-  var state = null;
+  var WINDOW_W   = 420;
+  var HEIGHT_BASE = 630;
+  var HEIGHT_CUSTOM = 730;
+
+  var state   = null;
   var presets = {};
 
-  // ── DOM ────────────────────────────────────────────────────────────────
-  var statusBadge       = document.getElementById('statusBadge');
-  var errorLine         = document.getElementById('errorLine');
-  var infoBlock         = document.getElementById('infoBlock');
-  var infoDisclaimerName= document.getElementById('infoDisclaimerName');
-  var infoDisclaimerSize= document.getElementById('infoDisclaimerSize');
-  var infoBannerName    = document.getElementById('infoBannerName');
-  var infoBannerSize    = document.getElementById('infoBannerSize');
-  var infoCurrentPct    = document.getElementById('infoCurrentPercent');
-  var textWarn          = document.getElementById('textWarn');
-  var autoLayoutWarn    = document.getElementById('autoLayoutWarn');
+  var bannerVal    = document.getElementById('bannerVal');
+  var disclaimerVal= document.getElementById('disclaimerVal');
+  var percentVal   = document.getElementById('percentVal');
+  var presetSelect = document.getElementById('presetSelect');
+  var customBlock  = document.getElementById('customBlock');
+  var customInput  = document.getElementById('customInput');
+  var applyBtn     = document.getElementById('applyBtn');
+  var feedbackEl   = document.getElementById('feedback');
 
-  var presetSelect      = document.getElementById('presetSelect');
-  var customPercentRow  = document.getElementById('customPercentRow');
-  var customPercentInput= document.getElementById('customPercent');
-  var directionSelect   = document.getElementById('directionSelect');
-  var onlyEnlargeCheck  = document.getElementById('onlyEnlargeCheck');
-
-  var previewBlock      = document.getElementById('previewBlock');
-  var previewTargetPct  = document.getElementById('previewTargetPct');
-  var previewNewSize    = document.getElementById('previewNewSize');
-  var previewNote       = document.getElementById('previewNote');
-
-  var applyBtn          = document.getElementById('applyBtn');
-  var resultMsg         = document.getElementById('resultMsg');
-
-  // ── Populate preset <select> ───────────────────────────────────────────
+  /* ── Presets ── */
   function populatePresets(data) {
     presets = data;
     presetSelect.innerHTML = '';
@@ -350,178 +218,113 @@
       opt.textContent = data[key].label;
       presetSelect.appendChild(opt);
     });
-    syncCustomRow();
-    updatePreview();
+    syncCustomBlock();
   }
 
-  // ── Render plugin state ────────────────────────────────────────────────
+  function syncCustomBlock() {
+    var isCustom = presetSelect.value === 'custom';
+    customBlock.style.display = isCustom ? '' : 'none';
+    if (!isCustom) customInput.value = '';
+    sendResize(isCustom ? HEIGHT_CUSTOM : HEIGHT_BASE);
+  }
+
+  function sendResize(h) {
+    parent.postMessage({ pluginMessage: { type: 'resize', width: WINDOW_W, height: h } }, '*');
+  }
+
+  /* ── Metrics ── */
+  function setMetric(el, text, empty) {
+    el.textContent = text;
+    empty ? el.classList.add('muted') : el.classList.remove('muted');
+  }
+
+  /* ── Feedback ── */
+  function showFeedback(type, text) {
+    feedbackEl.className = 'feedback ' + type;
+    feedbackEl.textContent = text;
+    feedbackEl.style.display = '';
+  }
+
+  function hideFeedback() {
+    feedbackEl.style.display = 'none';
+  }
+
+  /* ── Render state ── */
   function renderState(msg) {
     state = msg;
-    // Не скрываем resultMsg здесь — он живёт до следующего пользовательского действия
 
     if (msg.presets && Object.keys(presets).length === 0) {
       populatePresets(msg.presets);
     }
 
     if (msg.type === 'no-selection') {
-      statusBadge.textContent = 'Нет выбора';
-      statusBadge.className = 'status-badge status-no-sel';
-      hide(errorLine);
-      hide(infoBlock);
+      setMetric(bannerVal, '—', true);
+      setMetric(disclaimerVal, '—', true);
+      setMetric(percentVal, '—', true);
       applyBtn.disabled = true;
-      hide(previewBlock);
+      hideFeedback();
       return;
     }
 
     if (msg.type === 'invalid') {
-      statusBadge.textContent = 'Ошибка';
-      statusBadge.className = 'status-badge status-invalid';
-      errorLine.textContent = msg.error || 'Неверный выбор';
-      show(errorLine);
-      hide(infoBlock);
+      setMetric(bannerVal, '—', true);
+      setMetric(disclaimerVal, '—', true);
+      setMetric(percentVal, '—', true);
       applyBtn.disabled = true;
-      hide(previewBlock);
+      showFeedback('error', msg.error || 'Неверный выбор');
       return;
     }
 
-    // ready
-    var info = msg.info;
-    statusBadge.textContent = 'Готово';
-    statusBadge.className = 'status-badge status-ready';
-    hide(errorLine);
-    show(infoBlock);
-
-    infoDisclaimerName.textContent = info.disclaimerName;
-    infoDisclaimerSize.textContent = info.disclaimerWidth + ' × ' + info.disclaimerHeight + ' px';
-    infoBannerName.textContent = info.bannerName;
-    infoBannerSize.textContent = info.bannerWidth + ' × ' + info.bannerHeight + ' px';
-    infoCurrentPct.textContent = info.currentPercent + '%';
-
-    setDisplay(textWarn, info.isText);
-    setDisplay(autoLayoutWarn, info.hasAutoLayout);
-
+    var i = msg.info;
+    setMetric(bannerVal,     i.bannerWidth     + ' × ' + i.bannerHeight,     false);
+    setMetric(disclaimerVal, i.disclaimerWidth + ' × ' + i.disclaimerHeight, false);
+    setMetric(percentVal,    i.currentPercent  + '%',                        false);
     applyBtn.disabled = false;
-    updatePreview();
+    hideFeedback();
   }
 
-  // ── Preview calc ───────────────────────────────────────────────────────
-  function getTargetPercent() {
-    var key = presetSelect.value;
-    if (!key || !presets[key]) return null;
-    if (key === 'custom') {
-      var v = parseFloat(customPercentInput.value);
-      return (!isNaN(v) && v > 0 && v <= 100) ? v : null;
-    }
-    return presets[key].percent;
-  }
-
-  function calcPreview(sW, sH, bW, bH, tPct, dir) {
-    var bannerArea = bW * bH;
-    var targetArea = bannerArea * tPct / 100;
-    var MIN = 0.01;
-    if (dir === 'height') {
-      return { w: sW, h: Math.max(MIN, targetArea / sW) };
-    } else if (dir === 'width') {
-      return { w: Math.max(MIN, targetArea / sH), h: sH };
-    } else {
-      var scale = Math.sqrt(targetArea / (sW * sH));
-      return { w: Math.max(MIN, sW * scale), h: Math.max(MIN, sH * scale) };
-    }
-  }
-
-  function r2(n) { return Math.round(n * 100) / 100; }
-
-  function updatePreview() {
-    if (!state || state.type !== 'ready') { hide(previewBlock); return; }
-    var tPct = getTargetPercent();
-    if (tPct === null) { hide(previewBlock); return; }
-
-    show(previewBlock);
-    previewTargetPct.textContent = tPct + '%';
-
-    var info = state.info;
-    var onlyEnlarge = onlyEnlargeCheck.checked;
-
-    if (onlyEnlarge && info.currentPercent >= tPct) {
-      previewNewSize.textContent = 'Без изменений';
-      previewNote.textContent = 'Текущий ' + info.currentPercent + '% ≥ целевого ' + tPct + '%';
-      show(previewNote);
-      return;
-    }
-
-    hide(previewNote);
-    var res = calcPreview(info.disclaimerWidth, info.disclaimerHeight,
-                          info.bannerWidth, info.bannerHeight,
-                          tPct, directionSelect.value);
-    previewNewSize.textContent = r2(res.w) + ' × ' + r2(res.h) + ' px';
-  }
-
-  // ── Custom percent row visibility ──────────────────────────────────────
-  function syncCustomRow() {
-    var isCustom = presetSelect.value === 'custom';
-    setDisplay(customPercentRow, isCustom);
-    customPercentInput.disabled = !isCustom;
-    if (!isCustom) customPercentInput.value = '';
-  }
-
-  // ── Result message ─────────────────────────────────────────────────────
-  function showResult(cls, text) {
-    resultMsg.className = 'result-msg ' + cls;
-    resultMsg.textContent = text;
-    show(resultMsg);
-  }
-
-  function hideResult() {
-    hide(resultMsg);
-    resultMsg.className = 'result-msg';
-  }
-
-  // ── DOM helpers ────────────────────────────────────────────────────────
-  function show(el)         { el.style.display = ''; }
-  function hide(el)         { el.style.display = 'none'; }
-  function setDisplay(el,v) { el.style.display = v ? '' : 'none'; }
-
-  // ── Events ─────────────────────────────────────────────────────────────
+  /* ── Events ── */
   presetSelect.addEventListener('change', function () {
-    syncCustomRow(); updatePreview(); hideResult();
+    syncCustomBlock();
+    hideFeedback();
   });
-  customPercentInput.addEventListener('input', function () {
-    updatePreview(); hideResult();
-  });
-  directionSelect.addEventListener('change', function () {
-    updatePreview(); hideResult();
-  });
-  onlyEnlargeCheck.addEventListener('change', function () {
-    updatePreview(); hideResult();
-  });
+
+  customInput.addEventListener('input', hideFeedback);
 
   applyBtn.addEventListener('click', function () {
     if (!state || state.type !== 'ready') return;
-    var tPct = getTargetPercent();
-    if (tPct === null) { showResult('result-error', 'Укажите корректный процент'); return; }
 
-    parent.postMessage({ pluginMessage: {
-      type: 'apply-resize',
-      presetKey: presetSelect.value,
-      customPercent: presetSelect.value === 'custom'
-        ? parseFloat(customPercentInput.value)
-        : null,
-      direction: directionSelect.value,
-      onlyEnlarge: onlyEnlargeCheck.checked
-    }}, '*');
+    var key = presetSelect.value;
+    var customPct = null;
 
-    hideResult();
+    if (key === 'custom') {
+      var v = parseFloat(customInput.value);
+      if (isNaN(v) || v <= 0 || v > 100) {
+        showFeedback('error', 'Укажите корректный процент (0–100)');
+        return;
+      }
+      customPct = v;
+    }
+
     applyBtn.disabled = true;
     applyBtn.textContent = 'Применяю…';
+    hideFeedback();
+
+    parent.postMessage({ pluginMessage: {
+      type:          'apply-resize',
+      presetKey:     key,
+      customPercent: customPct,
+      direction:     'height',
+      onlyEnlarge:   false
+    }}, '*');
   });
 
-  // ── Messages from plugin ───────────────────────────────────────────────
-  window.onmessage = function (event) {
-    var msg = event.data && event.data.pluginMessage;
+  /* ── Messages from plugin ── */
+  window.onmessage = function (evt) {
+    var msg = evt.data && evt.data.pluginMessage;
     if (!msg) return;
 
     if (msg.type === 'no-selection' || msg.type === 'invalid' || msg.type === 'ready') {
-      // Кнопку восстанавливаем только при обновлении state
       applyBtn.textContent = 'Применить';
       if (msg.type === 'ready') applyBtn.disabled = false;
       renderState(msg);
@@ -530,18 +333,17 @@
     if (msg.type === 'success') {
       applyBtn.textContent = 'Применить';
       applyBtn.disabled = false;
-      showResult('result-success', msg.message);
+      showFeedback('success', msg.message);
       return;
     }
     if (msg.type === 'error') {
       applyBtn.textContent = 'Применить';
       applyBtn.disabled = false;
-      showResult('result-error', msg.message);
+      showFeedback('error', msg.message);
       return;
     }
   };
 
-  // ── Initial request ────────────────────────────────────────────────────
   parent.postMessage({ pluginMessage: { type: 'request-state' } }, '*');
 }());
 </script>

@@ -164,7 +164,7 @@ function buildState() {
     };
 }
 // ─── Plugin entrypoint ─────────────────────────────────────────────────────
-figma.showUI(__html__, { width: 420, height: 580, themeColors: true });
+figma.showUI(__html__, { width: 420, height: 630 });
 function sendState() {
     figma.ui.postMessage(buildState());
 }
@@ -176,6 +176,10 @@ figma.ui.on("message", (msg) => {
     try {
         if (msg.type === "request-state") {
             sendState();
+            return;
+        }
+        if (msg.type === "resize") {
+            figma.ui.resize(msg.width, msg.height);
             return;
         }
         if (msg.type === "apply-resize") {

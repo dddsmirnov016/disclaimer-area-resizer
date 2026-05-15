@@ -77,7 +77,13 @@ interface RequestStateMessage {
   type: "request-state";
 }
 
-type UiMessage = ApplyResizeMessage | RequestStateMessage;
+interface ResizeMessage {
+  type: "resize";
+  width: number;
+  height: number;
+}
+
+type UiMessage = ApplyResizeMessage | RequestStateMessage | ResizeMessage;
 
 // ─── Helpers ───────────────────────────────────────────────────────────────
 
@@ -250,7 +256,7 @@ function buildState(): PluginState {
 
 // ─── Plugin entrypoint ─────────────────────────────────────────────────────
 
-figma.showUI(__html__, { width: 420, height: 580, themeColors: true });
+figma.showUI(__html__, { width: 420, height: 630 });
 
 function sendState(): void {
   figma.ui.postMessage(buildState());
@@ -266,6 +272,11 @@ figma.ui.on("message", (msg: UiMessage) => {
   try {
     if (msg.type === "request-state") {
       sendState();
+      return;
+    }
+
+    if (msg.type === "resize") {
+      figma.ui.resize(msg.width, msg.height);
       return;
     }
 
