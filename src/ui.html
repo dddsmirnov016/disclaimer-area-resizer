@@ -40,6 +40,7 @@
   }
 
   .metric-value.green  { color: #00a941; }
+  .metric-value.red    { color: #d0021b; }
   .metric-value.muted  { color: rgba(0, 0, 0, 0.2); }
 
   /* ── Controls ────────────────────────────────────── */
@@ -238,6 +239,33 @@
     empty ? el.classList.add('muted') : el.classList.remove('muted');
   }
 
+  function getTargetPercent() {
+    var key = presetSelect.value;
+    if (!key || !presets[key]) return null;
+    if (key === 'custom') {
+      var v = parseFloat(customInput.value);
+      return (!isNaN(v) && v > 0 && v <= 100) ? v : null;
+    }
+    return presets[key].percent;
+  }
+
+  function updatePercentColor() {
+    percentVal.classList.remove('green', 'red');
+    if (!state || state.type !== 'ready') return;
+
+    var target = getTargetPercent();
+    if (target === null) {
+      percentVal.classList.add('green');
+      return;
+    }
+
+    if (state.info.currentPercent < target) {
+      percentVal.classList.add('red');
+    } else {
+      percentVal.classList.add('green');
+    }
+  }
+
   /* ── Feedback ── */
   function showFeedback(type, text) {
     feedbackEl.className = 'feedback ' + type;
@@ -261,6 +289,7 @@
       setMetric(bannerVal, '—', true);
       setMetric(disclaimerVal, '—', true);
       setMetric(percentVal, '—', true);
+      percentVal.classList.remove('green', 'red');
       applyBtn.disabled = true;
       hideFeedback();
       return;
@@ -270,6 +299,7 @@
       setMetric(bannerVal, '—', true);
       setMetric(disclaimerVal, '—', true);
       setMetric(percentVal, '—', true);
+      percentVal.classList.remove('green', 'red');
       applyBtn.disabled = true;
       showFeedback('error', msg.error || 'Неверный выбор');
       return;
@@ -279,6 +309,7 @@
     setMetric(bannerVal,     i.bannerWidth     + ' × ' + i.bannerHeight,     false);
     setMetric(disclaimerVal, i.disclaimerWidth + ' × ' + i.disclaimerHeight, false);
     setMetric(percentVal,    i.currentPercent  + '%',                        false);
+    updatePercentColor();
     applyBtn.disabled = false;
     hideFeedback();
   }
@@ -286,10 +317,14 @@
   /* ── Events ── */
   presetSelect.addEventListener('change', function () {
     syncCustomBlock();
+    updatePercentColor();
     hideFeedback();
   });
 
-  customInput.addEventListener('input', hideFeedback);
+  customInput.addEventListener('input', function () {
+    updatePercentColor();
+    hideFeedback();
+  });
 
   applyBtn.addEventListener('click', function () {
     if (!state || state.type !== 'ready') return;
