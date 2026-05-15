@@ -31,17 +31,42 @@
     color: #000;
   }
 
+  .metric-size {
+    display: flex;
+    align-items: baseline;
+    gap: 4px;
+    white-space: nowrap;
+  }
+
+  .size-num {
+    font-size: 56px;
+    font-weight: 900;
+    line-height: 60px;
+    color: #000;
+  }
+
+  .size-x {
+    font-size: 40px;
+    font-weight: 900;
+    line-height: 44px;
+    color: #000;
+  }
+
+  .metric-size.muted .size-num,
+  .metric-size.muted .size-x {
+    color: rgba(0, 0, 0, 0.2);
+  }
+
   .metric-value {
     font-size: 56px;
     font-weight: 900;
     line-height: 60px;
     color: #000;
-    word-break: break-word;
   }
 
-  .metric-value.green  { color: #00a941; }
-  .metric-value.red    { color: #d0021b; }
-  .metric-value.muted  { color: rgba(0, 0, 0, 0.2); }
+  .metric-value.green { color: #00a941; }
+  .metric-value.red   { color: #ff0000; }
+  .metric-value.muted { color: rgba(0, 0, 0, 0.2); }
 
   /* ── Controls ────────────────────────────────────── */
   .field-label {
@@ -102,12 +127,29 @@
     margin-top: 12px;
   }
 
-  /* ── Button ──────────────────────────────────────── */
+  /* ── Button area ─────────────────────────────────── */
   .btn-area {
     margin-top: 94px;
     display: flex;
     flex-direction: column;
-    gap: 0;
+    gap: 10px;
+    align-items: stretch;
+  }
+
+  .error-box {
+    display: none;
+    padding: 16px;
+    border-radius: 20px;
+    background: rgba(255, 0, 0, 0.1);
+    font-size: 14px;
+    font-weight: 400;
+    line-height: 18px;
+    color: #ff0000;
+    word-break: break-word;
+  }
+
+  .error-box.visible {
+    display: block;
   }
 
   #applyBtn {
@@ -135,29 +177,33 @@
     cursor: not-allowed;
   }
 
-  /* ── Feedback ────────────────────────────────────── */
-  .feedback {
+  .feedback-success {
     font-size: 14px;
     font-weight: 400;
     line-height: 18px;
-    margin-top: 14px;
+    color: #00a941;
+    word-break: break-word;
   }
-
-  .feedback.error   { color: #d0021b; }
-  .feedback.success { color: #00a941; }
 </style>
 </head>
 <body>
 
-<!-- Info -->
 <div class="monitor">
   <div>
     <div class="metric-label">Баннер</div>
-    <div class="metric-value muted" id="bannerVal">—</div>
+    <div class="metric-size muted" id="bannerVal">
+      <span class="size-num" data-part="w">—</span>
+      <span class="size-x">×</span>
+      <span class="size-num" data-part="h">—</span>
+    </div>
   </div>
   <div>
     <div class="metric-label">Дисклеймер</div>
-    <div class="metric-value muted" id="disclaimerVal">—</div>
+    <div class="metric-size muted" id="disclaimerVal">
+      <span class="size-num" data-part="w">—</span>
+      <span class="size-x">×</span>
+      <span class="size-num" data-part="h">—</span>
+    </div>
   </div>
   <div>
     <div class="metric-label">Текущий процент</div>
@@ -165,7 +211,6 @@
   </div>
 </div>
 
-<!-- Controls -->
 <div>
   <label class="field-label" for="presetSelect">Тип дисклеймера</label>
   <div class="select-wrapper">
@@ -181,35 +226,75 @@
   <div id="customBlock" class="custom-block" style="display:none">
     <label class="field-label secondary" for="customInput">Процент (%)</label>
     <input type="number" id="customInput" class="custom-input"
-           min="0.01" max="100" step="0.01" placeholder="например, 7.5" />
+           min="0.01" max="100" step="0.01" placeholder="например, 7,5" />
   </div>
 </div>
 
-<!-- Button + feedback -->
 <div class="btn-area">
+  <div id="errorBox" class="error-box"></div>
   <button id="applyBtn" disabled>Применить</button>
-  <div id="feedback" class="feedback" style="display:none"></div>
+  <div id="successMsg" class="feedback-success" style="display:none"></div>
 </div>
 
 <script>
 (function () {
-  var WINDOW_W   = 420;
+  var WINDOW_W = 420;
   var HEIGHT_BASE = 630;
   var HEIGHT_CUSTOM = 730;
+  var HEIGHT_ERROR = 700;
 
-  var state   = null;
+  var state = null;
   var presets = {};
 
-  var bannerVal    = document.getElementById('bannerVal');
-  var disclaimerVal= document.getElementById('disclaimerVal');
-  var percentVal   = document.getElementById('percentVal');
+  var bannerVal = document.getElementById('bannerVal');
+  var disclaimerVal = document.getElementById('disclaimerVal');
+  var percentVal = document.getElementById('percentVal');
   var presetSelect = document.getElementById('presetSelect');
-  var customBlock  = document.getElementById('customBlock');
-  var customInput  = document.getElementById('customInput');
-  var applyBtn     = document.getElementById('applyBtn');
-  var feedbackEl   = document.getElementById('feedback');
+  var customBlock = document.getElementById('customBlock');
+  var customInput = document.getElementById('customInput');
+  var applyBtn = document.getElementById('applyBtn');
+  var errorBox = document.getElementById('errorBox');
+  var successMsg = document.getElementById('successMsg');
 
-  /* ── Presets ── */
+  function formatRuNumber(n) {
+    if (n === null || n === undefined || isNaN(n)) return '—';
+    var rounded = Math.round(n * 100) / 100;
+    var intPart = Math.floor(Math.abs(rounded));
+    var dec = Math.round((Math.abs(rounded) - intPart) * 100);
+
+    var intStr = String(intPart);
+    if (intStr.length > 3) {
+      intStr = intStr.replace(/\B(?=(\d{3})+(?!\d))/g, '\u00a0');
+    }
+
+    if (dec === 0) return (rounded < 0 ? '−' : '') + intStr;
+
+    var decStr = String(dec);
+    if (decStr.length === 1) decStr = decStr + '0';
+    if (decStr.endsWith('0')) decStr = decStr.slice(0, -1);
+
+    return (rounded < 0 ? '−' : '') + intStr + ',' + decStr;
+  }
+
+  function formatRuPercent(n) {
+    if (n === null || n === undefined || isNaN(n)) return '—';
+    return formatRuNumber(n) + '%';
+  }
+
+  function setSizeMetric(el, w, h, empty) {
+    var wEl = el.querySelector('[data-part="w"]');
+    var hEl = el.querySelector('[data-part="h"]');
+    if (empty) {
+      wEl.textContent = '—';
+      hEl.textContent = '—';
+      el.classList.add('muted');
+    } else {
+      wEl.textContent = formatRuNumber(w);
+      hEl.textContent = formatRuNumber(h);
+      el.classList.remove('muted');
+    }
+  }
+
   function populatePresets(data) {
     presets = data;
     presetSelect.innerHTML = '';
@@ -226,24 +311,25 @@
     var isCustom = presetSelect.value === 'custom';
     customBlock.style.display = isCustom ? '' : 'none';
     if (!isCustom) customInput.value = '';
-    sendResize(isCustom ? HEIGHT_CUSTOM : HEIGHT_BASE);
+    updateWindowHeight();
+  }
+
+  function updateWindowHeight() {
+    var h = HEIGHT_BASE;
+    if (presetSelect.value === 'custom') h = HEIGHT_CUSTOM;
+    if (errorBox.classList.contains('visible')) h = Math.max(h, HEIGHT_ERROR);
+    sendResize(h);
   }
 
   function sendResize(h) {
     parent.postMessage({ pluginMessage: { type: 'resize', width: WINDOW_W, height: h } }, '*');
   }
 
-  /* ── Metrics ── */
-  function setMetric(el, text, empty) {
-    el.textContent = text;
-    empty ? el.classList.add('muted') : el.classList.remove('muted');
-  }
-
   function getTargetPercent() {
     var key = presetSelect.value;
     if (!key || !presets[key]) return null;
     if (key === 'custom') {
-      var v = parseFloat(customInput.value);
+      var v = parseFloat(customInput.value.replace(',', '.'));
       return (!isNaN(v) && v > 0 && v <= 100) ? v : null;
     }
     return presets[key].percent;
@@ -266,18 +352,30 @@
     }
   }
 
-  /* ── Feedback ── */
-  function showFeedback(type, text) {
-    feedbackEl.className = 'feedback ' + type;
-    feedbackEl.textContent = text;
-    feedbackEl.style.display = '';
+  function showError(text) {
+    errorBox.textContent = text;
+    errorBox.classList.add('visible');
+    hideSuccess();
+    updateWindowHeight();
   }
 
-  function hideFeedback() {
-    feedbackEl.style.display = 'none';
+  function hideError() {
+    errorBox.classList.remove('visible');
+    errorBox.textContent = '';
+    updateWindowHeight();
   }
 
-  /* ── Render state ── */
+  function showSuccess(text) {
+    successMsg.textContent = text;
+    successMsg.style.display = '';
+    hideError();
+  }
+
+  function hideSuccess() {
+    successMsg.style.display = 'none';
+    successMsg.textContent = '';
+  }
+
   function renderState(msg) {
     state = msg;
 
@@ -286,44 +384,50 @@
     }
 
     if (msg.type === 'no-selection') {
-      setMetric(bannerVal, '—', true);
-      setMetric(disclaimerVal, '—', true);
-      setMetric(percentVal, '—', true);
+      setSizeMetric(bannerVal, null, null, true);
+      setSizeMetric(disclaimerVal, null, null, true);
+      percentVal.textContent = '—';
+      percentVal.classList.add('muted');
       percentVal.classList.remove('green', 'red');
       applyBtn.disabled = true;
-      hideFeedback();
+      hideError();
+      hideSuccess();
       return;
     }
 
     if (msg.type === 'invalid') {
-      setMetric(bannerVal, '—', true);
-      setMetric(disclaimerVal, '—', true);
-      setMetric(percentVal, '—', true);
+      setSizeMetric(bannerVal, null, null, true);
+      setSizeMetric(disclaimerVal, null, null, true);
+      percentVal.textContent = '—';
+      percentVal.classList.add('muted');
       percentVal.classList.remove('green', 'red');
       applyBtn.disabled = true;
-      showFeedback('error', msg.error || 'Неверный выбор');
+      showError(msg.error || 'Неверный выбор');
       return;
     }
 
     var i = msg.info;
-    setMetric(bannerVal,     i.bannerWidth     + ' × ' + i.bannerHeight,     false);
-    setMetric(disclaimerVal, i.disclaimerWidth + ' × ' + i.disclaimerHeight, false);
-    setMetric(percentVal,    i.currentPercent  + '%',                        false);
+    setSizeMetric(bannerVal, i.bannerWidth, i.bannerHeight, false);
+    setSizeMetric(disclaimerVal, i.disclaimerWidth, i.disclaimerHeight, false);
+    percentVal.textContent = formatRuPercent(i.currentPercent);
+    percentVal.classList.remove('muted');
     updatePercentColor();
     applyBtn.disabled = false;
-    hideFeedback();
+    hideError();
+    hideSuccess();
   }
 
-  /* ── Events ── */
   presetSelect.addEventListener('change', function () {
     syncCustomBlock();
     updatePercentColor();
-    hideFeedback();
+    hideError();
+    hideSuccess();
   });
 
   customInput.addEventListener('input', function () {
     updatePercentColor();
-    hideFeedback();
+    hideError();
+    hideSuccess();
   });
 
   applyBtn.addEventListener('click', function () {
@@ -333,9 +437,9 @@
     var customPct = null;
 
     if (key === 'custom') {
-      var v = parseFloat(customInput.value);
+      var v = parseFloat(customInput.value.replace(',', '.'));
       if (isNaN(v) || v <= 0 || v > 100) {
-        showFeedback('error', 'Укажите корректный процент (0–100)');
+        showError('Укажите корректный процент (0–100)');
         return;
       }
       customPct = v;
@@ -343,18 +447,18 @@
 
     applyBtn.disabled = true;
     applyBtn.textContent = 'Применяю…';
-    hideFeedback();
+    hideError();
+    hideSuccess();
 
     parent.postMessage({ pluginMessage: {
-      type:          'apply-resize',
-      presetKey:     key,
+      type: 'apply-resize',
+      presetKey: key,
       customPercent: customPct,
-      direction:     'height',
-      onlyEnlarge:   false
+      direction: 'height',
+      onlyEnlarge: false
     }}, '*');
   });
 
-  /* ── Messages from plugin ── */
   window.onmessage = function (evt) {
     var msg = evt.data && evt.data.pluginMessage;
     if (!msg) return;
@@ -368,13 +472,13 @@
     if (msg.type === 'success') {
       applyBtn.textContent = 'Применить';
       applyBtn.disabled = false;
-      showFeedback('success', msg.message);
+      showSuccess(msg.message);
       return;
     }
     if (msg.type === 'error') {
       applyBtn.textContent = 'Применить';
       applyBtn.disabled = false;
-      showFeedback('error', msg.message);
+      showError(msg.message);
       return;
     }
   };
