@@ -119,11 +119,18 @@ type ResizableNode = SceneNode & {
   height: number;
   resizeWithoutConstraints: (w: number, h: number) => void;
 };
+type NodeWithSize = SceneNode & { width: number; height: number };
 type NodeWithChildren = BaseNode & { children: readonly SceneNode[] };
 type NodeWithMutableChildren = NodeWithChildren & {
   appendChild: (child: SceneNode) => void;
   insertChild: (index: number, child: SceneNode) => void;
 };
+interface Bounds {
+  x: number;
+  y: number;
+  width: number;
+  height: number;
+}
 
 function isResizable(node: SceneNode): node is ResizableNode {
   return (
@@ -305,12 +312,6 @@ function isLikelyBodyName(node: BaseNode): boolean {
   );
 }
 
-function isLikelyImageName(node: BaseNode): boolean {
-  return /image|img|photo|picture|visual|media|картин|фото|визуал|изображ/.test(
-    normalizedName(node)
-  );
-}
-
 function hasImageFill(node: SceneNode): boolean {
   if (!("fills" in node)) return false;
   const fills = (node as { fills: readonly Paint[] | PluginAPI["mixed"] })
@@ -318,16 +319,60 @@ function hasImageFill(node: SceneNode): boolean {
   return Array.isArray(fills) && fills.some((paint) => paint.type === "IMAGE");
 }
 
-function containsImageFill(node: BaseNode): boolean {
-  if (node.type !== "PAGE" && node.type !== "DOCUMENT" && hasImageFill(node as SceneNode)) {
-    return true;
+function isVisibleInHierarchy(node: SceneNode, root: BaseNode): boolean {
+  let current: BaseNode | null = node;
+
+  while (current) {
+    if ("visible" in current && !(current as SceneNode).visible) {
+      return false;
+    }
+    if (current === root) {
+      return true;
+    }
+    current = current.parent;
   }
 
-  let result = false;
-  visitDescendants(node, (child) => {
-    if (hasImageFill(child)) result = true;
-  });
-  return result;
+  return false;
+}
+
+function getAbsoluteBounds(node: NodeWithSize): Bounds {
+  const box = node.absoluteBoundingBox;
+
+  if (box) {
+    return {
+      x: box.x,
+      y: box.y,
+      width: box.width,
+      height: box.height,
+    };
+  }
+
+  return {
+    x: node.absoluteTransform[0][2],
+    y: node.absoluteTransform[1][2],
+    width: node.width,
+    height: node.height,
+  };
+}
+
+function getIntersectionBounds(a: Bounds, b: Bounds): Bounds | null {
+  const x1 = Math.max(a.x, b.x);
+  const y1 = Math.max(a.y, b.y);
+  const x2 = Math.min(a.x + a.width, b.x + b.width);
+  const y2 = Math.min(a.y + a.height, b.y + b.height);
+
+  if (x2 <= x1 || y2 <= y1) return null;
+
+  return {
+    x: x1,
+    y: y1,
+    width: x2 - x1,
+    height: y2 - y1,
+  };
+}
+
+function intersectionArea(bounds: Bounds | null): number {
+  return bounds ? bounds.width * bounds.height : 0;
 }
 
 function getAutoLayoutPadding(node: AutoLayoutFrame): {
@@ -374,59 +419,49 @@ function findBodyContainer(bannerFrame: BannerFrame): AutoLayoutFrame | null {
   return bestNode;
 }
 
-function findMediaNode(
-  bannerFrame: BannerFrame,
-  bodyContainer: AutoLayoutFrame | null
-): ResizableNode | null {
-  let bestNode: ResizableNode | null = null;
-  let bestScore = Number.NEGATIVE_INFINITY;
+function findMainImageNode(
+  bannerFrame: BannerFrame
+): { node: ResizableNode; bounds: Bounds } | null {
+  let best: { node: ResizableNode; bounds: Bounds } | null = null;
+  let bestArea = 0;
+  const bannerBounds = getAbsoluteBounds(bannerFrame);
 
-  visitDescendants(bannerFrame, (node) => {
-    if (!isResizable(node) || node === bodyContainer) return;
-    if (containsText(node)) return;
+  const consider = (node: SceneNode): void => {
+    if (!isResizable(node)) return;
+    if (!hasImageFill(node)) return;
+    if (!isVisibleInHierarchy(node, bannerFrame)) return;
 
-    const area =
-      bannerFrame.width > 0 && bannerFrame.height > 0
-        ? (node.width * node.height) / (bannerFrame.width * bannerFrame.height)
-        : 0;
-    const score =
-      area * 100 +
-      (hasImageFill(node) ? 1000 : 0) +
-      (containsImageFill(node) ? 500 : 0) +
-      (isLikelyImageName(node) ? 300 : 0);
+    const visibleBounds = getIntersectionBounds(
+      getAbsoluteBounds(node),
+      bannerBounds
+    );
+    const area = intersectionArea(visibleBounds);
 
-    if (score <= 0) return;
+    if (!visibleBounds || area <= 0) return;
 
-    if (score > bestScore) {
-      bestNode = node;
-      bestScore = score;
+    if (area > bestArea) {
+      best = { node, bounds: visibleBounds };
+      bestArea = area;
     }
-  });
+  };
 
-  return bestNode;
+  consider(bannerFrame);
+  visitDescendants(bannerFrame, consider);
+
+  return best;
 }
 
-function getRelativeBounds(
-  node: ResizableNode,
-  ancestor: ResizableNode
-): { x: number; y: number; width: number; height: number } {
-  const nodeBox = (node as SceneNode).absoluteBoundingBox;
-  const ancestorBox = (ancestor as SceneNode).absoluteBoundingBox;
-
-  if (nodeBox && ancestorBox) {
-    return {
-      x: nodeBox.x - ancestorBox.x,
-      y: nodeBox.y - ancestorBox.y,
-      width: nodeBox.width,
-      height: nodeBox.height,
-    };
-  }
+function getRelativeBoundsFromAbsolute(
+  bounds: Bounds,
+  ancestor: NodeWithSize
+): Bounds {
+  const ancestorBounds = getAbsoluteBounds(ancestor);
 
   return {
-    x: node.absoluteTransform[0][2] - ancestor.absoluteTransform[0][2],
-    y: node.absoluteTransform[1][2] - ancestor.absoluteTransform[1][2],
-    width: node.width,
-    height: node.height,
+    x: bounds.x - ancestorBounds.x,
+    y: bounds.y - ancestorBounds.y,
+    width: bounds.width,
+    height: bounds.height,
   };
 }
 
@@ -462,6 +497,22 @@ function setLayoutPositioning(
   if ("layoutPositioning" in node) {
     (node as SceneNode & { layoutPositioning: "AUTO" | "ABSOLUTE" })
       .layoutPositioning = value;
+  }
+}
+
+function setAbsolutePositioningIfParentHasAutoLayout(
+  node: SceneNode,
+  parent: BaseNode
+): void {
+  if (
+    "layoutPositioning" in node &&
+    (parent.type === "FRAME" ||
+      parent.type === "COMPONENT" ||
+      parent.type === "INSTANCE") &&
+    (parent as FrameNode).layoutMode !== "NONE"
+  ) {
+    (node as SceneNode & { layoutPositioning: "AUTO" | "ABSOLUTE" })
+      .layoutPositioning = "ABSOLUTE";
   }
 }
 
@@ -774,16 +825,19 @@ function addDisclaimerToImage(params: {
 }): { node: ResizableNode; actualPercent: number } {
   const { bannerFrame, asset, presetKey, targetPercent } = params;
   const bodyContainer = findBodyContainer(bannerFrame);
-  const mediaNode = findMediaNode(bannerFrame, bodyContainer);
+  const mainImage = findMainImageNode(bannerFrame);
 
-  if (!mediaNode) {
+  if (!mainImage) {
     throw new Error("Не удалось найти картинку или медиа-область в баннере");
   }
 
   const padding = bodyContainer
     ? getAutoLayoutPadding(bodyContainer)
     : { left: 0, right: 0, bottom: 0 };
-  const mediaBounds = getRelativeBounds(mediaNode, bannerFrame);
+  const mediaBounds = getRelativeBoundsFromAbsolute(
+    mainImage.bounds,
+    bannerFrame
+  );
   const contentWidth = mediaBounds.width - padding.left - padding.right;
 
   if (contentWidth <= 0) {
@@ -800,7 +854,7 @@ function addDisclaimerToImage(params: {
 
   try {
     bannerFrame.appendChild(node);
-    setLayoutPositioning(node, "ABSOLUTE");
+    setAbsolutePositioningIfParentHasAutoLayout(node, bannerFrame);
     resizeSvgNodeToFrame(node, newWidth, newHeight);
     node.x = mediaBounds.x + padding.left;
     node.y = mediaBounds.y + mediaBounds.height - padding.bottom - node.height;

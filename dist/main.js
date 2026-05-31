@@ -220,9 +220,6 @@ function normalizedName(node) {
 function isLikelyBodyName(node) {
     return /body|copy|text|content|текст|контент|описание|оффер/.test(normalizedName(node));
 }
-function isLikelyImageName(node) {
-    return /image|img|photo|picture|visual|media|картин|фото|визуал|изображ/.test(normalizedName(node));
-}
 function hasImageFill(node) {
     if (!("fills" in node))
         return false;
@@ -230,16 +227,52 @@ function hasImageFill(node) {
         .fills;
     return Array.isArray(fills) && fills.some((paint) => paint.type === "IMAGE");
 }
-function containsImageFill(node) {
-    if (node.type !== "PAGE" && node.type !== "DOCUMENT" && hasImageFill(node)) {
-        return true;
+function isVisibleInHierarchy(node, root) {
+    let current = node;
+    while (current) {
+        if ("visible" in current && !current.visible) {
+            return false;
+        }
+        if (current === root) {
+            return true;
+        }
+        current = current.parent;
     }
-    let result = false;
-    visitDescendants(node, (child) => {
-        if (hasImageFill(child))
-            result = true;
-    });
-    return result;
+    return false;
+}
+function getAbsoluteBounds(node) {
+    const box = node.absoluteBoundingBox;
+    if (box) {
+        return {
+            x: box.x,
+            y: box.y,
+            width: box.width,
+            height: box.height,
+        };
+    }
+    return {
+        x: node.absoluteTransform[0][2],
+        y: node.absoluteTransform[1][2],
+        width: node.width,
+        height: node.height,
+    };
+}
+function getIntersectionBounds(a, b) {
+    const x1 = Math.max(a.x, b.x);
+    const y1 = Math.max(a.y, b.y);
+    const x2 = Math.min(a.x + a.width, b.x + b.width);
+    const y2 = Math.min(a.y + a.height, b.y + b.height);
+    if (x2 <= x1 || y2 <= y1)
+        return null;
+    return {
+        x: x1,
+        y: y1,
+        width: x2 - x1,
+        height: y2 - y1,
+    };
+}
+function intersectionArea(bounds) {
+    return bounds ? bounds.width * bounds.height : 0;
 }
 function getAutoLayoutPadding(node) {
     return {
@@ -273,46 +306,37 @@ function findBodyContainer(bannerFrame) {
     visitDescendants(bannerFrame, consider);
     return bestNode;
 }
-function findMediaNode(bannerFrame, bodyContainer) {
-    let bestNode = null;
-    let bestScore = Number.NEGATIVE_INFINITY;
-    visitDescendants(bannerFrame, (node) => {
-        if (!isResizable(node) || node === bodyContainer)
+function findMainImageNode(bannerFrame) {
+    let best = null;
+    let bestArea = 0;
+    const bannerBounds = getAbsoluteBounds(bannerFrame);
+    const consider = (node) => {
+        if (!isResizable(node))
             return;
-        if (containsText(node))
+        if (!hasImageFill(node))
             return;
-        const area = bannerFrame.width > 0 && bannerFrame.height > 0
-            ? (node.width * node.height) / (bannerFrame.width * bannerFrame.height)
-            : 0;
-        const score = area * 100 +
-            (hasImageFill(node) ? 1000 : 0) +
-            (containsImageFill(node) ? 500 : 0) +
-            (isLikelyImageName(node) ? 300 : 0);
-        if (score <= 0)
+        if (!isVisibleInHierarchy(node, bannerFrame))
             return;
-        if (score > bestScore) {
-            bestNode = node;
-            bestScore = score;
+        const visibleBounds = getIntersectionBounds(getAbsoluteBounds(node), bannerBounds);
+        const area = intersectionArea(visibleBounds);
+        if (!visibleBounds || area <= 0)
+            return;
+        if (area > bestArea) {
+            best = { node, bounds: visibleBounds };
+            bestArea = area;
         }
-    });
-    return bestNode;
+    };
+    consider(bannerFrame);
+    visitDescendants(bannerFrame, consider);
+    return best;
 }
-function getRelativeBounds(node, ancestor) {
-    const nodeBox = node.absoluteBoundingBox;
-    const ancestorBox = ancestor.absoluteBoundingBox;
-    if (nodeBox && ancestorBox) {
-        return {
-            x: nodeBox.x - ancestorBox.x,
-            y: nodeBox.y - ancestorBox.y,
-            width: nodeBox.width,
-            height: nodeBox.height,
-        };
-    }
+function getRelativeBoundsFromAbsolute(bounds, ancestor) {
+    const ancestorBounds = getAbsoluteBounds(ancestor);
     return {
-        x: node.absoluteTransform[0][2] - ancestor.absoluteTransform[0][2],
-        y: node.absoluteTransform[1][2] - ancestor.absoluteTransform[1][2],
-        width: node.width,
-        height: node.height,
+        x: bounds.x - ancestorBounds.x,
+        y: bounds.y - ancestorBounds.y,
+        width: bounds.width,
+        height: bounds.height,
     };
 }
 function setLayoutSizingFixed(node, direction) {
@@ -332,6 +356,16 @@ function setLayoutPositioning(node, value) {
     if ("layoutPositioning" in node) {
         node
             .layoutPositioning = value;
+    }
+}
+function setAbsolutePositioningIfParentHasAutoLayout(node, parent) {
+    if ("layoutPositioning" in node &&
+        (parent.type === "FRAME" ||
+            parent.type === "COMPONENT" ||
+            parent.type === "INSTANCE") &&
+        parent.layoutMode !== "NONE") {
+        node
+            .layoutPositioning = "ABSOLUTE";
     }
 }
 function markDisclaimerNode(node, asset, presetKey) {
@@ -514,14 +548,14 @@ function addDisclaimerToBody(params) {
 function addDisclaimerToImage(params) {
     const { bannerFrame, asset, presetKey, targetPercent } = params;
     const bodyContainer = findBodyContainer(bannerFrame);
-    const mediaNode = findMediaNode(bannerFrame, bodyContainer);
-    if (!mediaNode) {
+    const mainImage = findMainImageNode(bannerFrame);
+    if (!mainImage) {
         throw new Error("Не удалось найти картинку или медиа-область в баннере");
     }
     const padding = bodyContainer
         ? getAutoLayoutPadding(bodyContainer)
         : { left: 0, right: 0, bottom: 0 };
-    const mediaBounds = getRelativeBounds(mediaNode, bannerFrame);
+    const mediaBounds = getRelativeBoundsFromAbsolute(mainImage.bounds, bannerFrame);
     const contentWidth = mediaBounds.width - padding.left - padding.right;
     if (contentWidth <= 0) {
         throw new Error("В медиа-области нет доступной ширины для дисклеймера");
@@ -530,7 +564,7 @@ function addDisclaimerToImage(params) {
     const { newWidth, newHeight } = calcAreaWithWidth(bannerFrame.width, bannerFrame.height, targetPercent, contentWidth);
     try {
         bannerFrame.appendChild(node);
-        setLayoutPositioning(node, "ABSOLUTE");
+        setAbsolutePositioningIfParentHasAutoLayout(node, bannerFrame);
         resizeSvgNodeToFrame(node, newWidth, newHeight);
         node.x = mediaBounds.x + padding.left;
         node.y = mediaBounds.y + mediaBounds.height - padding.bottom - node.height;
