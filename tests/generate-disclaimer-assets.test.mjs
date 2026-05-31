@@ -6,6 +6,7 @@ import test from "node:test";
 
 import {
   buildAssetModule,
+  normalizeSvgPaint,
   readSvgAssets,
 } from "../scripts/generate-disclaimer-assets.mjs";
 
@@ -43,6 +44,19 @@ test("readSvgAssets reads SVG metadata from a source directory", async () => {
   } finally {
     await rm(tempRoot, { recursive: true, force: true });
   }
+});
+
+test("normalizeSvgPaint converts white disclaimer fills to 30 percent black", () => {
+  const svg =
+    '<svg width="20" height="4"><path fill="white" d="M0 0H10V4H0Z"/><path style="fill:#FFFFFF;fill-opacity:1;" d="M10 0H20V4H10Z"/></svg>';
+
+  const normalized = normalizeSvgPaint(svg);
+
+  assert.doesNotMatch(normalized, /fill=["']white["']/i);
+  assert.doesNotMatch(normalized, /fill:\s*#fff(?:fff)?/i);
+  assert.doesNotMatch(normalized, /fill-opacity:\s*1/i);
+  assert.match(normalized, /fill="black"/);
+  assert.match(normalized, /fill-opacity="0\.3"|fill-opacity:\s*0\.3/i);
 });
 
 test("buildAssetModule emits a typed TypeScript asset registry", async () => {

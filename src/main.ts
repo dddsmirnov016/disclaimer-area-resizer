@@ -120,6 +120,10 @@ type ResizableNode = SceneNode & {
   resizeWithoutConstraints: (w: number, h: number) => void;
 };
 type NodeWithChildren = BaseNode & { children: readonly SceneNode[] };
+type NodeWithMutableChildren = NodeWithChildren & {
+  appendChild: (child: SceneNode) => void;
+  insertChild: (index: number, child: SceneNode) => void;
+};
 
 function isResizable(node: SceneNode): node is ResizableNode {
   return (
@@ -141,6 +145,10 @@ function isFrameLike(node: SceneNode): node is BannerFrame {
 
 function hasChildren(node: BaseNode): node is NodeWithChildren {
   return "children" in node;
+}
+
+function canInsertChildren(node: BaseNode | null): node is NodeWithMutableChildren {
+  return Boolean(node && "children" in node && "insertChild" in node);
 }
 
 function isTopLevelFrame(node: SceneNode): node is BannerFrame {
@@ -241,6 +249,21 @@ function visitDescendants(
     visitor(child);
     visitDescendants(child, visitor);
   }
+}
+
+function prepareSvgNodeForDeformation(node: SceneNode): void {
+  if ("clipsContent" in node) {
+    (node as SceneNode & { clipsContent: boolean }).clipsContent = true;
+  }
+
+  visitDescendants(node, (child) => {
+    if ("constraints" in child) {
+      (child as SceneNode & { constraints: Constraints }).constraints = {
+        horizontal: "SCALE",
+        vertical: "SCALE",
+      };
+    }
+  });
 }
 
 function countTextDescendants(node: BaseNode): number {
@@ -445,6 +468,13 @@ function isMatchingDisclaimer(node: SceneNode, assetKey: string): boolean {
   );
 }
 
+function isPluginGeneratedDisclaimer(node: SceneNode, assetKey: string): boolean {
+  return (
+    node.getSharedPluginData(PLUGIN_DATA_NAMESPACE, PLUGIN_DATA_ASSET_KEY) ===
+      assetKey || node.name.startsWith("Disclaimer — ")
+  );
+}
+
 function findMatchingDisclaimer(
   bannerFrame: BannerFrame,
   assetKey: string
@@ -503,8 +533,99 @@ function createDisclaimerNode(
 
   markDisclaimerNode(node, asset, presetKey);
   setLayoutSizingFixed(node, "proportional");
+  prepareSvgNodeForDeformation(node);
 
   return node;
+}
+
+function copyLayoutChildSettings(source: SceneNode, target: SceneNode): void {
+  if ("layoutSizingVertical" in source && "layoutSizingVertical" in target) {
+    (
+      target as SceneNode & { layoutSizingVertical: "FIXED" | "HUG" | "FILL" }
+    ).layoutSizingVertical = (
+      source as SceneNode & { layoutSizingVertical: "FIXED" | "HUG" | "FILL" }
+    ).layoutSizingVertical;
+  }
+
+  if ("layoutSizingHorizontal" in source && "layoutSizingHorizontal" in target) {
+    (
+      target as SceneNode & { layoutSizingHorizontal: "FIXED" | "HUG" | "FILL" }
+    ).layoutSizingHorizontal = (
+      source as SceneNode & { layoutSizingHorizontal: "FIXED" | "HUG" | "FILL" }
+    ).layoutSizingHorizontal;
+  }
+
+  if ("layoutGrow" in source && "layoutGrow" in target) {
+    (target as SceneNode & { layoutGrow: number }).layoutGrow = (
+      source as SceneNode & { layoutGrow: number }
+    ).layoutGrow;
+  }
+
+  if ("layoutAlign" in source && "layoutAlign" in target) {
+    type AutoLayoutAlign = "MIN" | "CENTER" | "MAX" | "STRETCH" | "INHERIT";
+    (target as SceneNode & { layoutAlign: AutoLayoutAlign }).layoutAlign = (
+      source as SceneNode & { layoutAlign: AutoLayoutAlign }
+    ).layoutAlign;
+  }
+
+  if ("layoutPositioning" in source && "layoutPositioning" in target) {
+    (target as SceneNode & { layoutPositioning: "AUTO" | "ABSOLUTE" })
+      .layoutPositioning = (
+      source as SceneNode & { layoutPositioning: "AUTO" | "ABSOLUTE" }
+    ).layoutPositioning;
+  }
+
+  if ("constraints" in source && "constraints" in target) {
+    (target as SceneNode & { constraints: Constraints }).constraints = (
+      source as SceneNode & { constraints: Constraints }
+    ).constraints;
+  }
+}
+
+function shouldPreserveManualPosition(parent: BaseNode, child: SceneNode): boolean {
+  const parentHasAutoLayout =
+    (parent.type === "FRAME" ||
+      parent.type === "COMPONENT" ||
+      parent.type === "INSTANCE") &&
+    (parent as FrameNode).layoutMode !== "NONE";
+  const childIsAutoLayoutChild =
+    "layoutPositioning" in child &&
+    (child as SceneNode & { layoutPositioning: "AUTO" | "ABSOLUTE" })
+      .layoutPositioning === "AUTO";
+
+  return !parentHasAutoLayout || !childIsAutoLayoutChild;
+}
+
+function replaceGeneratedDisclaimerNode(params: {
+  node: ResizableNode;
+  asset: DisclaimerAsset;
+  presetKey: string;
+  newWidth: number;
+  newHeight: number;
+}): ResizableNode {
+  const { node, asset, presetKey, newWidth, newHeight } = params;
+  const parent = node.parent;
+
+  if (!canInsertChildren(parent)) return node;
+
+  const index = parent.children.indexOf(node);
+  const replacement = createDisclaimerNode(asset, presetKey);
+
+  try {
+    copyLayoutChildSettings(node, replacement);
+    replacement.resizeWithoutConstraints(newWidth, newHeight);
+    parent.insertChild(index >= 0 ? index : parent.children.length, replacement);
+    if (shouldPreserveManualPosition(parent, replacement)) {
+      replacement.x = node.x;
+      replacement.y = node.y;
+    }
+    node.remove();
+  } catch (err) {
+    replacement.remove();
+    throw err;
+  }
+
+  return replacement;
 }
 
 function resizeExistingDisclaimer(params: {
@@ -533,8 +654,10 @@ function resizeExistingDisclaimer(params: {
   const currentPercent =
     ((node.width * node.height) / (bannerFrame.width * bannerFrame.height)) *
     100;
+  const shouldRefreshGeneratedSvg =
+    node.type !== "TEXT" && isPluginGeneratedDisclaimer(node, asset.key);
 
-  if (onlyEnlarge && currentPercent >= targetPercent) {
+  if (onlyEnlarge && currentPercent >= targetPercent && !shouldRefreshGeneratedSvg) {
     return { node, actualPercent: round2(currentPercent) };
   }
 
@@ -546,6 +669,9 @@ function resizeExistingDisclaimer(params: {
   }
 
   setLayoutSizingFixed(node, direction);
+  if (node.type !== "TEXT") {
+    prepareSvgNodeForDeformation(node);
+  }
 
   const { newWidth, newHeight } = calcNewDimensions(
     node.width,
@@ -556,14 +682,26 @@ function resizeExistingDisclaimer(params: {
     direction
   );
 
-  node.resizeWithoutConstraints(newWidth, newHeight);
-  markDisclaimerNode(node, asset, presetKey);
+  const resizedNode = shouldRefreshGeneratedSvg
+    ? replaceGeneratedDisclaimerNode({
+        node,
+        asset,
+        presetKey,
+        newWidth,
+        newHeight,
+      })
+    : node;
 
-  const actualArea = node.width * node.height;
+  if (!shouldRefreshGeneratedSvg) {
+    node.resizeWithoutConstraints(newWidth, newHeight);
+    markDisclaimerNode(node, asset, presetKey);
+  }
+
+  const actualArea = resizedNode.width * resizedNode.height;
   const bannerArea = bannerFrame.width * bannerFrame.height;
   const actualPercent = round2((actualArea / bannerArea) * 100);
 
-  return { node, actualPercent };
+  return { node: resizedNode, actualPercent };
 }
 
 function addDisclaimerToBody(params: {

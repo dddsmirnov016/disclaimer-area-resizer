@@ -28,6 +28,61 @@ function readSvgDimensions(svg, filename) {
   return { width, height };
 }
 
+function isWhitePaint(value) {
+  return /^(?:white|#fff|#ffffff)$/i.test(value.trim());
+}
+
+function addOrReplaceFillOpacity(tag) {
+  if (/\sfill-opacity=(["'])[^"']*\1/i.test(tag)) {
+    return tag.replace(/\sfill-opacity=(["'])[^"']*\1/i, ' fill-opacity="0.3"');
+  }
+
+  return tag.replace(/\/?>$/, (ending) => ` fill-opacity="0.3"${ending}`);
+}
+
+function normalizeStylePaint(style) {
+  const hasWhiteFill = /(?:^|;)\s*fill\s*:\s*(?:white|#fff|#ffffff)\s*(?=;|$)/i.test(
+    style
+  );
+
+  if (!hasWhiteFill) return style;
+
+  let normalized = style.replace(
+    /(^|;)(\s*fill\s*:\s*)(white|#fff|#ffffff)(\s*)(?=;|$)/gi,
+    "$1$2black$4"
+  );
+
+  if (/(^|;)\s*fill-opacity\s*:/i.test(normalized)) {
+    normalized = normalized.replace(
+      /(^|;)(\s*fill-opacity\s*:\s*)[^;]+/gi,
+      "$1$20.3"
+    );
+  } else {
+    const separator = normalized.trim().endsWith(";") ? "" : ";";
+    normalized = `${normalized}${separator}fill-opacity:0.3;`;
+  }
+
+  return normalized;
+}
+
+export function normalizeSvgPaint(svg) {
+  return svg
+    .replace(/<[^>]+\sfill=(["'])([^"']+)\1[^>]*>/gi, (tag, _quote, fill) => {
+      if (!isWhitePaint(fill)) return tag;
+
+      const normalizedTag = tag.replace(
+        /\sfill=(["'])(?:white|#fff|#ffffff)\1/i,
+        ' fill="black"'
+      );
+
+      return addOrReplaceFillOpacity(normalizedTag);
+    })
+    .replace(/\sstyle=(["'])(.*?)\1/gi, (attribute, quote, style) => {
+      const normalized = normalizeStylePaint(style);
+      return normalized === style ? attribute : ` style=${quote}${normalized}${quote}`;
+    });
+}
+
 export async function readSvgAssets(svgDir = DEFAULT_SVG_DIR) {
   const entries = await readdir(svgDir, { withFileTypes: true });
   const svgFiles = entries
@@ -38,7 +93,8 @@ export async function readSvgAssets(svgDir = DEFAULT_SVG_DIR) {
   const assets = [];
 
   for (const filename of svgFiles) {
-    const svg = await readFile(path.join(svgDir, filename), "utf8");
+    const rawSvg = await readFile(path.join(svgDir, filename), "utf8");
+    const svg = normalizeSvgPaint(rawSvg);
     const key = path.basename(filename, ".svg");
     const { width, height } = readSvgDimensions(svg, filename);
 
