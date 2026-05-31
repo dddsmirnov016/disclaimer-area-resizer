@@ -58,3 +58,29 @@ test("image overlay frame is centered on the image and pinned to the bottom", as
   assert.match(helperMatch[0], /y: mediaBounds\.y \+ mediaBounds\.height - bottomInset - newHeight/);
   assert.doesNotMatch(helperMatch[0], /padding/);
 });
+
+test("create-all mode duplicates the selected banner for each unique SVG asset", async () => {
+  const mainSource = await readFile(new URL("../src/main.ts", import.meta.url), "utf8");
+  const helperMatch = mainSource.match(
+    /function createAllDisclaimerVariants[\s\S]*?\n}\n/
+  );
+
+  assert.ok(helperMatch, "expected create-all helper");
+  assert.match(helperMatch[0], /getPrimaryPresetEntriesByAsset/);
+  assert.match(helperMatch[0], /cloneBannerFrame/);
+  assert.match(helperMatch[0], /DUPLICATE_VARIANT_GAP/);
+  assert.match(helperMatch[0], /addTarget === "image"/);
+  assert.match(helperMatch[0], /addDisclaimerToImage/);
+  assert.match(helperMatch[0], /addDisclaimerToBody/);
+});
+
+test("apply-resize message supports create-all mode", async () => {
+  const mainSource = await readFile(new URL("../src/main.ts", import.meta.url), "utf8");
+  const uiSource = await readFile(new URL("../src/ui.html", import.meta.url), "utf8");
+
+  assert.match(mainSource, /createAll: boolean/);
+  assert.match(mainSource, /msg\.createAll/);
+  assert.match(uiSource, /id="createAllInput"/);
+  assert.match(uiSource, /createAll: createAllInput\.checked/);
+  assert.match(uiSource, /Создать все типы/);
+});

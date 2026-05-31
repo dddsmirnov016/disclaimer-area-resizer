@@ -92,6 +92,7 @@ interface ApplyResizeMessage {
   direction: ResizeDirection;
   onlyEnlarge: boolean;
   addTarget: AddTarget;
+  createAll: boolean;
 }
 
 interface RequestStateMessage {
@@ -113,6 +114,7 @@ const PLUGIN_DATA_ASSET_KEY = "assetKey";
 const PLUGIN_DATA_PRESET_KEY = "presetKey";
 const IMAGE_OVERLAY_HORIZONTAL_INSET = 8;
 const IMAGE_OVERLAY_BOTTOM_INSET = 2;
+const DUPLICATE_VARIANT_GAP = 32;
 
 type BannerFrame = FrameNode | ComponentNode | InstanceNode;
 type AutoLayoutFrame = BannerFrame;
@@ -132,6 +134,11 @@ interface Bounds {
   y: number;
   width: number;
   height: number;
+}
+interface PresetAssetEntry {
+  presetKey: string;
+  preset: DisclaimerPreset;
+  asset: DisclaimerAsset;
 }
 
 function isResizable(node: SceneNode): node is ResizableNode {
@@ -618,6 +625,52 @@ function getPresetAndAsset(msg: ApplyResizeMessage): {
   return { preset, asset };
 }
 
+function getPrimaryPresetEntriesByAsset(): PresetAssetEntry[] {
+  const seenAssetKeys: Record<string, boolean> = {};
+  const entries: PresetAssetEntry[] = [];
+
+  for (const presetKey of Object.keys(DISCLAIMER_PRESETS)) {
+    const preset = DISCLAIMER_PRESETS[presetKey];
+    if (!preset || preset.percent === null) continue;
+
+    const asset = DISCLAIMER_ASSETS[preset.assetKey];
+    if (!asset || seenAssetKeys[asset.key]) continue;
+
+    seenAssetKeys[asset.key] = true;
+    entries.push({ presetKey, preset, asset });
+  }
+
+  return entries;
+}
+
+function isKnownDisclaimerNode(node: SceneNode): boolean {
+  if (node.getSharedPluginData(PLUGIN_DATA_NAMESPACE, PLUGIN_DATA_ASSET_KEY)) {
+    return true;
+  }
+
+  if (node.name.startsWith("Disclaimer — ")) {
+    return true;
+  }
+
+  return Object.keys(DISCLAIMER_ASSETS).some((assetKey) =>
+    node.name.includes(assetKey)
+  );
+}
+
+function removeKnownDisclaimers(bannerFrame: BannerFrame): void {
+  const nodesToRemove: SceneNode[] = [];
+
+  visitDescendants(bannerFrame, (node) => {
+    if (isKnownDisclaimerNode(node)) {
+      nodesToRemove.push(node);
+    }
+  });
+
+  for (const node of nodesToRemove) {
+    node.remove();
+  }
+}
+
 function createDisclaimerNode(
   asset: DisclaimerAsset,
   presetKey: string
@@ -924,6 +977,77 @@ function addDisclaimerToImage(params: {
   }
 }
 
+function cloneBannerFrame(bannerFrame: BannerFrame): BannerFrame {
+  return bannerFrame.clone();
+}
+
+function createAllDisclaimerVariants(params: {
+  bannerFrame: BannerFrame;
+  addTarget: AddTarget;
+}): { nodes: BannerFrame[]; count: number } {
+  const { bannerFrame, addTarget } = params;
+  const parent = bannerFrame.parent;
+
+  if (!canInsertChildren(parent)) {
+    throw new Error("Не удалось найти родителя баннера для дублирования");
+  }
+
+  const entries = getPrimaryPresetEntriesByAsset();
+
+  if (entries.length === 0) {
+    throw new Error("Не найдено SVG-ассетов для создания вариантов");
+  }
+
+  const createdNodes: BannerFrame[] = [];
+
+  try {
+    entries.forEach((entry, index) => {
+      const duplicate = cloneBannerFrame(bannerFrame);
+      createdNodes.push(duplicate);
+
+      if (duplicate.parent !== parent) {
+        parent.appendChild(duplicate);
+      }
+
+      duplicate.name = `${bannerFrame.name} — ${entry.asset.label}`;
+      setAbsolutePositioningIfParentHasAutoLayout(duplicate, parent);
+      duplicate.x =
+        bannerFrame.x +
+        (bannerFrame.width + DUPLICATE_VARIANT_GAP) * (index + 1);
+      duplicate.y = bannerFrame.y;
+      removeKnownDisclaimers(duplicate);
+
+      const targetPercent = entry.preset.percent;
+      if (targetPercent === null) {
+        throw new Error(`У пресета "${entry.preset.label}" нет процента`);
+      }
+
+      if (addTarget === "image") {
+        addDisclaimerToImage({
+          bannerFrame: duplicate,
+          asset: entry.asset,
+          presetKey: entry.presetKey,
+          targetPercent,
+        });
+      } else {
+        addDisclaimerToBody({
+          bannerFrame: duplicate,
+          asset: entry.asset,
+          presetKey: entry.presetKey,
+          targetPercent,
+        });
+      }
+    });
+  } catch (err) {
+    for (const node of createdNodes) {
+      node.remove();
+    }
+    throw err;
+  }
+
+  return { nodes: createdNodes, count: createdNodes.length };
+}
+
 function buildState(): PluginState {
   const sel = figma.currentPage.selection;
 
@@ -1045,7 +1169,7 @@ function sendState(): void {
 
 // ─── Plugin entrypoint ─────────────────────────────────────────────────────
 
-figma.showUI(__html__, { width: 432, height: 672 });
+figma.showUI(__html__, { width: 432, height: 704 });
 
 sendState();
 
@@ -1076,6 +1200,40 @@ figma.ui.on("message", (msg: UiMessage) => {
         return;
       }
 
+      const sel = figma.currentPage.selection;
+
+      if (sel.length !== 1) {
+        figma.ui.postMessage({
+          type: "error",
+          message: "Выбор изменился. Повторите.",
+        });
+        return;
+      }
+
+      const selectedNode = sel[0];
+
+      if (state.info.mode === "add-missing" && msg.createAll) {
+        if (!isFrameLike(selectedNode)) {
+          figma.ui.postMessage({
+            type: "error",
+            message: "Выберите баннерный фрейм",
+          });
+          return;
+        }
+
+        const created = createAllDisclaimerVariants({
+          bannerFrame: selectedNode,
+          addTarget: msg.addTarget,
+        });
+        const resultMessage = `Создано: ${created.count} вариантов дисклеймеров`;
+
+        figma.currentPage.selection = [selectedNode];
+        figma.notify(resultMessage, { timeout: 4000 });
+        figma.ui.postMessage({ type: "success", message: resultMessage });
+        sendState();
+        return;
+      }
+
       const presetAndAsset = getPresetAndAsset(msg);
       if (!presetAndAsset) {
         figma.ui.postMessage({
@@ -1095,17 +1253,6 @@ figma.ui.on("message", (msg: UiMessage) => {
       }
 
       const { asset } = presetAndAsset;
-      const sel = figma.currentPage.selection;
-
-      if (sel.length !== 1) {
-        figma.ui.postMessage({
-          type: "error",
-          message: "Выбор изменился. Повторите.",
-        });
-        return;
-      }
-
-      const selectedNode = sel[0];
       let result: { node: ResizableNode; actualPercent: number };
       let actionLabel = "Применено";
 

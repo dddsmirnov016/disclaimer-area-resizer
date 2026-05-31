@@ -321,6 +321,10 @@
         <input type="checkbox" id="addToImageInput" />
         <label for="addToImageInput">Поверх картинки</label>
       </div>
+      <div class="checkbox-row">
+        <input type="checkbox" id="createAllInput" />
+        <label for="createAllInput">Создать все типы</label>
+      </div>
     </div>
   </div>
 
@@ -336,8 +340,8 @@
 <script>
 (function () {
   var WINDOW_W = 432;
-  var HEIGHT_BASE = 672;
-  var HEIGHT_CUSTOM = 752;
+  var HEIGHT_BASE = 704;
+  var HEIGHT_CUSTOM = 784;
 
   var state = null;
   var presets = {};
@@ -350,6 +354,7 @@
   var customBlock = document.getElementById('customBlock');
   var customInput = document.getElementById('customInput');
   var addToImageInput = document.getElementById('addToImageInput');
+  var createAllInput = document.getElementById('createAllInput');
   var applyBtn = document.getElementById('applyBtn');
   var errorBox = document.getElementById('errorBox');
   var successMsg = document.getElementById('successMsg');
@@ -453,6 +458,15 @@
   }
 
   function getIdleButtonLabel() {
+    if (
+      state &&
+      state.type === 'ready' &&
+      state.info &&
+      state.info.mode === 'add-missing' &&
+      createAllInput.checked
+    ) {
+      return 'Создать';
+    }
     return state && state.type === 'ready' && state.info && state.info.mode === 'add-missing'
       ? 'Добавить'
       : 'Применить';
@@ -461,7 +475,9 @@
   function syncAddTargetAvailability() {
     var canAdd = state && state.type === 'ready' && state.info && state.info.mode === 'add-missing';
     addToImageInput.disabled = !canAdd;
+    createAllInput.disabled = !canAdd;
     if (!canAdd) addToImageInput.checked = false;
+    if (!canAdd) createAllInput.checked = false;
   }
 
   function showError(text) {
@@ -554,13 +570,19 @@
     hideSuccess();
   });
 
+  createAllInput.addEventListener('change', function () {
+    applyBtn.textContent = getIdleButtonLabel();
+    hideError();
+    hideSuccess();
+  });
+
   applyBtn.addEventListener('click', function () {
     if (!state || state.type !== 'ready') return;
 
     var key = presetSelect.value;
     var customPct = null;
 
-    if (key === 'custom') {
+    if (key === 'custom' && !createAllInput.checked) {
       var v = parseFloat(customInput.value.replace(',', '.'));
       if (isNaN(v) || v <= 0 || v > 100) {
         showError('Укажите корректный процент (0–100)');
@@ -580,7 +602,8 @@
       customPercent: customPct,
       direction: 'height',
       onlyEnlarge: false,
-      addTarget: addToImageInput.checked ? 'image' : 'body'
+      addTarget: addToImageInput.checked ? 'image' : 'body',
+      createAll: createAllInput.checked
     }}, '*');
   });
 
