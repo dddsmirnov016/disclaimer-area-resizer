@@ -196,6 +196,13 @@ function prepareSvgNodeForDeformation(node) {
         }
     });
 }
+function resizeSvgNodeToFrame(node, width, height) {
+    prepareSvgNodeForDeformation(node);
+    if (!("resize" in node) || typeof node.resize !== "function") {
+        throw new Error("SVG-дисклеймер не поддерживает деформацию содержимого");
+    }
+    node.resize(width, height);
+}
 function countTextDescendants(node) {
     let count = 0;
     visitDescendants(node, (child) => {
@@ -421,7 +428,7 @@ function replaceGeneratedDisclaimerNode(params) {
     const replacement = createDisclaimerNode(asset, presetKey);
     try {
         copyLayoutChildSettings(node, replacement);
-        replacement.resizeWithoutConstraints(newWidth, newHeight);
+        resizeSvgNodeToFrame(replacement, newWidth, newHeight);
         parent.insertChild(index >= 0 ? index : parent.children.length, replacement);
         if (shouldPreserveManualPosition(parent, replacement)) {
             replacement.x = node.x;
@@ -453,9 +460,6 @@ function resizeExistingDisclaimer(params) {
         }
     }
     setLayoutSizingFixed(node, direction);
-    if (node.type !== "TEXT") {
-        prepareSvgNodeForDeformation(node);
-    }
     const { newWidth, newHeight } = calcNewDimensions(node.width, node.height, bannerFrame.width, bannerFrame.height, targetPercent, direction);
     const resizedNode = shouldRefreshGeneratedSvg
         ? replaceGeneratedDisclaimerNode({
@@ -467,7 +471,12 @@ function resizeExistingDisclaimer(params) {
         })
         : node;
     if (!shouldRefreshGeneratedSvg) {
-        node.resizeWithoutConstraints(newWidth, newHeight);
+        if (node.type === "TEXT") {
+            node.resizeWithoutConstraints(newWidth, newHeight);
+        }
+        else {
+            resizeSvgNodeToFrame(node, newWidth, newHeight);
+        }
         markDisclaimerNode(node, asset, presetKey);
     }
     const actualArea = resizedNode.width * resizedNode.height;
@@ -489,7 +498,7 @@ function addDisclaimerToBody(params) {
     const node = createDisclaimerNode(asset, presetKey);
     const { newWidth, newHeight } = calcAreaWithWidth(bannerFrame.width, bannerFrame.height, targetPercent, contentWidth);
     try {
-        node.resizeWithoutConstraints(newWidth, newHeight);
+        resizeSvgNodeToFrame(node, newWidth, newHeight);
         setLayoutPositioning(node, "AUTO");
         bodyContainer.appendChild(node);
     }
@@ -522,7 +531,7 @@ function addDisclaimerToImage(params) {
     try {
         bannerFrame.appendChild(node);
         setLayoutPositioning(node, "ABSOLUTE");
-        node.resizeWithoutConstraints(newWidth, newHeight);
+        resizeSvgNodeToFrame(node, newWidth, newHeight);
         node.x = mediaBounds.x + padding.left;
         node.y = mediaBounds.y + mediaBounds.height - padding.bottom - node.height;
         if ("constraints" in node) {

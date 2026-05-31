@@ -266,6 +266,23 @@ function prepareSvgNodeForDeformation(node: SceneNode): void {
   });
 }
 
+function resizeSvgNodeToFrame(
+  node: ResizableNode,
+  width: number,
+  height: number
+): void {
+  prepareSvgNodeForDeformation(node);
+
+  if (!("resize" in node) || typeof node.resize !== "function") {
+    throw new Error("SVG-дисклеймер не поддерживает деформацию содержимого");
+  }
+
+  (node as ResizableNode & { resize: (w: number, h: number) => void }).resize(
+    width,
+    height
+  );
+}
+
 function countTextDescendants(node: BaseNode): number {
   let count = 0;
   visitDescendants(node, (child) => {
@@ -613,7 +630,7 @@ function replaceGeneratedDisclaimerNode(params: {
 
   try {
     copyLayoutChildSettings(node, replacement);
-    replacement.resizeWithoutConstraints(newWidth, newHeight);
+    resizeSvgNodeToFrame(replacement, newWidth, newHeight);
     parent.insertChild(index >= 0 ? index : parent.children.length, replacement);
     if (shouldPreserveManualPosition(parent, replacement)) {
       replacement.x = node.x;
@@ -669,9 +686,6 @@ function resizeExistingDisclaimer(params: {
   }
 
   setLayoutSizingFixed(node, direction);
-  if (node.type !== "TEXT") {
-    prepareSvgNodeForDeformation(node);
-  }
 
   const { newWidth, newHeight } = calcNewDimensions(
     node.width,
@@ -693,7 +707,11 @@ function resizeExistingDisclaimer(params: {
     : node;
 
   if (!shouldRefreshGeneratedSvg) {
-    node.resizeWithoutConstraints(newWidth, newHeight);
+    if (node.type === "TEXT") {
+      node.resizeWithoutConstraints(newWidth, newHeight);
+    } else {
+      resizeSvgNodeToFrame(node, newWidth, newHeight);
+    }
     markDisclaimerNode(node, asset, presetKey);
   }
 
@@ -733,7 +751,7 @@ function addDisclaimerToBody(params: {
   );
 
   try {
-    node.resizeWithoutConstraints(newWidth, newHeight);
+    resizeSvgNodeToFrame(node, newWidth, newHeight);
     setLayoutPositioning(node, "AUTO");
     bodyContainer.appendChild(node);
   } catch (err) {
@@ -783,7 +801,7 @@ function addDisclaimerToImage(params: {
   try {
     bannerFrame.appendChild(node);
     setLayoutPositioning(node, "ABSOLUTE");
-    node.resizeWithoutConstraints(newWidth, newHeight);
+    resizeSvgNodeToFrame(node, newWidth, newHeight);
     node.x = mediaBounds.x + padding.left;
     node.y = mediaBounds.y + mediaBounds.height - padding.bottom - node.height;
 
