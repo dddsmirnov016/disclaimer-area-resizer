@@ -35,3 +35,14 @@ test("image overlay mode only sets absolute layout positioning inside auto-layou
   assert.match(helperMatch[0], /layoutMode !== "NONE"/);
   assert.match(helperMatch[0], /layoutPositioning = "ABSOLUTE"/);
 });
+
+test("banner image overlay mode reuses an existing matching disclaimer", async () => {
+  const mainSource = await readFile(new URL("../src/main.ts", import.meta.url), "utf8");
+  const existingBranchMatch = mainSource.match(
+    /if \(existingDisclaimer\) \{[\s\S]*?\n        \}/
+  );
+
+  assert.ok(existingBranchMatch, "expected existing-disclaimer branch");
+  assert.match(existingBranchMatch[0], /msg\.addTarget === "image"/);
+  assert.match(existingBranchMatch[0], /placeDisclaimerOverImage/);
+});

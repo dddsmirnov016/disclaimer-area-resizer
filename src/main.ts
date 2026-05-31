@@ -817,13 +817,19 @@ function addDisclaimerToBody(params: {
   return { node, actualPercent };
 }
 
-function addDisclaimerToImage(params: {
+function placeDisclaimerOverImage(params: {
   bannerFrame: BannerFrame;
+  node: ResizableNode;
   asset: DisclaimerAsset;
   presetKey: string;
   targetPercent: number;
 }): { node: ResizableNode; actualPercent: number } {
-  const { bannerFrame, asset, presetKey, targetPercent } = params;
+  const { bannerFrame, node, asset, presetKey, targetPercent } = params;
+
+  if (node.locked) {
+    throw new Error("Слой заблокирован (locked). Разблокируйте и попробуйте снова");
+  }
+
   const bodyContainer = findBodyContainer(bannerFrame);
   const mainImage = findMainImageNode(bannerFrame);
 
@@ -844,7 +850,6 @@ function addDisclaimerToImage(params: {
     throw new Error("В медиа-области нет доступной ширины для дисклеймера");
   }
 
-  const node = createDisclaimerNode(asset, presetKey);
   const { newWidth, newHeight } = calcAreaWithWidth(
     bannerFrame.width,
     bannerFrame.height,
@@ -852,29 +857,50 @@ function addDisclaimerToImage(params: {
     contentWidth
   );
 
-  try {
-    bannerFrame.appendChild(node);
-    setAbsolutePositioningIfParentHasAutoLayout(node, bannerFrame);
-    resizeSvgNodeToFrame(node, newWidth, newHeight);
-    node.x = mediaBounds.x + padding.left;
-    node.y = mediaBounds.y + mediaBounds.height - padding.bottom - node.height;
+  setLayoutSizingFixed(node, "proportional");
+  bannerFrame.appendChild(node);
+  setAbsolutePositioningIfParentHasAutoLayout(node, bannerFrame);
+  resizeSvgNodeToFrame(node, newWidth, newHeight);
+  node.x = mediaBounds.x + padding.left;
+  node.y = mediaBounds.y + mediaBounds.height - padding.bottom - node.height;
 
-    if ("constraints" in node) {
-      (node as SceneNode & { constraints: Constraints }).constraints = {
-        horizontal: "STRETCH",
-        vertical: "MAX",
-      };
-    }
-  } catch (err) {
-    node.remove();
-    throw err;
+  if ("constraints" in node) {
+    (node as SceneNode & { constraints: Constraints }).constraints = {
+      horizontal: "STRETCH",
+      vertical: "MAX",
+    };
   }
+
+  markDisclaimerNode(node, asset, presetKey);
 
   const actualArea = node.width * node.height;
   const bannerArea = bannerFrame.width * bannerFrame.height;
   const actualPercent = round2((actualArea / bannerArea) * 100);
 
   return { node, actualPercent };
+}
+
+function addDisclaimerToImage(params: {
+  bannerFrame: BannerFrame;
+  asset: DisclaimerAsset;
+  presetKey: string;
+  targetPercent: number;
+}): { node: ResizableNode; actualPercent: number } {
+  const { bannerFrame, asset, presetKey, targetPercent } = params;
+  const node = createDisclaimerNode(asset, presetKey);
+
+  try {
+    return placeDisclaimerOverImage({
+      bannerFrame,
+      node,
+      asset,
+      presetKey,
+      targetPercent,
+    });
+  } catch (err) {
+    node.remove();
+    throw err;
+  }
 }
 
 function buildState(): PluginState {
@@ -1074,15 +1100,26 @@ figma.ui.on("message", (msg: UiMessage) => {
         const existingDisclaimer = findMatchingDisclaimer(selectedNode, asset.key);
 
         if (existingDisclaimer) {
-          result = resizeExistingDisclaimer({
-            node: existingDisclaimer,
-            bannerFrame: selectedNode,
-            targetPercent,
-            direction: msg.direction,
-            onlyEnlarge: msg.onlyEnlarge,
-            asset,
-            presetKey: msg.presetKey,
-          });
+          if (msg.addTarget === "image") {
+            result = placeDisclaimerOverImage({
+              bannerFrame: selectedNode,
+              node: existingDisclaimer,
+              asset,
+              presetKey: msg.presetKey,
+              targetPercent,
+            });
+            actionLabel = "Перенесено";
+          } else {
+            result = resizeExistingDisclaimer({
+              node: existingDisclaimer,
+              bannerFrame: selectedNode,
+              targetPercent,
+              direction: msg.direction,
+              onlyEnlarge: msg.onlyEnlarge,
+              asset,
+              presetKey: msg.presetKey,
+            });
+          }
         } else {
           result =
             msg.addTarget === "image"

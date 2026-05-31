@@ -545,8 +545,11 @@ function addDisclaimerToBody(params) {
     const actualPercent = round2((actualArea / bannerArea) * 100);
     return { node, actualPercent };
 }
-function addDisclaimerToImage(params) {
-    const { bannerFrame, asset, presetKey, targetPercent } = params;
+function placeDisclaimerOverImage(params) {
+    const { bannerFrame, node, asset, presetKey, targetPercent } = params;
+    if (node.locked) {
+        throw new Error("Слой заблокирован (locked). Разблокируйте и попробуйте снова");
+    }
     const bodyContainer = findBodyContainer(bannerFrame);
     const mainImage = findMainImageNode(bannerFrame);
     if (!mainImage) {
@@ -560,29 +563,41 @@ function addDisclaimerToImage(params) {
     if (contentWidth <= 0) {
         throw new Error("В медиа-области нет доступной ширины для дисклеймера");
     }
-    const node = createDisclaimerNode(asset, presetKey);
     const { newWidth, newHeight } = calcAreaWithWidth(bannerFrame.width, bannerFrame.height, targetPercent, contentWidth);
+    setLayoutSizingFixed(node, "proportional");
+    bannerFrame.appendChild(node);
+    setAbsolutePositioningIfParentHasAutoLayout(node, bannerFrame);
+    resizeSvgNodeToFrame(node, newWidth, newHeight);
+    node.x = mediaBounds.x + padding.left;
+    node.y = mediaBounds.y + mediaBounds.height - padding.bottom - node.height;
+    if ("constraints" in node) {
+        node.constraints = {
+            horizontal: "STRETCH",
+            vertical: "MAX",
+        };
+    }
+    markDisclaimerNode(node, asset, presetKey);
+    const actualArea = node.width * node.height;
+    const bannerArea = bannerFrame.width * bannerFrame.height;
+    const actualPercent = round2((actualArea / bannerArea) * 100);
+    return { node, actualPercent };
+}
+function addDisclaimerToImage(params) {
+    const { bannerFrame, asset, presetKey, targetPercent } = params;
+    const node = createDisclaimerNode(asset, presetKey);
     try {
-        bannerFrame.appendChild(node);
-        setAbsolutePositioningIfParentHasAutoLayout(node, bannerFrame);
-        resizeSvgNodeToFrame(node, newWidth, newHeight);
-        node.x = mediaBounds.x + padding.left;
-        node.y = mediaBounds.y + mediaBounds.height - padding.bottom - node.height;
-        if ("constraints" in node) {
-            node.constraints = {
-                horizontal: "STRETCH",
-                vertical: "MAX",
-            };
-        }
+        return placeDisclaimerOverImage({
+            bannerFrame,
+            node,
+            asset,
+            presetKey,
+            targetPercent,
+        });
     }
     catch (err) {
         node.remove();
         throw err;
     }
-    const actualArea = node.width * node.height;
-    const bannerArea = bannerFrame.width * bannerFrame.height;
-    const actualPercent = round2((actualArea / bannerArea) * 100);
-    return { node, actualPercent };
 }
 function buildState() {
     const sel = figma.currentPage.selection;
@@ -750,15 +765,27 @@ figma.ui.on("message", (msg) => {
                 }
                 const existingDisclaimer = findMatchingDisclaimer(selectedNode, asset.key);
                 if (existingDisclaimer) {
-                    result = resizeExistingDisclaimer({
-                        node: existingDisclaimer,
-                        bannerFrame: selectedNode,
-                        targetPercent,
-                        direction: msg.direction,
-                        onlyEnlarge: msg.onlyEnlarge,
-                        asset,
-                        presetKey: msg.presetKey,
-                    });
+                    if (msg.addTarget === "image") {
+                        result = placeDisclaimerOverImage({
+                            bannerFrame: selectedNode,
+                            node: existingDisclaimer,
+                            asset,
+                            presetKey: msg.presetKey,
+                            targetPercent,
+                        });
+                        actionLabel = "Перенесено";
+                    }
+                    else {
+                        result = resizeExistingDisclaimer({
+                            node: existingDisclaimer,
+                            bannerFrame: selectedNode,
+                            targetPercent,
+                            direction: msg.direction,
+                            onlyEnlarge: msg.onlyEnlarge,
+                            asset,
+                            presetKey: msg.presetKey,
+                        });
+                    }
                 }
                 else {
                     result =
