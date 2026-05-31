@@ -93,6 +93,8 @@ const DISCLAIMER_PRESETS = {
 const PLUGIN_DATA_NAMESPACE = "disclaimerAreaResizer";
 const PLUGIN_DATA_ASSET_KEY = "assetKey";
 const PLUGIN_DATA_PRESET_KEY = "presetKey";
+const IMAGE_OVERLAY_HORIZONTAL_INSET = 8;
+const IMAGE_OVERLAY_BOTTOM_INSET = 2;
 function isResizable(node) {
     return ("width" in node &&
         "height" in node &&
@@ -174,6 +176,17 @@ function calcAreaWithWidth(bannerW, bannerH, targetPercent, width) {
     const newWidth = Math.max(0.01, width);
     const newHeight = Math.max(0.01, targetArea / newWidth);
     return { newWidth, newHeight };
+}
+function calcImageOverlayFrame(bannerW, bannerH, targetPercent, mediaBounds) {
+    const horizontalInset = Math.min(IMAGE_OVERLAY_HORIZONTAL_INSET, Math.max(0, (mediaBounds.width - 0.01) / 2));
+    const bottomInset = Math.min(IMAGE_OVERLAY_BOTTOM_INSET, Math.max(0, mediaBounds.height));
+    const { newWidth, newHeight } = calcAreaWithWidth(bannerW, bannerH, targetPercent, mediaBounds.width - horizontalInset * 2);
+    return {
+        x: mediaBounds.x + (mediaBounds.width - newWidth) / 2,
+        y: mediaBounds.y + mediaBounds.height - bottomInset - newHeight,
+        width: newWidth,
+        height: newHeight,
+    };
 }
 function visitDescendants(root, visitor) {
     if (!hasChildren(root))
@@ -550,26 +563,18 @@ function placeDisclaimerOverImage(params) {
     if (node.locked) {
         throw new Error("Слой заблокирован (locked). Разблокируйте и попробуйте снова");
     }
-    const bodyContainer = findBodyContainer(bannerFrame);
     const mainImage = findMainImageNode(bannerFrame);
     if (!mainImage) {
         throw new Error("Не удалось найти картинку или медиа-область в баннере");
     }
-    const padding = bodyContainer
-        ? getAutoLayoutPadding(bodyContainer)
-        : { left: 0, right: 0, bottom: 0 };
     const mediaBounds = getRelativeBoundsFromAbsolute(mainImage.bounds, bannerFrame);
-    const contentWidth = mediaBounds.width - padding.left - padding.right;
-    if (contentWidth <= 0) {
-        throw new Error("В медиа-области нет доступной ширины для дисклеймера");
-    }
-    const { newWidth, newHeight } = calcAreaWithWidth(bannerFrame.width, bannerFrame.height, targetPercent, contentWidth);
+    const overlayFrame = calcImageOverlayFrame(bannerFrame.width, bannerFrame.height, targetPercent, mediaBounds);
     setLayoutSizingFixed(node, "proportional");
     bannerFrame.appendChild(node);
     setAbsolutePositioningIfParentHasAutoLayout(node, bannerFrame);
-    resizeSvgNodeToFrame(node, newWidth, newHeight);
-    node.x = mediaBounds.x + padding.left;
-    node.y = mediaBounds.y + mediaBounds.height - padding.bottom - node.height;
+    resizeSvgNodeToFrame(node, overlayFrame.width, overlayFrame.height);
+    node.x = overlayFrame.x;
+    node.y = overlayFrame.y;
     if ("constraints" in node) {
         node.constraints = {
             horizontal: "STRETCH",

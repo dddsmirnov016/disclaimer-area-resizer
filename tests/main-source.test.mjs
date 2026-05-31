@@ -46,3 +46,15 @@ test("banner image overlay mode reuses an existing matching disclaimer", async (
   assert.match(existingBranchMatch[0], /msg\.addTarget === "image"/);
   assert.match(existingBranchMatch[0], /placeDisclaimerOverImage/);
 });
+
+test("image overlay frame is centered on the image and pinned to the bottom", async () => {
+  const mainSource = await readFile(new URL("../src/main.ts", import.meta.url), "utf8");
+  const helperMatch = mainSource.match(/function calcImageOverlayFrame[\s\S]*?\n}\n/);
+
+  assert.ok(helperMatch, "expected image overlay geometry helper");
+  assert.match(helperMatch[0], /IMAGE_OVERLAY_HORIZONTAL_INSET/);
+  assert.match(helperMatch[0], /IMAGE_OVERLAY_BOTTOM_INSET/);
+  assert.match(helperMatch[0], /x: mediaBounds\.x \+ \(mediaBounds\.width - newWidth\) \/ 2/);
+  assert.match(helperMatch[0], /y: mediaBounds\.y \+ mediaBounds\.height - bottomInset - newHeight/);
+  assert.doesNotMatch(helperMatch[0], /padding/);
+});
