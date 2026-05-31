@@ -2,58 +2,78 @@
 
 // ─── Presets ───────────────────────────────────────────────────────────────
 
+const ASSET_MEDICINE =
+  "Есть противопоказания. Посоветуйтесь с врачом . Возможен вред здоровью и бесплодие.";
+const ASSET_NOT_MEDICINE = "Не является лекарством";
+const ASSET_CREDIT =
+  "Изучите все условия кредита (займа) на сайте в соответствующем разделе. Оценивайте свои финансовые возможности и риски";
+const ASSET_BANKRUPTCY =
+  "Банкротство влечёт негативные последствия, в том числе ограничения на получение кредита и повторное банкротство в течение пяти лет";
+
 interface DisclaimerPreset {
   label: string;
   percent: number | null;
+  assetKey: string;
 }
 
 const DISCLAIMER_PRESETS: Record<string, DisclaimerPreset> = {
   medicine_video_7: {
     label: "Медицина — 7% / ТВ, видео или по ТЗ",
     percent: 7,
+    assetKey: ASSET_MEDICINE,
   },
   medicine_static_5: {
     label: "Медицина — 5% / статичный баннер, прочие способы",
     percent: 5,
+    assetKey: ASSET_MEDICINE,
   },
   bad_static_10: {
     label: "БАД — 10% / статичный баннер, прочие способы",
     percent: 10,
+    assetKey: ASSET_NOT_MEDICINE,
   },
   bad_video_7: {
     label: "БАД — 7% / ТВ, видео",
     percent: 7,
+    assetKey: ASSET_NOT_MEDICINE,
   },
   finance_credit_5: {
     label: "Финансы / кредит, займ — 5%",
     percent: 5,
+    assetKey: ASSET_CREDIT,
   },
   finance_custom_10: {
     label: "Финансы — 10% / кастом по ТЗ клиента",
     percent: 10,
+    assetKey: ASSET_BANKRUPTCY,
   },
   energy_7: {
     label: "Энергетические напитки — 7%",
     percent: 7,
+    assetKey: ASSET_NOT_MEDICINE,
   },
   custom: {
     label: "Кастомный процент",
     percent: null,
+    assetKey: ASSET_MEDICINE,
   },
 };
 
 // ─── Types for UI messages ─────────────────────────────────────────────────
 
 type ResizeDirection = "height" | "width" | "proportional";
+type AddTarget = "body" | "image";
+type SelectionMode = "resize-existing" | "add-missing";
 
 interface SelectionInfo {
-  disclaimerName: string;
-  disclaimerWidth: number;
-  disclaimerHeight: number;
+  mode: SelectionMode;
+  disclaimerName: string | null;
+  disclaimerWidth: number | null;
+  disclaimerHeight: number | null;
   bannerName: string;
   bannerWidth: number;
   bannerHeight: number;
-  currentPercent: number;
+  currentPercent: number | null;
   isText: boolean;
   hasAutoLayout: boolean;
 }
@@ -71,6 +91,7 @@ interface ApplyResizeMessage {
   customPercent: number | null;
   direction: ResizeDirection;
   onlyEnlarge: boolean;
+  addTarget: AddTarget;
 }
 
 interface RequestStateMessage {
@@ -87,11 +108,18 @@ type UiMessage = ApplyResizeMessage | RequestStateMessage | ResizeMessage;
 
 // ─── Helpers ───────────────────────────────────────────────────────────────
 
+const PLUGIN_DATA_NAMESPACE = "disclaimerAreaResizer";
+const PLUGIN_DATA_ASSET_KEY = "assetKey";
+const PLUGIN_DATA_PRESET_KEY = "presetKey";
+
+type BannerFrame = FrameNode | ComponentNode | InstanceNode;
+type AutoLayoutFrame = BannerFrame;
 type ResizableNode = SceneNode & {
   width: number;
   height: number;
   resizeWithoutConstraints: (w: number, h: number) => void;
 };
+type NodeWithChildren = BaseNode & { children: readonly SceneNode[] };
 
 function isResizable(node: SceneNode): node is ResizableNode {
   return (
@@ -101,6 +129,22 @@ function isResizable(node: SceneNode): node is ResizableNode {
     typeof (node as unknown as { resizeWithoutConstraints: unknown })
       .resizeWithoutConstraints === "function"
   );
+}
+
+function isFrameLike(node: SceneNode): node is BannerFrame {
+  return (
+    node.type === "FRAME" ||
+    node.type === "COMPONENT" ||
+    node.type === "INSTANCE"
+  );
+}
+
+function hasChildren(node: BaseNode): node is NodeWithChildren {
+  return "children" in node;
+}
+
+function isTopLevelFrame(node: SceneNode): node is BannerFrame {
+  return isFrameLike(node) && findBannerFrame(node) === null;
 }
 
 function nodeHasAutoLayout(node: SceneNode): boolean {
@@ -175,6 +219,454 @@ function calcNewDimensions(
   }
 }
 
+function calcAreaWithWidth(
+  bannerW: number,
+  bannerH: number,
+  targetPercent: number,
+  width: number
+): { newWidth: number; newHeight: number } {
+  const targetArea = (bannerW * bannerH * targetPercent) / 100;
+  const newWidth = Math.max(0.01, width);
+  const newHeight = Math.max(0.01, targetArea / newWidth);
+  return { newWidth, newHeight };
+}
+
+function visitDescendants(
+  root: BaseNode,
+  visitor: (node: SceneNode) => void
+): void {
+  if (!hasChildren(root)) return;
+
+  for (const child of root.children) {
+    visitor(child);
+    visitDescendants(child, visitor);
+  }
+}
+
+function countTextDescendants(node: BaseNode): number {
+  let count = 0;
+  visitDescendants(node, (child) => {
+    if (child.type === "TEXT") count += 1;
+  });
+  return count;
+}
+
+function containsText(node: BaseNode): boolean {
+  return countTextDescendants(node) > 0 || node.type === "TEXT";
+}
+
+function normalizedName(node: BaseNode): string {
+  return node.name.toLowerCase();
+}
+
+function isLikelyBodyName(node: BaseNode): boolean {
+  return /body|copy|text|content|текст|контент|описание|оффер/.test(
+    normalizedName(node)
+  );
+}
+
+function isLikelyImageName(node: BaseNode): boolean {
+  return /image|img|photo|picture|visual|media|картин|фото|визуал|изображ/.test(
+    normalizedName(node)
+  );
+}
+
+function hasImageFill(node: SceneNode): boolean {
+  if (!("fills" in node)) return false;
+  const fills = (node as { fills: readonly Paint[] | PluginAPI["mixed"] })
+    .fills;
+  return Array.isArray(fills) && fills.some((paint) => paint.type === "IMAGE");
+}
+
+function containsImageFill(node: BaseNode): boolean {
+  if (node.type !== "PAGE" && node.type !== "DOCUMENT" && hasImageFill(node as SceneNode)) {
+    return true;
+  }
+
+  let result = false;
+  visitDescendants(node, (child) => {
+    if (hasImageFill(child)) result = true;
+  });
+  return result;
+}
+
+function getAutoLayoutPadding(node: AutoLayoutFrame): {
+  left: number;
+  right: number;
+  bottom: number;
+} {
+  return {
+    left: Math.max(0, node.paddingLeft || 0),
+    right: Math.max(0, node.paddingRight || 0),
+    bottom: Math.max(0, node.paddingBottom || 0),
+  };
+}
+
+function findBodyContainer(bannerFrame: BannerFrame): AutoLayoutFrame | null {
+  let bestNode: AutoLayoutFrame | null = null;
+  let bestScore = Number.NEGATIVE_INFINITY;
+
+  const consider = (node: SceneNode): void => {
+    if (!isFrameLike(node) || node.layoutMode !== "VERTICAL") return;
+
+    const textCount = countTextDescendants(node);
+    if (textCount === 0) return;
+
+    const areaRatio =
+      bannerFrame.width > 0 && bannerFrame.height > 0
+        ? (node.width * node.height) / (bannerFrame.width * bannerFrame.height)
+        : 1;
+    const score =
+      textCount * 20 +
+      (isLikelyBodyName(node) ? 100 : 0) -
+      areaRatio * 10 -
+      (node === bannerFrame ? 50 : 0);
+
+    if (score > bestScore) {
+      bestNode = node;
+      bestScore = score;
+    }
+  };
+
+  consider(bannerFrame);
+  visitDescendants(bannerFrame, consider);
+
+  return bestNode;
+}
+
+function findMediaNode(
+  bannerFrame: BannerFrame,
+  bodyContainer: AutoLayoutFrame | null
+): ResizableNode | null {
+  let bestNode: ResizableNode | null = null;
+  let bestScore = Number.NEGATIVE_INFINITY;
+
+  visitDescendants(bannerFrame, (node) => {
+    if (!isResizable(node) || node === bodyContainer) return;
+    if (containsText(node)) return;
+
+    const area =
+      bannerFrame.width > 0 && bannerFrame.height > 0
+        ? (node.width * node.height) / (bannerFrame.width * bannerFrame.height)
+        : 0;
+    const score =
+      area * 100 +
+      (hasImageFill(node) ? 1000 : 0) +
+      (containsImageFill(node) ? 500 : 0) +
+      (isLikelyImageName(node) ? 300 : 0);
+
+    if (score <= 0) return;
+
+    if (score > bestScore) {
+      bestNode = node;
+      bestScore = score;
+    }
+  });
+
+  return bestNode;
+}
+
+function getRelativeBounds(
+  node: ResizableNode,
+  ancestor: ResizableNode
+): { x: number; y: number; width: number; height: number } {
+  const nodeBox = (node as SceneNode).absoluteBoundingBox;
+  const ancestorBox = (ancestor as SceneNode).absoluteBoundingBox;
+
+  if (nodeBox && ancestorBox) {
+    return {
+      x: nodeBox.x - ancestorBox.x,
+      y: nodeBox.y - ancestorBox.y,
+      width: nodeBox.width,
+      height: nodeBox.height,
+    };
+  }
+
+  return {
+    x: node.absoluteTransform[0][2] - ancestor.absoluteTransform[0][2],
+    y: node.absoluteTransform[1][2] - ancestor.absoluteTransform[1][2],
+    width: node.width,
+    height: node.height,
+  };
+}
+
+function setLayoutSizingFixed(
+  node: SceneNode,
+  direction: ResizeDirection
+): void {
+  if ("layoutSizingVertical" in node && "layoutSizingHorizontal" in node) {
+    type AutoLayoutChild = SceneNode & {
+      layoutSizingVertical: "FIXED" | "HUG" | "FILL";
+      layoutSizingHorizontal: "FIXED" | "HUG" | "FILL";
+    };
+    const lNode = node as AutoLayoutChild;
+    if (
+      (direction === "height" || direction === "proportional") &&
+      lNode.layoutSizingVertical === "HUG"
+    ) {
+      lNode.layoutSizingVertical = "FIXED";
+    }
+    if (
+      (direction === "width" || direction === "proportional") &&
+      lNode.layoutSizingHorizontal === "HUG"
+    ) {
+      lNode.layoutSizingHorizontal = "FIXED";
+    }
+  }
+}
+
+function setLayoutPositioning(
+  node: SceneNode,
+  value: "AUTO" | "ABSOLUTE"
+): void {
+  if ("layoutPositioning" in node) {
+    (node as SceneNode & { layoutPositioning: "AUTO" | "ABSOLUTE" })
+      .layoutPositioning = value;
+  }
+}
+
+function markDisclaimerNode(
+  node: BaseNode,
+  asset: DisclaimerAsset,
+  presetKey: string
+): void {
+  node.setSharedPluginData(PLUGIN_DATA_NAMESPACE, PLUGIN_DATA_ASSET_KEY, asset.key);
+  node.setSharedPluginData(
+    PLUGIN_DATA_NAMESPACE,
+    PLUGIN_DATA_PRESET_KEY,
+    presetKey
+  );
+}
+
+function isMatchingDisclaimer(node: SceneNode, assetKey: string): boolean {
+  return (
+    node.getSharedPluginData(PLUGIN_DATA_NAMESPACE, PLUGIN_DATA_ASSET_KEY) ===
+      assetKey || node.name.includes(assetKey)
+  );
+}
+
+function findMatchingDisclaimer(
+  bannerFrame: BannerFrame,
+  assetKey: string
+): ResizableNode | null {
+  let result: ResizableNode | null = null;
+
+  visitDescendants(bannerFrame, (node) => {
+    if (!result && isResizable(node) && isMatchingDisclaimer(node, assetKey)) {
+      result = node;
+    }
+  });
+
+  return result;
+}
+
+function getTargetPercent(msg: ApplyResizeMessage): number | null {
+  if (msg.presetKey === "custom") {
+    if (
+      msg.customPercent === null ||
+      msg.customPercent <= 0 ||
+      msg.customPercent > 100
+    ) {
+      return null;
+    }
+    return msg.customPercent;
+  }
+
+  const preset = DISCLAIMER_PRESETS[msg.presetKey];
+  return preset && preset.percent !== null ? preset.percent : null;
+}
+
+function getPresetAndAsset(msg: ApplyResizeMessage): {
+  preset: DisclaimerPreset;
+  asset: DisclaimerAsset;
+} | null {
+  const preset = DISCLAIMER_PRESETS[msg.presetKey];
+  if (!preset) return null;
+
+  const asset = DISCLAIMER_ASSETS[preset.assetKey];
+  if (!asset) return null;
+
+  return { preset, asset };
+}
+
+function createDisclaimerNode(
+  asset: DisclaimerAsset,
+  presetKey: string
+): ResizableNode {
+  const node = figma.createNodeFromSvg(asset.svg);
+  node.name = "Disclaimer — " + asset.label;
+
+  if (!isResizable(node)) {
+    node.remove();
+    throw new Error("SVG-дисклеймер не поддерживает изменение размера");
+  }
+
+  markDisclaimerNode(node, asset, presetKey);
+  setLayoutSizingFixed(node, "proportional");
+
+  return node;
+}
+
+function resizeExistingDisclaimer(params: {
+  node: ResizableNode;
+  bannerFrame: BannerFrame;
+  targetPercent: number;
+  direction: ResizeDirection;
+  onlyEnlarge: boolean;
+  asset: DisclaimerAsset;
+  presetKey: string;
+}): { node: ResizableNode; actualPercent: number } {
+  const {
+    node,
+    bannerFrame,
+    targetPercent,
+    direction,
+    onlyEnlarge,
+    asset,
+    presetKey,
+  } = params;
+
+  if (node.locked) {
+    throw new Error("Слой заблокирован (locked). Разблокируйте и попробуйте снова");
+  }
+
+  const currentPercent =
+    ((node.width * node.height) / (bannerFrame.width * bannerFrame.height)) *
+    100;
+
+  if (onlyEnlarge && currentPercent >= targetPercent) {
+    return { node, actualPercent: round2(currentPercent) };
+  }
+
+  if (node.type === "TEXT") {
+    const textNode = node as TextNode;
+    if (textNode.textAutoResize !== "NONE") {
+      textNode.textAutoResize = "NONE";
+    }
+  }
+
+  setLayoutSizingFixed(node, direction);
+
+  const { newWidth, newHeight } = calcNewDimensions(
+    node.width,
+    node.height,
+    bannerFrame.width,
+    bannerFrame.height,
+    targetPercent,
+    direction
+  );
+
+  node.resizeWithoutConstraints(newWidth, newHeight);
+  markDisclaimerNode(node, asset, presetKey);
+
+  const actualArea = node.width * node.height;
+  const bannerArea = bannerFrame.width * bannerFrame.height;
+  const actualPercent = round2((actualArea / bannerArea) * 100);
+
+  return { node, actualPercent };
+}
+
+function addDisclaimerToBody(params: {
+  bannerFrame: BannerFrame;
+  asset: DisclaimerAsset;
+  presetKey: string;
+  targetPercent: number;
+}): { node: ResizableNode; actualPercent: number } {
+  const { bannerFrame, asset, presetKey, targetPercent } = params;
+  const bodyContainer = findBodyContainer(bannerFrame);
+
+  if (!bodyContainer) {
+    throw new Error("Не удалось найти текстовый auto-layout контейнер в баннере");
+  }
+
+  const padding = getAutoLayoutPadding(bodyContainer);
+  const contentWidth = bodyContainer.width - padding.left - padding.right;
+
+  if (contentWidth <= 0) {
+    throw new Error("В текстовом контейнере нет доступной ширины для дисклеймера");
+  }
+
+  const node = createDisclaimerNode(asset, presetKey);
+  const { newWidth, newHeight } = calcAreaWithWidth(
+    bannerFrame.width,
+    bannerFrame.height,
+    targetPercent,
+    contentWidth
+  );
+
+  try {
+    node.resizeWithoutConstraints(newWidth, newHeight);
+    setLayoutPositioning(node, "AUTO");
+    bodyContainer.appendChild(node);
+  } catch (err) {
+    node.remove();
+    throw err;
+  }
+
+  const actualArea = node.width * node.height;
+  const bannerArea = bannerFrame.width * bannerFrame.height;
+  const actualPercent = round2((actualArea / bannerArea) * 100);
+
+  return { node, actualPercent };
+}
+
+function addDisclaimerToImage(params: {
+  bannerFrame: BannerFrame;
+  asset: DisclaimerAsset;
+  presetKey: string;
+  targetPercent: number;
+}): { node: ResizableNode; actualPercent: number } {
+  const { bannerFrame, asset, presetKey, targetPercent } = params;
+  const bodyContainer = findBodyContainer(bannerFrame);
+  const mediaNode = findMediaNode(bannerFrame, bodyContainer);
+
+  if (!mediaNode) {
+    throw new Error("Не удалось найти картинку или медиа-область в баннере");
+  }
+
+  const padding = bodyContainer
+    ? getAutoLayoutPadding(bodyContainer)
+    : { left: 0, right: 0, bottom: 0 };
+  const mediaBounds = getRelativeBounds(mediaNode, bannerFrame);
+  const contentWidth = mediaBounds.width - padding.left - padding.right;
+
+  if (contentWidth <= 0) {
+    throw new Error("В медиа-области нет доступной ширины для дисклеймера");
+  }
+
+  const node = createDisclaimerNode(asset, presetKey);
+  const { newWidth, newHeight } = calcAreaWithWidth(
+    bannerFrame.width,
+    bannerFrame.height,
+    targetPercent,
+    contentWidth
+  );
+
+  try {
+    bannerFrame.appendChild(node);
+    setLayoutPositioning(node, "ABSOLUTE");
+    node.resizeWithoutConstraints(newWidth, newHeight);
+    node.x = mediaBounds.x + padding.left;
+    node.y = mediaBounds.y + mediaBounds.height - padding.bottom - node.height;
+
+    if ("constraints" in node) {
+      (node as SceneNode & { constraints: Constraints }).constraints = {
+        horizontal: "STRETCH",
+        vertical: "MAX",
+      };
+    }
+  } catch (err) {
+    node.remove();
+    throw err;
+  }
+
+  const actualArea = node.width * node.height;
+  const bannerArea = bannerFrame.width * bannerFrame.height;
+  const actualPercent = round2((actualArea / bannerArea) * 100);
+
+  return { node, actualPercent };
+}
+
 function buildState(): PluginState {
   const sel = figma.currentPage.selection;
 
@@ -183,13 +675,48 @@ function buildState(): PluginState {
       type: sel.length === 0 ? "no-selection" : "invalid",
       error:
         sel.length === 0
-          ? "Выберите один disclaimer-слой"
+          ? "Выберите один disclaimer-слой или баннерный фрейм"
           : "Выберите ровно один слой",
       presets: DISCLAIMER_PRESETS,
     };
   }
 
   const sceneNode = sel[0];
+
+  if (isTopLevelFrame(sceneNode)) {
+    if (sceneNode.locked) {
+      return {
+        type: "invalid",
+        error: "Баннер заблокирован (locked). Разблокируйте и попробуйте снова",
+        presets: DISCLAIMER_PRESETS,
+      };
+    }
+
+    if (sceneNode.width <= 0 || sceneNode.height <= 0) {
+      return {
+        type: "invalid",
+        error: `Некорректные размеры баннера: ${sceneNode.width}×${sceneNode.height}`,
+        presets: DISCLAIMER_PRESETS,
+      };
+    }
+
+    return {
+      type: "ready",
+      info: {
+        mode: "add-missing",
+        disclaimerName: null,
+        disclaimerWidth: null,
+        disclaimerHeight: null,
+        bannerName: sceneNode.name,
+        bannerWidth: round2(sceneNode.width),
+        bannerHeight: round2(sceneNode.height),
+        currentPercent: null,
+        isText: false,
+        hasAutoLayout: sceneNode.layoutMode !== "NONE",
+      },
+      presets: DISCLAIMER_PRESETS,
+    };
+  }
 
   if (!isResizable(sceneNode)) {
     return {
@@ -220,7 +747,7 @@ function buildState(): PluginState {
   if (!bannerFrame) {
     return {
       type: "invalid",
-      error: "Выделите disclaimer внутри баннерного фрейма",
+      error: "Выделите disclaimer внутри баннерного фрейма или сам баннер",
       presets: DISCLAIMER_PRESETS,
     };
   }
@@ -240,6 +767,7 @@ function buildState(): PluginState {
   return {
     type: "ready",
     info: {
+      mode: "resize-existing",
       disclaimerName: sceneNode.name,
       disclaimerWidth: round2(sceneNode.width),
       disclaimerHeight: round2(sceneNode.height),
@@ -254,13 +782,13 @@ function buildState(): PluginState {
   };
 }
 
-// ─── Plugin entrypoint ─────────────────────────────────────────────────────
-
-figma.showUI(__html__, { width: 432, height: 632 });
-
 function sendState(): void {
   figma.ui.postMessage(buildState());
 }
+
+// ─── Plugin entrypoint ─────────────────────────────────────────────────────
+
+figma.showUI(__html__, { width: 432, height: 672 });
 
 sendState();
 
@@ -291,39 +819,27 @@ figma.ui.on("message", (msg: UiMessage) => {
         return;
       }
 
-      let targetPercent: number;
-
-      if (msg.presetKey === "custom") {
-        if (
-          msg.customPercent === null ||
-          msg.customPercent <= 0 ||
-          msg.customPercent > 100
-        ) {
-          figma.ui.postMessage({
-            type: "error",
-            message: "Укажите корректный процент (0–100)",
-          });
-          return;
-        }
-        targetPercent = msg.customPercent;
-      } else {
-        const preset = DISCLAIMER_PRESETS[msg.presetKey];
-        if (!preset || preset.percent === null) {
-          figma.ui.postMessage({ type: "error", message: "Неизвестный пресет" });
-          return;
-        }
-        targetPercent = preset.percent;
-      }
-
-      if (msg.onlyEnlarge && state.info.currentPercent >= targetPercent) {
+      const presetAndAsset = getPresetAndAsset(msg);
+      if (!presetAndAsset) {
         figma.ui.postMessage({
-          type: "success",
-          message: "Уже достаточно: " + round2(state.info.currentPercent) + "% из " + targetPercent + "%",
+          type: "error",
+          message: "Не найден SVG-ассет для выбранного пресета",
         });
         return;
       }
 
+      const targetPercent = getTargetPercent(msg);
+      if (targetPercent === null) {
+        figma.ui.postMessage({
+          type: "error",
+          message: "Укажите корректный процент (0–100)",
+        });
+        return;
+      }
+
+      const { asset } = presetAndAsset;
       const sel = figma.currentPage.selection;
+
       if (sel.length !== 1) {
         figma.ui.postMessage({
           type: "error",
@@ -332,76 +848,98 @@ figma.ui.on("message", (msg: UiMessage) => {
         return;
       }
 
-      const node = sel[0] as SceneNode;
+      const selectedNode = sel[0];
+      let result: { node: ResizableNode; actualPercent: number };
+      let actionLabel = "Применено";
 
-      if (!isResizable(node)) {
-        figma.ui.postMessage({
-          type: "error",
-          message: "Слой не поддерживает resize",
+      if (state.info.mode === "add-missing") {
+        if (!isFrameLike(selectedNode)) {
+          figma.ui.postMessage({
+            type: "error",
+            message: "Выберите баннерный фрейм",
+          });
+          return;
+        }
+
+        const existingDisclaimer = findMatchingDisclaimer(selectedNode, asset.key);
+
+        if (existingDisclaimer) {
+          result = resizeExistingDisclaimer({
+            node: existingDisclaimer,
+            bannerFrame: selectedNode,
+            targetPercent,
+            direction: msg.direction,
+            onlyEnlarge: msg.onlyEnlarge,
+            asset,
+            presetKey: msg.presetKey,
+          });
+        } else {
+          result =
+            msg.addTarget === "image"
+              ? addDisclaimerToImage({
+                  bannerFrame: selectedNode,
+                  asset,
+                  presetKey: msg.presetKey,
+                  targetPercent,
+                })
+              : addDisclaimerToBody({
+                  bannerFrame: selectedNode,
+                  asset,
+                  presetKey: msg.presetKey,
+                  targetPercent,
+                });
+          actionLabel = "Добавлено";
+        }
+      } else {
+        if (!isResizable(selectedNode)) {
+          figma.ui.postMessage({
+            type: "error",
+            message: "Слой не поддерживает resize",
+          });
+          return;
+        }
+
+        const bannerFrame = findBannerFrame(selectedNode);
+
+        if (!bannerFrame) {
+          figma.ui.postMessage({
+            type: "error",
+            message: "Выделите disclaimer внутри баннерного фрейма",
+          });
+          return;
+        }
+
+        result = resizeExistingDisclaimer({
+          node: selectedNode,
+          bannerFrame,
+          targetPercent,
+          direction: msg.direction,
+          onlyEnlarge: msg.onlyEnlarge,
+          asset,
+          presetKey: msg.presetKey,
         });
-        return;
       }
-
-      const { newWidth, newHeight } = calcNewDimensions(
-        state.info.disclaimerWidth,
-        state.info.disclaimerHeight,
-        state.info.bannerWidth,
-        state.info.bannerHeight,
-        targetPercent,
-        msg.direction
-      );
-
-      // Для TextNode: отключаем авто-ресайз текста, иначе Figma сразу пересчитает высоту
-      if (node.type === "TEXT") {
-        const textNode = node as TextNode;
-        if (textNode.textAutoResize !== "NONE") {
-          textNode.textAutoResize = "NONE";
-        }
-      }
-
-      // Для auto-layout children: переключаем нужные оси с HUG на FIXED,
-      // иначе resizeWithoutConstraints не имеет эффекта
-      if ("layoutSizingVertical" in node && "layoutSizingHorizontal" in node) {
-        type AutoLayoutChild = SceneNode & {
-          layoutSizingVertical: "FIXED" | "HUG" | "FILL";
-          layoutSizingHorizontal: "FIXED" | "HUG" | "FILL";
-        };
-        const lNode = node as AutoLayoutChild;
-        if (
-          (msg.direction === "height" || msg.direction === "proportional") &&
-          lNode.layoutSizingVertical === "HUG"
-        ) {
-          lNode.layoutSizingVertical = "FIXED";
-        }
-        if (
-          (msg.direction === "width" || msg.direction === "proportional") &&
-          lNode.layoutSizingHorizontal === "HUG"
-        ) {
-          lNode.layoutSizingHorizontal = "FIXED";
-        }
-      }
-
-      node.resizeWithoutConstraints(newWidth, newHeight);
-
-      const actualArea = node.width * node.height;
-      const bannerArea = state.info.bannerWidth * state.info.bannerHeight;
-      const actualPercent = round2((actualArea / bannerArea) * 100);
 
       const resultMessage =
-        "Применено: " + round2(node.width) + "×" + round2(node.height) + " px — " +
-        actualPercent + "% площади баннера";
+        actionLabel +
+        ": " +
+        round2(result.node.width) +
+        "×" +
+        round2(result.node.height) +
+        " px — " +
+        result.actualPercent +
+        "% площади баннера";
 
+      figma.currentPage.selection = [result.node];
       figma.notify(resultMessage, { timeout: 4000 });
-      // Шлём success ПЕРЕД sendState, чтобы UI его не затёр
       figma.ui.postMessage({ type: "success", message: resultMessage });
-      // Обновляем отображаемые размеры в панели после того как success уже показан
       sendState();
       return;
     }
   } catch (err) {
     figma.ui.postMessage({
       type: "error",
-      message: "Ошибка: " + String(err),
+      message: "Ошибка: " + String(err instanceof Error ? err.message : err),
     });
   }
 });

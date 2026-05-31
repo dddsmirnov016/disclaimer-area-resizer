@@ -1,14 +1,14 @@
 {
   "compilerOptions": {
     "target": "ES6",
-    "module": "commonjs",
+    "module": "none",
     "lib": ["ES6"],
-    "outDir": "dist",
+    "outFile": "dist/main.js",
     "rootDir": "src",
     "strict": true,
     "noImplicitAny": true,
     "types": ["@figma/plugin-typings"],
     "skipLibCheck": true
   },
-  "include": ["src/main.ts"]
+  "files": ["src/generatedDisclaimerAssets.ts", "src/main.ts"]
 }

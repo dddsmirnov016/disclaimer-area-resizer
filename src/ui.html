@@ -166,6 +166,34 @@
     width: 100%;
   }
 
+  .checkbox-row {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    min-height: 24px;
+    width: 100%;
+  }
+
+  .checkbox-row input {
+    width: 18px;
+    height: 18px;
+    accent-color: #0d99ff;
+    flex: 0 0 auto;
+  }
+
+  .checkbox-row label {
+    font-size: 14px;
+    font-weight: 400;
+    line-height: 20px;
+    color: #000;
+    cursor: pointer;
+  }
+
+  .checkbox-row input:disabled + label {
+    color: rgba(0, 0, 0, 0.35);
+    cursor: default;
+  }
+
   /* ── Actions ─────────────────────────────────────── */
   .actions {
     display: flex;
@@ -289,6 +317,10 @@
         <input type="number" id="customInput" class="custom-input"
                min="0.01" max="100" step="0.01" placeholder="например, 7,5" />
       </div>
+      <div class="checkbox-row">
+        <input type="checkbox" id="addToImageInput" />
+        <label for="addToImageInput">Поверх картинки</label>
+      </div>
     </div>
   </div>
 
@@ -304,11 +336,12 @@
 <script>
 (function () {
   var WINDOW_W = 432;
-  var HEIGHT_BASE = 632;
-  var HEIGHT_CUSTOM = 712;
+  var HEIGHT_BASE = 672;
+  var HEIGHT_CUSTOM = 752;
 
   var state = null;
   var presets = {};
+  var keepFeedbackOnNextReady = false;
 
   var bannerVal = document.getElementById('bannerVal');
   var disclaimerVal = document.getElementById('disclaimerVal');
@@ -316,6 +349,7 @@
   var presetSelect = document.getElementById('presetSelect');
   var customBlock = document.getElementById('customBlock');
   var customInput = document.getElementById('customInput');
+  var addToImageInput = document.getElementById('addToImageInput');
   var applyBtn = document.getElementById('applyBtn');
   var errorBox = document.getElementById('errorBox');
   var successMsg = document.getElementById('successMsg');
@@ -400,6 +434,10 @@
   function updatePercentColor() {
     percentVal.classList.remove('green', 'red');
     if (!state || state.type !== 'ready') return;
+    if (state.info.currentPercent === null || state.info.currentPercent === undefined) {
+      percentVal.classList.add('green');
+      return;
+    }
 
     var target = getTargetPercent();
     if (target === null) {
@@ -412,6 +450,18 @@
     } else {
       percentVal.classList.add('green');
     }
+  }
+
+  function getIdleButtonLabel() {
+    return state && state.type === 'ready' && state.info && state.info.mode === 'add-missing'
+      ? 'Добавить'
+      : 'Применить';
+  }
+
+  function syncAddTargetAvailability() {
+    var canAdd = state && state.type === 'ready' && state.info && state.info.mode === 'add-missing';
+    addToImageInput.disabled = !canAdd;
+    if (!canAdd) addToImageInput.checked = false;
   }
 
   function showError(text) {
@@ -450,6 +500,8 @@
       percentVal.classList.add('muted');
       percentVal.classList.remove('green', 'red');
       applyBtn.disabled = true;
+      applyBtn.textContent = 'Применить';
+      syncAddTargetAvailability();
       hideError();
       hideSuccess();
       return;
@@ -462,19 +514,31 @@
       percentVal.classList.add('muted');
       percentVal.classList.remove('green', 'red');
       applyBtn.disabled = true;
+      applyBtn.textContent = 'Применить';
+      syncAddTargetAvailability();
       showError(msg.error || 'Неверный выбор');
       return;
     }
 
     var i = msg.info;
     setSizeMetric(bannerVal, i.bannerWidth, i.bannerHeight, false);
-    setSizeMetric(disclaimerVal, i.disclaimerWidth, i.disclaimerHeight, false);
-    percentVal.textContent = formatRuPercent(i.currentPercent);
-    percentVal.classList.remove('muted');
+    setSizeMetric(disclaimerVal, i.disclaimerWidth, i.disclaimerHeight, i.disclaimerWidth === null);
+    percentVal.textContent = i.currentPercent === null ? '—' : formatRuPercent(i.currentPercent);
+    if (i.currentPercent === null) {
+      percentVal.classList.add('muted');
+    } else {
+      percentVal.classList.remove('muted');
+    }
     updatePercentColor();
     applyBtn.disabled = false;
-    hideError();
-    hideSuccess();
+    applyBtn.textContent = getIdleButtonLabel();
+    syncAddTargetAvailability();
+    if (keepFeedbackOnNextReady) {
+      keepFeedbackOnNextReady = false;
+    } else {
+      hideError();
+      hideSuccess();
+    }
   }
 
   presetSelect.addEventListener('change', function () {
@@ -515,7 +579,8 @@
       presetKey: key,
       customPercent: customPct,
       direction: 'height',
-      onlyEnlarge: false
+      onlyEnlarge: false,
+      addTarget: addToImageInput.checked ? 'image' : 'body'
     }}, '*');
   });
 
@@ -524,20 +589,21 @@
     if (!msg) return;
 
     if (msg.type === 'no-selection' || msg.type === 'invalid' || msg.type === 'ready') {
-      applyBtn.textContent = 'Применить';
       if (msg.type === 'ready') applyBtn.disabled = false;
       renderState(msg);
       return;
     }
     if (msg.type === 'success') {
-      applyBtn.textContent = 'Применить';
+      applyBtn.textContent = getIdleButtonLabel();
       applyBtn.disabled = false;
+      keepFeedbackOnNextReady = true;
       showSuccess(msg.message);
       return;
     }
     if (msg.type === 'error') {
-      applyBtn.textContent = 'Применить';
+      applyBtn.textContent = getIdleButtonLabel();
       applyBtn.disabled = false;
+      keepFeedbackOnNextReady = false;
       showError(msg.message);
       return;
     }

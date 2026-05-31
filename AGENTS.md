@@ -39,9 +39,13 @@ disclaimer-area-resizer/
 ├── manifest.json      # точка входа для Figma (main + ui)
 ├── src/
 │   ├── main.ts        # логика плагина (TypeScript)
-│   └── ui.html        # интерфейс плагина
+│   ├── ui.html        # интерфейс плагина
+│   └── generatedDisclaimerAssets.ts # генерируется из svg/ при сборке
 ├── dist/
 │   └── main.js        # сборка из main.ts — должна быть в git
+├── scripts/
+│   └── generate-disclaimer-assets.mjs # встраивает SVG в TypeScript
+├── svg/               # исходные SVG-дисклеймеры
 ├── package.json
 ├── tsconfig.json
 ├── README.md          # документация для людей
@@ -50,7 +54,9 @@ disclaimer-area-resizer/
 
 **В git не коммитить:** `node_modules/`, `.DS_Store`, `*.js.map`.
 
-**В git коммитить после `npm run build`:** `dist/main.js`, если менялся `src/main.ts`.
+**В git коммитить после `npm run build`:** `dist/main.js`, если менялся `src/main.ts`; `src/generatedDisclaimerAssets.ts`, если менялись SVG в `svg/`.
+
+**SVG:** Figma-плагин не читает локальные файлы в runtime. Все SVG из `svg/` встраиваются в `src/generatedDisclaimerAssets.ts` через `npm run generate:assets`, а `npm run build` запускает генерацию автоматически.
 
 **UI:** `manifest.json` указывает `"ui": "src/ui.html"` — правки интерфейса только в `src/ui.html`, отдельная сборка UI не нужна.
 
@@ -73,6 +79,37 @@ disclaimer-area-resizer/
 3. Запуск: **Plugins → Development → Disclaimer Area Resizer**.
 
 После изменений в коде: пересобрать (`npm run build` при правках `main.ts`), перезапустить плагин в Figma.
+
+## Поведение плагина
+
+- Если выбран существующий слой дисклеймера внутри баннера, плагин меняет его размер до процента из выбранного пресета.
+- Если выбран сам баннерный фрейм, плагин ищет уже добавленный SVG-дисклеймер с тем же `assetKey`. Если находит — ресайзит его. Если не находит — создаёт новый SVG через `figma.createNodeFromSvg`.
+- Чекбокс **Поверх картинки** в UI управляет добавлением нового SVG:
+  - выключен по умолчанию — добавить в текстовую/body-часть;
+  - включён — добавить абсолютным оверлеем внизу медиа-области.
+- Текстовая часть определяется как вертикальный auto-layout контейнер с текстовыми слоями.
+- Медиа-область определяется по image fill или именам слоёв вроде `image`, `photo`, `visual`, `картинка`, `фото`.
+
+## SVG и пресеты
+
+Пресеты процентов находятся в `DISCLAIMER_PRESETS` в `src/main.ts`. Каждый пресет содержит `assetKey`, который должен совпадать с ключом из `src/generatedDisclaimerAssets.ts` (обычно имя SVG-файла без `.svg`).
+
+Текущий маппинг:
+
+| Пресеты | SVG |
+|---------|-----|
+| `medicine_video_7`, `medicine_static_5` | `Есть противопоказания...svg` |
+| `bad_static_10`, `bad_video_7`, `energy_7` | `Не является лекарством.svg` |
+| `finance_credit_5` | `Изучите все условия кредита...svg` |
+| `finance_custom_10` | `Банкротство влечёт...svg` |
+| `custom` | `Есть противопоказания...svg` |
+
+При добавлении нового SVG-файла:
+
+1. Положить файл в `svg/`.
+2. Запустить `npm run build`.
+3. Проверить, что обновился `src/generatedDisclaimerAssets.ts`.
+4. Добавить или изменить `assetKey` в `DISCLAIMER_PRESETS`.
 
 ---
 
@@ -106,6 +143,7 @@ git config user.name "Dmitrii Smirnov"
 | Задача | Файлы |
 |--------|--------|
 | Логика, пресеты, API Figma | `src/main.ts` → `npm run build` |
+| Новые SVG-дисклеймеры | `svg/` → `npm run build` → `src/generatedDisclaimerAssets.ts` |
 | Вёрстка, цвета, ошибки в UI | `src/ui.html` |
 | Имя/права плагина | `manifest.json` |
 | Зависимости TypeScript | `package.json` |
@@ -118,6 +156,7 @@ git config user.name "Dmitrii Smirnov"
 
 - [ ] `npm run build` прошёл без ошибок (если трогали `main.ts`)
 - [ ] `dist/main.js` добавлен в коммит при изменении логики
+- [ ] `src/generatedDisclaimerAssets.ts` добавлен в коммит при изменении `svg/`
 - [ ] Нет лишних файлов (`node_modules`, секреты)
 - [ ] `git push origin main` успешен
 - [ ] Пользователю сказано перезапустить плагин в Figma при изменении UI/логики
