@@ -1,12 +1,24 @@
 import { DISCLAIMER_ASSETS } from "../generatedDisclaimerAssets";
 import type { DisclaimerAsset } from "../core/types";
-import { setLayoutSizingFixed, copyLayoutChildSettings, shouldPreserveManualPosition } from "./layout";
-import { canInsertChildren, isResizable, type BannerFrame, type ResizableNode } from "./nodeGuards";
-import { visitDescendants } from "./traversal";
+import {
+  copyLayoutChildSettings,
+  setLayoutSizingFixed,
+  shouldPreserveManualPosition,
+} from "./layout";
+import {
+  canInsertChildren,
+  isResizable,
+  type BannerFrame,
+  type ResizableNode,
+} from "./nodeGuards";
+import { isVisibleInHierarchy, visitDescendants } from "./traversal";
 
 export const PLUGIN_DATA_NAMESPACE = "disclaimerAreaResizer";
 export const PLUGIN_DATA_ASSET_KEY = "assetKey";
 export const PLUGIN_DATA_PRESET_KEY = "presetKey";
+
+const HEURISTIC_DISCLAIMER_NAME_RE =
+  /disclaimer|дисклеймер|legal|warning|предупрежд|противопоказан|лекарств|условия кредита|займ|банкротств/i;
 
 export function prepareSvgNodeForDeformation(node: SceneNode): void {
   if ("clipsContent" in node) {
@@ -71,6 +83,93 @@ export function isPluginGeneratedDisclaimer(
     node.getSharedPluginData(PLUGIN_DATA_NAMESPACE, PLUGIN_DATA_ASSET_KEY) ===
       assetKey || node.name.startsWith("Disclaimer — ")
   );
+}
+
+function isPluginCreatedDisclaimerCandidate(node: SceneNode): boolean {
+  return (
+    Boolean(
+      node.getSharedPluginData(PLUGIN_DATA_NAMESPACE, PLUGIN_DATA_ASSET_KEY)
+    ) || node.name.startsWith("Disclaimer — ")
+  );
+}
+
+export function findPluginCreatedDisclaimer(
+  bannerFrame: BannerFrame
+): ResizableNode | null {
+  return getSingleCandidate(collectPluginCreatedDisclaimers(bannerFrame));
+}
+
+function getSingleCandidate(candidates: ResizableNode[]): ResizableNode | null {
+  return candidates.length === 1 ? candidates[0] : null;
+}
+
+function collectPluginCreatedDisclaimers(
+  bannerFrame: BannerFrame
+): ResizableNode[] {
+  const candidates: ResizableNode[] = [];
+
+  visitDescendants(bannerFrame, (node) => {
+    if (isResizable(node) && isPluginCreatedDisclaimerCandidate(node)) {
+      candidates.push(node);
+    }
+  });
+
+  return candidates;
+}
+
+function isLikelyDisclaimerByHeuristic(
+  node: SceneNode,
+  bannerFrame: BannerFrame
+): node is ResizableNode {
+  if (!isResizable(node)) return false;
+  if (!isVisibleInHierarchy(node, bannerFrame)) return false;
+  if (!HEURISTIC_DISCLAIMER_NAME_RE.test(node.name)) return false;
+
+  const bannerArea = bannerFrame.width * bannerFrame.height;
+  if (bannerArea <= 0) return false;
+
+  const areaPercent = (node.width * node.height / bannerArea) * 100;
+
+  return (
+    node.width >= 8 &&
+    node.height >= 4 &&
+    node.width <= bannerFrame.width * 1.05 &&
+    node.height <= bannerFrame.height * 0.35 &&
+    areaPercent >= 0.05 &&
+    areaPercent <= 20
+  );
+}
+
+export function findHeuristicDisclaimer(
+  bannerFrame: BannerFrame
+): ResizableNode | null {
+  return getSingleCandidate(collectHeuristicDisclaimers(bannerFrame));
+}
+
+function collectHeuristicDisclaimers(
+  bannerFrame: BannerFrame
+): ResizableNode[] {
+  const candidates: ResizableNode[] = [];
+
+  visitDescendants(bannerFrame, (node) => {
+    if (isLikelyDisclaimerByHeuristic(node, bannerFrame)) {
+      candidates.push(node);
+    }
+  });
+
+  return candidates;
+}
+
+export function findDetectedDisclaimer(
+  bannerFrame: BannerFrame
+): ResizableNode | null {
+  const pluginCandidates = collectPluginCreatedDisclaimers(bannerFrame);
+
+  if (pluginCandidates.length > 0) {
+    return getSingleCandidate(pluginCandidates);
+  }
+
+  return findHeuristicDisclaimer(bannerFrame);
 }
 
 export function findMatchingDisclaimer(

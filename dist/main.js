@@ -405,6 +405,7 @@
   var PLUGIN_DATA_NAMESPACE = "disclaimerAreaResizer";
   var PLUGIN_DATA_ASSET_KEY = "assetKey";
   var PLUGIN_DATA_PRESET_KEY = "presetKey";
+  var HEURISTIC_DISCLAIMER_NAME_RE = /disclaimer|дисклеймер|legal|warning|предупрежд|противопоказан|лекарств|условия кредита|займ|банкротств/i;
   function prepareSvgNodeForDeformation(node) {
     if ("clipsContent" in node) {
       node.clipsContent = true;
@@ -441,6 +442,51 @@
   }
   function isPluginGeneratedDisclaimer(node, assetKey) {
     return node.getSharedPluginData(PLUGIN_DATA_NAMESPACE, PLUGIN_DATA_ASSET_KEY) === assetKey || node.name.startsWith("Disclaimer \u2014 ");
+  }
+  function isPluginCreatedDisclaimerCandidate(node) {
+    return Boolean(
+      node.getSharedPluginData(PLUGIN_DATA_NAMESPACE, PLUGIN_DATA_ASSET_KEY)
+    ) || node.name.startsWith("Disclaimer \u2014 ");
+  }
+  function getSingleCandidate(candidates) {
+    return candidates.length === 1 ? candidates[0] : null;
+  }
+  function collectPluginCreatedDisclaimers(bannerFrame) {
+    const candidates = [];
+    visitDescendants(bannerFrame, (node) => {
+      if (isResizable(node) && isPluginCreatedDisclaimerCandidate(node)) {
+        candidates.push(node);
+      }
+    });
+    return candidates;
+  }
+  function isLikelyDisclaimerByHeuristic(node, bannerFrame) {
+    if (!isResizable(node)) return false;
+    if (!isVisibleInHierarchy(node, bannerFrame)) return false;
+    if (!HEURISTIC_DISCLAIMER_NAME_RE.test(node.name)) return false;
+    const bannerArea = bannerFrame.width * bannerFrame.height;
+    if (bannerArea <= 0) return false;
+    const areaPercent = node.width * node.height / bannerArea * 100;
+    return node.width >= 8 && node.height >= 4 && node.width <= bannerFrame.width * 1.05 && node.height <= bannerFrame.height * 0.35 && areaPercent >= 0.05 && areaPercent <= 20;
+  }
+  function findHeuristicDisclaimer(bannerFrame) {
+    return getSingleCandidate(collectHeuristicDisclaimers(bannerFrame));
+  }
+  function collectHeuristicDisclaimers(bannerFrame) {
+    const candidates = [];
+    visitDescendants(bannerFrame, (node) => {
+      if (isLikelyDisclaimerByHeuristic(node, bannerFrame)) {
+        candidates.push(node);
+      }
+    });
+    return candidates;
+  }
+  function findDetectedDisclaimer(bannerFrame) {
+    const pluginCandidates = collectPluginCreatedDisclaimers(bannerFrame);
+    if (pluginCandidates.length > 0) {
+      return getSingleCandidate(pluginCandidates);
+    }
+    return findHeuristicDisclaimer(bannerFrame);
   }
   function findMatchingDisclaimer(bannerFrame, assetKey) {
     let result = null;
@@ -722,6 +768,28 @@
   }
 
   // src/state/selectionState.ts
+  var BANNER_DISCLAIMER_DETECTION_ERROR = "\u041D\u0435 \u0443\u0434\u0430\u043B\u043E\u0441\u044C \u043E\u043F\u0440\u0435\u0434\u0435\u043B\u0438\u0442\u044C \u0434\u0438\u0441\u043A\u043B\u0435\u0439\u043C\u0435\u0440 \u043D\u0430 \u0431\u0430\u043D\u043D\u0435\u0440\u0435. \u0412\u044B\u0434\u0435\u043B\u0438\u0442\u0435 disclaimer-\u0441\u043B\u043E\u0439 \u0432\u0440\u0443\u0447\u043D\u0443\u044E";
+  function buildResizeState(disclaimerNode, bannerFrame) {
+    const disclaimerArea = disclaimerNode.width * disclaimerNode.height;
+    const bannerArea = bannerFrame.width * bannerFrame.height;
+    const currentPercent = disclaimerArea / bannerArea * 100;
+    return {
+      type: "ready",
+      info: {
+        mode: "resize-existing",
+        disclaimerName: disclaimerNode.name,
+        disclaimerWidth: round2(disclaimerNode.width),
+        disclaimerHeight: round2(disclaimerNode.height),
+        bannerName: bannerFrame.name,
+        bannerWidth: round2(bannerFrame.width),
+        bannerHeight: round2(bannerFrame.height),
+        currentPercent: round2(currentPercent),
+        isText: disclaimerNode.type === "TEXT",
+        hasAutoLayout: nodeHasAutoLayout(disclaimerNode)
+      },
+      presets: DISCLAIMER_PRESETS
+    };
+  }
   function buildState(selection) {
     if (selection.length !== 1) {
       return {
@@ -746,22 +814,15 @@
           presets: DISCLAIMER_PRESETS
         };
       }
-      return {
-        type: "ready",
-        info: {
-          mode: "add-missing",
-          disclaimerName: null,
-          disclaimerWidth: null,
-          disclaimerHeight: null,
-          bannerName: sceneNode.name,
-          bannerWidth: round2(sceneNode.width),
-          bannerHeight: round2(sceneNode.height),
-          currentPercent: null,
-          isText: false,
-          hasAutoLayout: sceneNode.layoutMode !== "NONE"
-        },
-        presets: DISCLAIMER_PRESETS
-      };
+      const detectedDisclaimer = findDetectedDisclaimer(sceneNode);
+      if (!detectedDisclaimer) {
+        return {
+          type: "invalid",
+          error: BANNER_DISCLAIMER_DETECTION_ERROR,
+          presets: DISCLAIMER_PRESETS
+        };
+      }
+      return buildResizeState(detectedDisclaimer, sceneNode);
     }
     if (!isResizable(sceneNode)) {
       return {
@@ -799,25 +860,7 @@
         presets: DISCLAIMER_PRESETS
       };
     }
-    const disclaimerArea = sceneNode.width * sceneNode.height;
-    const bannerArea = bannerFrame.width * bannerFrame.height;
-    const currentPercent = disclaimerArea / bannerArea * 100;
-    return {
-      type: "ready",
-      info: {
-        mode: "resize-existing",
-        disclaimerName: sceneNode.name,
-        disclaimerWidth: round2(sceneNode.width),
-        disclaimerHeight: round2(sceneNode.height),
-        bannerName: bannerFrame.name,
-        bannerWidth: round2(bannerFrame.width),
-        bannerHeight: round2(bannerFrame.height),
-        currentPercent: round2(currentPercent),
-        isText: sceneNode.type === "TEXT",
-        hasAutoLayout: nodeHasAutoLayout(sceneNode)
-      },
-      presets: DISCLAIMER_PRESETS
-    };
+    return buildResizeState(sceneNode, bannerFrame);
   }
 
   // src/plugin.ts
@@ -919,17 +962,26 @@
         actionLabel = "\u0414\u043E\u0431\u0430\u0432\u043B\u0435\u043D\u043E";
       }
     } else {
-      if (!isResizable(selectedNode)) {
-        postError("\u0421\u043B\u043E\u0439 \u043D\u0435 \u043F\u043E\u0434\u0434\u0435\u0440\u0436\u0438\u0432\u0430\u0435\u0442 resize");
+      let resizeNode = null;
+      let bannerFrame = findBannerFrame(selectedNode);
+      if (isFrameLike(selectedNode) && !bannerFrame) {
+        bannerFrame = selectedNode;
+        resizeNode = findDetectedDisclaimer(selectedNode);
+      } else if (isResizable(selectedNode)) {
+        resizeNode = selectedNode;
+      }
+      if (!resizeNode) {
+        postError(
+          isFrameLike(selectedNode) ? BANNER_DISCLAIMER_DETECTION_ERROR : "\u0421\u043B\u043E\u0439 \u043D\u0435 \u043F\u043E\u0434\u0434\u0435\u0440\u0436\u0438\u0432\u0430\u0435\u0442 resize"
+        );
         return;
       }
-      const bannerFrame = findBannerFrame(selectedNode);
       if (!bannerFrame) {
         postError("\u0412\u044B\u0434\u0435\u043B\u0438\u0442\u0435 disclaimer \u0432\u043D\u0443\u0442\u0440\u0438 \u0431\u0430\u043D\u043D\u0435\u0440\u043D\u043E\u0433\u043E \u0444\u0440\u0435\u0439\u043C\u0430");
         return;
       }
       result = resizeExistingDisclaimer({
-        node: selectedNode,
+        node: resizeNode,
         bannerFrame,
         targetPercent,
         direction: msg.direction,

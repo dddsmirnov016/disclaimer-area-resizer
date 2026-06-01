@@ -6,9 +6,15 @@ import { addDisclaimerToBody, addDisclaimerToImage, placeDisclaimerOverImage } f
 import { createAllDisclaimerVariants } from "./features/createAllVariants";
 import { resizeExistingDisclaimer } from "./features/resizeExisting";
 import { findBannerFrame } from "./figma/bannerDetection";
-import { findMatchingDisclaimer } from "./figma/disclaimerNodes";
+import {
+  findDetectedDisclaimer,
+  findMatchingDisclaimer,
+} from "./figma/disclaimerNodes";
 import { isFrameLike, isResizable, type ResizableNode } from "./figma/nodeGuards";
-import { buildState } from "./state/selectionState";
+import {
+  BANNER_DISCLAIMER_DETECTION_ERROR,
+  buildState,
+} from "./state/selectionState";
 import type { UiMessage } from "./ui/messages";
 
 declare const __html__: string;
@@ -131,12 +137,24 @@ function handleApplyResize(msg: Extract<UiMessage, { type: "apply-resize" }>): v
       actionLabel = "Добавлено";
     }
   } else {
-    if (!isResizable(selectedNode)) {
-      postError("Слой не поддерживает resize");
-      return;
+    let resizeNode: ResizableNode | null = null;
+    let bannerFrame = findBannerFrame(selectedNode);
+
+    if (isFrameLike(selectedNode) && !bannerFrame) {
+      bannerFrame = selectedNode;
+      resizeNode = findDetectedDisclaimer(selectedNode);
+    } else if (isResizable(selectedNode)) {
+      resizeNode = selectedNode;
     }
 
-    const bannerFrame = findBannerFrame(selectedNode);
+    if (!resizeNode) {
+      postError(
+        isFrameLike(selectedNode)
+          ? BANNER_DISCLAIMER_DETECTION_ERROR
+          : "Слой не поддерживает resize"
+      );
+      return;
+    }
 
     if (!bannerFrame) {
       postError("Выделите disclaimer внутри баннерного фрейма");
@@ -144,7 +162,7 @@ function handleApplyResize(msg: Extract<UiMessage, { type: "apply-resize" }>): v
     }
 
     result = resizeExistingDisclaimer({
-      node: selectedNode,
+      node: resizeNode,
       bannerFrame,
       targetPercent,
       direction: msg.direction,

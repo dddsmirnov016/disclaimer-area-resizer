@@ -94,3 +94,298 @@ test("create-all variants remove known disclaimers before inserting new ones", a
   assert.match(source, /addDisclaimerToImage/);
   assert.match(source, /addDisclaimerToBody/);
 });
+
+test("banner selection prefers plugin-created disclaimer nodes for resize state", async () => {
+  const mod = await bundleAndImport(`
+    import { buildState } from ${modulePath("src/state/selectionState.ts")};
+    import { PLUGIN_DATA_NAMESPACE, PLUGIN_DATA_ASSET_KEY } from ${modulePath("src/figma/disclaimerNodes.ts")};
+
+    function makeNode(overrides) {
+      return {
+        id: overrides.name,
+        name: overrides.name,
+        type: overrides.type || "FRAME",
+        width: overrides.width,
+        height: overrides.height,
+        x: overrides.x || 0,
+        y: overrides.y || 0,
+        locked: false,
+        visible: true,
+        layoutMode: overrides.layoutMode || "NONE",
+        parent: null,
+        children: overrides.children || [],
+        resizeWithoutConstraints() {},
+        absoluteTransform: [[1, 0, overrides.x || 0], [0, 1, overrides.y || 0]],
+        getSharedPluginData(namespace, key) {
+          return overrides.pluginData && namespace === PLUGIN_DATA_NAMESPACE
+            ? overrides.pluginData[key] || ""
+            : "";
+        },
+      };
+    }
+
+    const manualCandidate = makeNode({
+      name: "legal disclaimer text",
+      type: "TEXT",
+      width: 120,
+      height: 12,
+      x: 20,
+      y: 60,
+    });
+    const pluginDisclaimer = makeNode({
+      name: "Disclaimer — Не является лекарством",
+      width: 180,
+      height: 18,
+      x: 20,
+      y: 220,
+      pluginData: {
+        [PLUGIN_DATA_ASSET_KEY]: "Не является лекарством",
+      },
+    });
+    const banner = makeNode({
+      name: "Banner",
+      width: 300,
+      height: 250,
+      children: [manualCandidate, pluginDisclaimer],
+    });
+    manualCandidate.parent = banner;
+    pluginDisclaimer.parent = banner;
+
+    export const state = buildState([banner]);
+  `);
+
+  assert.equal(mod.state.type, "ready");
+  assert.equal(mod.state.info.mode, "resize-existing");
+  assert.equal(mod.state.info.disclaimerName, "Disclaimer — Не является лекарством");
+  assert.equal(mod.state.info.disclaimerWidth, 180);
+  assert.equal(mod.state.info.disclaimerHeight, 18);
+  assert.equal(mod.state.info.currentPercent, 4.32);
+});
+
+test("banner selection refuses ambiguous plugin-created disclaimer candidates", async () => {
+  const mod = await bundleAndImport(`
+    import { buildState, BANNER_DISCLAIMER_DETECTION_ERROR } from ${modulePath("src/state/selectionState.ts")};
+    import { PLUGIN_DATA_NAMESPACE, PLUGIN_DATA_ASSET_KEY } from ${modulePath("src/figma/disclaimerNodes.ts")};
+
+    function makeNode(overrides) {
+      return {
+        id: overrides.name,
+        name: overrides.name,
+        type: overrides.type || "FRAME",
+        width: overrides.width,
+        height: overrides.height,
+        x: overrides.x || 0,
+        y: overrides.y || 0,
+        locked: false,
+        visible: true,
+        layoutMode: overrides.layoutMode || "NONE",
+        parent: null,
+        children: overrides.children || [],
+        resizeWithoutConstraints() {},
+        absoluteTransform: [[1, 0, overrides.x || 0], [0, 1, overrides.y || 0]],
+        getSharedPluginData(namespace, key) {
+          return overrides.pluginData && namespace === PLUGIN_DATA_NAMESPACE
+            ? overrides.pluginData[key] || ""
+            : "";
+        },
+      };
+    }
+
+    const firstDisclaimer = makeNode({
+      name: "Disclaimer — first",
+      width: 180,
+      height: 18,
+      pluginData: {
+        [PLUGIN_DATA_ASSET_KEY]: "first",
+      },
+    });
+    const secondDisclaimer = makeNode({
+      name: "Disclaimer — second",
+      width: 160,
+      height: 16,
+      pluginData: {
+        [PLUGIN_DATA_ASSET_KEY]: "second",
+      },
+    });
+    const banner = makeNode({
+      name: "Banner",
+      width: 300,
+      height: 250,
+      children: [firstDisclaimer, secondDisclaimer],
+    });
+    firstDisclaimer.parent = banner;
+    secondDisclaimer.parent = banner;
+
+    export const expectedError = BANNER_DISCLAIMER_DETECTION_ERROR;
+    export const state = buildState([banner]);
+  `);
+
+  assert.equal(mod.state.type, "invalid");
+  assert.equal(mod.state.error, mod.expectedError);
+});
+
+test("banner selection falls back to a single heuristic disclaimer candidate", async () => {
+  const mod = await bundleAndImport(`
+    import { buildState } from ${modulePath("src/state/selectionState.ts")};
+
+    function makeNode(overrides) {
+      return {
+        id: overrides.name,
+        name: overrides.name,
+        type: overrides.type || "FRAME",
+        width: overrides.width,
+        height: overrides.height,
+        x: overrides.x || 0,
+        y: overrides.y || 0,
+        locked: false,
+        visible: true,
+        layoutMode: overrides.layoutMode || "NONE",
+        parent: null,
+        children: overrides.children || [],
+        resizeWithoutConstraints() {},
+        absoluteTransform: [[1, 0, overrides.x || 0], [0, 1, overrides.y || 0]],
+        getSharedPluginData() {
+          return "";
+        },
+      };
+    }
+
+    const image = makeNode({
+      name: "Image",
+      width: 300,
+      height: 180,
+    });
+    const heuristicDisclaimer = makeNode({
+      name: "дисклеймер — legal copy",
+      type: "TEXT",
+      width: 220,
+      height: 16,
+      x: 40,
+      y: 224,
+    });
+    const banner = makeNode({
+      name: "Banner",
+      width: 300,
+      height: 250,
+      children: [image, heuristicDisclaimer],
+    });
+    image.parent = banner;
+    heuristicDisclaimer.parent = banner;
+
+    export const state = buildState([banner]);
+  `);
+
+  assert.equal(mod.state.type, "ready");
+  assert.equal(mod.state.info.mode, "resize-existing");
+  assert.equal(mod.state.info.disclaimerName, "дисклеймер — legal copy");
+  assert.equal(mod.state.info.disclaimerWidth, 220);
+  assert.equal(mod.state.info.disclaimerHeight, 16);
+  assert.equal(mod.state.info.currentPercent, 4.69);
+});
+
+test("apply resize uses the detected disclaimer when the banner remains selected", async () => {
+  const mod = await bundleAndImport(`
+    const uiHandlers = {};
+    const postedMessages = [];
+    const notifications = [];
+
+    function makeNode(overrides) {
+      const pluginData = overrides.pluginData || {};
+      return {
+        id: overrides.name,
+        name: overrides.name,
+        type: overrides.type || "FRAME",
+        width: overrides.width,
+        height: overrides.height,
+        x: overrides.x || 0,
+        y: overrides.y || 0,
+        locked: false,
+        visible: true,
+        layoutMode: overrides.layoutMode || "NONE",
+        parent: null,
+        children: overrides.children || [],
+        textAutoResize: overrides.textAutoResize || "NONE",
+        resizeWithoutConstraints(w, h) {
+          this.width = w;
+          this.height = h;
+        },
+        absoluteTransform: [[1, 0, overrides.x || 0], [0, 1, overrides.y || 0]],
+        getSharedPluginData(namespace, key) {
+          return pluginData[namespace + ":" + key] || "";
+        },
+        setSharedPluginData(namespace, key, value) {
+          pluginData[namespace + ":" + key] = value;
+        },
+      };
+    }
+
+    const disclaimer = makeNode({
+      name: "дисклеймер — legal copy",
+      type: "TEXT",
+      width: 220,
+      height: 16,
+      x: 40,
+      y: 224,
+      textAutoResize: "WIDTH_AND_HEIGHT",
+    });
+    const banner = makeNode({
+      name: "Banner",
+      width: 300,
+      height: 250,
+      children: [disclaimer],
+    });
+    disclaimer.parent = banner;
+
+    globalThis.__html__ = "";
+    globalThis.figma = {
+      currentPage: {
+        selection: [banner],
+      },
+      ui: {
+        postMessage(message) {
+          postedMessages.push(message);
+        },
+        resize() {},
+        on(eventName, handler) {
+          uiHandlers[eventName] = handler;
+        },
+      },
+      showUI() {},
+      notify(message) {
+        notifications.push(message);
+      },
+      on() {},
+      createNodeFromSvg() {
+        throw new Error("not expected");
+      },
+    };
+
+    await import(${modulePath("src/plugin.ts")});
+
+    uiHandlers.message({
+      type: "apply-resize",
+      presetKey: "medicine_static_5",
+      customPercent: null,
+      direction: "height",
+      onlyEnlarge: false,
+      addTarget: "body",
+      createAll: false,
+    });
+
+    export const selectedName = globalThis.figma.currentPage.selection[0].name;
+    export const disclaimerHeight = Math.round(disclaimer.height * 1000) / 1000;
+    export const textAutoResize = disclaimer.textAutoResize;
+    export const lastError = postedMessages
+      .filter((message) => message.type === "error")
+      .at(-1)?.message || null;
+    export const lastSuccess = postedMessages
+      .filter((message) => message.type === "success")
+      .at(-1)?.message || null;
+  `);
+
+  assert.equal(mod.lastError, null);
+  assert.equal(mod.selectedName, "дисклеймер — legal copy");
+  assert.equal(mod.disclaimerHeight, 17.045);
+  assert.equal(mod.textAutoResize, "NONE");
+  assert.match(mod.lastSuccess, /Применено: 220×17\.05 px — 5% площади баннера/);
+});

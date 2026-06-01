@@ -5,8 +5,39 @@ import {
   isTopLevelFrame,
   nodeHasAutoLayout,
 } from "../figma/bannerDetection";
+import { findDetectedDisclaimer } from "../figma/disclaimerNodes";
 import { isResizable } from "../figma/nodeGuards";
+import type { BannerFrame, ResizableNode } from "../figma/nodeGuards";
 import type { PluginState } from "../ui/messages";
+
+export const BANNER_DISCLAIMER_DETECTION_ERROR =
+  "Не удалось определить дисклеймер на баннере. Выделите disclaimer-слой вручную";
+
+function buildResizeState(
+  disclaimerNode: ResizableNode,
+  bannerFrame: BannerFrame
+): PluginState {
+  const disclaimerArea = disclaimerNode.width * disclaimerNode.height;
+  const bannerArea = bannerFrame.width * bannerFrame.height;
+  const currentPercent = (disclaimerArea / bannerArea) * 100;
+
+  return {
+    type: "ready",
+    info: {
+      mode: "resize-existing",
+      disclaimerName: disclaimerNode.name,
+      disclaimerWidth: round2(disclaimerNode.width),
+      disclaimerHeight: round2(disclaimerNode.height),
+      bannerName: bannerFrame.name,
+      bannerWidth: round2(bannerFrame.width),
+      bannerHeight: round2(bannerFrame.height),
+      currentPercent: round2(currentPercent),
+      isText: disclaimerNode.type === "TEXT",
+      hasAutoLayout: nodeHasAutoLayout(disclaimerNode),
+    },
+    presets: DISCLAIMER_PRESETS,
+  };
+}
 
 export function buildState(selection: readonly SceneNode[]): PluginState {
   if (selection.length !== 1) {
@@ -39,22 +70,17 @@ export function buildState(selection: readonly SceneNode[]): PluginState {
       };
     }
 
-    return {
-      type: "ready",
-      info: {
-        mode: "add-missing",
-        disclaimerName: null,
-        disclaimerWidth: null,
-        disclaimerHeight: null,
-        bannerName: sceneNode.name,
-        bannerWidth: round2(sceneNode.width),
-        bannerHeight: round2(sceneNode.height),
-        currentPercent: null,
-        isText: false,
-        hasAutoLayout: sceneNode.layoutMode !== "NONE",
-      },
-      presets: DISCLAIMER_PRESETS,
-    };
+    const detectedDisclaimer = findDetectedDisclaimer(sceneNode);
+
+    if (!detectedDisclaimer) {
+      return {
+        type: "invalid",
+        error: BANNER_DISCLAIMER_DETECTION_ERROR,
+        presets: DISCLAIMER_PRESETS,
+      };
+    }
+
+    return buildResizeState(detectedDisclaimer, sceneNode);
   }
 
   if (!isResizable(sceneNode)) {
@@ -99,24 +125,5 @@ export function buildState(selection: readonly SceneNode[]): PluginState {
     };
   }
 
-  const disclaimerArea = sceneNode.width * sceneNode.height;
-  const bannerArea = bannerFrame.width * bannerFrame.height;
-  const currentPercent = (disclaimerArea / bannerArea) * 100;
-
-  return {
-    type: "ready",
-    info: {
-      mode: "resize-existing",
-      disclaimerName: sceneNode.name,
-      disclaimerWidth: round2(sceneNode.width),
-      disclaimerHeight: round2(sceneNode.height),
-      bannerName: bannerFrame.name,
-      bannerWidth: round2(bannerFrame.width),
-      bannerHeight: round2(bannerFrame.height),
-      currentPercent: round2(currentPercent),
-      isText: sceneNode.type === "TEXT",
-      hasAutoLayout: nodeHasAutoLayout(sceneNode),
-    },
-    presets: DISCLAIMER_PRESETS,
-  };
+  return buildResizeState(sceneNode, bannerFrame);
 }
