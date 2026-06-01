@@ -179,7 +179,7 @@
 
   // src/figma/nodeGuards.ts
   function isResizable(node) {
-    return "width" in node && "height" in node && "resizeWithoutConstraints" in node && typeof node.resizeWithoutConstraints === "function";
+    return "width" in node && "height" in node && ("resize" in node && typeof node.resize === "function" || "resizeWithoutConstraints" in node && typeof node.resizeWithoutConstraints === "function");
   }
   function isFrameLike(node) {
     return node.type === "FRAME" || node.type === "COMPONENT" || node.type === "INSTANCE";
@@ -848,6 +848,9 @@
     }) : node;
     if (!shouldRefreshGeneratedSvg) {
       if (node.type === "TEXT") {
+        if (typeof node.resizeWithoutConstraints !== "function") {
+          throw new Error("\u041D\u0435 \u0443\u0434\u0430\u043B\u043E\u0441\u044C \u0438\u0437\u043C\u0435\u043D\u0438\u0442\u044C \u0442\u0435\u043A\u0441\u0442\u043E\u0432\u044B\u0439 \u0434\u0438\u0441\u043A\u043B\u0435\u0439\u043C\u0435\u0440.");
+        }
         node.resizeWithoutConstraints(newWidth, newHeight);
       } else {
         resizeSvgNodeToFrame(node, newWidth, newHeight);

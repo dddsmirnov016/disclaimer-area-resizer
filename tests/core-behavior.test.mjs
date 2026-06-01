@@ -893,6 +893,7 @@ test("banner selection measures a nested actual disclaimer instead of its wrappe
       x: 23.9998779296875,
       y: 0,
     });
+    delete actualDisclaimer.resizeWithoutConstraints;
     const wrapper = makeNode({
       name: "disclaimer",
       width: 594.738037109375,
@@ -1006,6 +1007,7 @@ test("apply resize keeps a wrapper hug-sized and deforms its nested disclaimer",
       x: 23.9998779296875,
       y: 0,
     });
+    delete disclaimerGlyphs.resizeWithoutConstraints;
     const disclaimer = makeNode({
       name: "disclaimer",
       width: 594.738037109375,
@@ -1016,6 +1018,9 @@ test("apply resize keeps a wrapper hug-sized and deforms its nested disclaimer",
       layoutSizingVertical: "HUG",
       children: [disclaimerGlyphs],
     });
+    disclaimer.resize = () => {
+      throw new Error("Cannot resize hug wrapper");
+    };
     const container = makeNode({
       name: "message",
       width: 594.738037109375,

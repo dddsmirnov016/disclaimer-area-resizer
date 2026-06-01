@@ -74,6 +74,9 @@ export function resizeExistingDisclaimer(params: {
 
   if (!shouldRefreshGeneratedSvg) {
     if (node.type === "TEXT") {
+      if (typeof node.resizeWithoutConstraints !== "function") {
+        throw new Error("Не удалось изменить текстовый дисклеймер.");
+      }
       node.resizeWithoutConstraints(newWidth, newHeight);
     } else {
       resizeSvgNodeToFrame(node, newWidth, newHeight);

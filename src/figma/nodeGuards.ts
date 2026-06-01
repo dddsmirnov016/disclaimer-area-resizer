@@ -3,7 +3,8 @@ export type AutoLayoutFrame = BannerFrame;
 export type ResizableNode = SceneNode & {
   width: number;
   height: number;
-  resizeWithoutConstraints: (w: number, h: number) => void;
+  resize?: (w: number, h: number) => void;
+  resizeWithoutConstraints?: (w: number, h: number) => void;
 };
 export type NodeWithSize = SceneNode & { width: number; height: number };
 export type NodeWithChildren = BaseNode & { children: readonly SceneNode[] };
@@ -16,9 +17,11 @@ export function isResizable(node: SceneNode): node is ResizableNode {
   return (
     "width" in node &&
     "height" in node &&
-    "resizeWithoutConstraints" in node &&
-    typeof (node as unknown as { resizeWithoutConstraints: unknown })
-      .resizeWithoutConstraints === "function"
+    (("resize" in node &&
+      typeof (node as unknown as { resize: unknown }).resize === "function") ||
+      ("resizeWithoutConstraints" in node &&
+        typeof (node as unknown as { resizeWithoutConstraints: unknown })
+          .resizeWithoutConstraints === "function"))
   );
 }
 
