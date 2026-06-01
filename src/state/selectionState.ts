@@ -6,6 +6,7 @@ import {
   nodeHasAutoLayout,
 } from "../figma/bannerDetection";
 import {
+  findContainingDisclaimerForSelection,
   findDetectedDisclaimerForBannerSelection,
   isProbableBannerSelectionFrame,
 } from "../figma/disclaimerNodes";
@@ -146,6 +147,17 @@ export function buildState(selection: readonly SceneNode[]): PluginState {
   }
 
   const bannerFrame = containingBannerFrame || findBannerFrame(sceneNode);
+
+  if (bannerFrame) {
+    const containingDisclaimer = findContainingDisclaimerForSelection(
+      sceneNode,
+      bannerFrame
+    );
+
+    if (containingDisclaimer) {
+      return buildResizeState(containingDisclaimer, bannerFrame);
+    }
+  }
 
   if (!bannerFrame) {
     return {

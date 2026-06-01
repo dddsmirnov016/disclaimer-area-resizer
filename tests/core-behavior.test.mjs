@@ -855,3 +855,145 @@ test("apply resize uses the detected disclaimer when a nested banner frame remai
   assert.equal(mod.disclaimerHeight, 6.94);
   assert.match(mod.lastSuccess, /Применено: 548×6,94 px — 5 % площади баннера/);
 });
+
+test("apply resize promotes a selected nested disclaimer glyph to its wrapper", async () => {
+  const mod = await bundleAndImport(`
+    const uiHandlers = {};
+    const postedMessages = [];
+
+    function makeNode(overrides) {
+      const pluginData = overrides.pluginData || {};
+      return {
+        id: overrides.name,
+        name: overrides.name,
+        type: overrides.type || "FRAME",
+        width: overrides.width,
+        height: overrides.height,
+        x: overrides.x || 0,
+        y: overrides.y || 0,
+        locked: false,
+        visible: true,
+        layoutMode: overrides.layoutMode || "NONE",
+        parent: null,
+        children: overrides.children || [],
+        resize(w, h) {
+          this.width = w;
+          this.height = h;
+        },
+        resizeWithoutConstraints(w, h) {
+          this.width = w;
+          this.height = h;
+        },
+        absoluteTransform: [[1, 0, overrides.x || 0], [0, 1, overrides.y || 0]],
+        getSharedPluginData(namespace, key) {
+          return pluginData[namespace + ":" + key] || "";
+        },
+        setSharedPluginData(namespace, key, value) {
+          pluginData[namespace + ":" + key] = value;
+        },
+      };
+    }
+
+    const disclaimerGlyphs = makeNode({
+      name: "disclaimer-1",
+      type: "BOOLEAN_OPERATION",
+      width: 528,
+      height: 14,
+      x: 19.99981689453125,
+      y: 0,
+    });
+    const disclaimer = makeNode({
+      name: "Disclaimer",
+      width: 548,
+      height: 16,
+      x: 0,
+      y: 79,
+      children: [disclaimerGlyphs],
+    });
+    const container = makeNode({
+      name: "Container",
+      width: 548,
+      height: 95,
+      children: [disclaimer],
+    });
+    const image = makeNode({
+      name: "Image",
+      width: 240,
+      height: 95,
+      x: 560,
+      y: 0,
+    });
+    const adFrame = makeNode({
+      name: "Ad",
+      width: 800,
+      height: 95,
+      children: [container, image],
+    });
+    const wrapper = makeNode({
+      name: " ",
+      width: 800,
+      height: 95.0719985961914,
+      children: [adFrame],
+    });
+    adFrame.parent = wrapper;
+    container.parent = adFrame;
+    disclaimer.parent = container;
+    disclaimerGlyphs.parent = disclaimer;
+    image.parent = adFrame;
+
+    globalThis.__html__ = "";
+    globalThis.figma = {
+      currentPage: {
+        selection: [disclaimerGlyphs],
+      },
+      ui: {
+        postMessage(message) {
+          postedMessages.push(message);
+        },
+        resize() {},
+        on(eventName, handler) {
+          uiHandlers[eventName] = handler;
+        },
+      },
+      showUI() {},
+      notify() {},
+      on() {},
+      createNodeFromSvg() {
+        throw new Error("not expected");
+      },
+    };
+
+    await import(${modulePath("src/plugin.ts")});
+    const initialState = postedMessages.at(-1);
+
+    uiHandlers.message({
+      type: "apply-resize",
+      presetKey: "medicine_static_5",
+      customPercent: null,
+      direction: "height",
+      onlyEnlarge: false,
+      addTarget: "body",
+      createAll: false,
+    });
+
+    export const initialDisclaimerName = initialState.info?.disclaimerName || null;
+    export const initialDisclaimerHeight = initialState.info?.disclaimerHeight || null;
+    export const selectedName = globalThis.figma.currentPage.selection[0].name;
+    export const disclaimerHeight = Math.round(disclaimer.height * 1000) / 1000;
+    export const glyphHeight = Math.round(disclaimerGlyphs.height * 1000) / 1000;
+    export const lastError = postedMessages
+      .filter((message) => message.type === "error")
+      .at(-1)?.message || null;
+    export const lastSuccess = postedMessages
+      .filter((message) => message.type === "success")
+      .at(-1)?.message || null;
+  `);
+
+  assert.equal(mod.lastError, null);
+  assert.equal(mod.initialDisclaimerName, "Disclaimer");
+  assert.equal(mod.initialDisclaimerHeight, 16);
+  assert.equal(mod.selectedName, "Disclaimer");
+  assert.equal(mod.disclaimerHeight, 6.94);
+  assert.equal(mod.glyphHeight, 14);
+  assert.match(mod.lastSuccess, /Применено: 548×6,94 px — 5 % площади баннера/);
+});

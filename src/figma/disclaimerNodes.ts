@@ -184,6 +184,52 @@ function hasAncestorInSet(
   return false;
 }
 
+function nodeContainsSelection(
+  container: SceneNode,
+  selectedNode: SceneNode
+): boolean {
+  let current: BaseNode | null = selectedNode;
+
+  while (current) {
+    if (current === container) {
+      return true;
+    }
+    current = current.parent;
+  }
+
+  return false;
+}
+
+function findSingleCandidateContainingSelection(
+  selectedNode: SceneNode,
+  candidates: readonly ResizableNode[]
+): ResizableNode | null {
+  return getSingleCandidate(
+    candidates.filter((candidate) =>
+      nodeContainsSelection(candidate, selectedNode)
+    )
+  );
+}
+
+export function findContainingDisclaimerForSelection(
+  selectedNode: SceneNode,
+  bannerFrame: BannerFrame
+): ResizableNode | null {
+  const pluginCandidate = findSingleCandidateContainingSelection(
+    selectedNode,
+    collectPluginCreatedDisclaimers(bannerFrame)
+  );
+
+  if (pluginCandidate) {
+    return pluginCandidate;
+  }
+
+  return findSingleCandidateContainingSelection(
+    selectedNode,
+    collectHeuristicDisclaimers(bannerFrame)
+  );
+}
+
 export function findDetectedDisclaimer(
   bannerFrame: BannerFrame
 ): ResizableNode | null {

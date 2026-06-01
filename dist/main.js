@@ -497,6 +497,36 @@
     }
     return false;
   }
+  function nodeContainsSelection(container, selectedNode) {
+    let current = selectedNode;
+    while (current) {
+      if (current === container) {
+        return true;
+      }
+      current = current.parent;
+    }
+    return false;
+  }
+  function findSingleCandidateContainingSelection(selectedNode, candidates) {
+    return getSingleCandidate(
+      candidates.filter(
+        (candidate) => nodeContainsSelection(candidate, selectedNode)
+      )
+    );
+  }
+  function findContainingDisclaimerForSelection(selectedNode, bannerFrame) {
+    const pluginCandidate = findSingleCandidateContainingSelection(
+      selectedNode,
+      collectPluginCreatedDisclaimers(bannerFrame)
+    );
+    if (pluginCandidate) {
+      return pluginCandidate;
+    }
+    return findSingleCandidateContainingSelection(
+      selectedNode,
+      collectHeuristicDisclaimers(bannerFrame)
+    );
+  }
   function findDetectedDisclaimer(bannerFrame) {
     const pluginCandidates = collectPluginCreatedDisclaimers(bannerFrame);
     if (pluginCandidates.length > 0) {
@@ -910,6 +940,15 @@
       }
     }
     const bannerFrame = containingBannerFrame || findBannerFrame(sceneNode);
+    if (bannerFrame) {
+      const containingDisclaimer = findContainingDisclaimerForSelection(
+        sceneNode,
+        bannerFrame
+      );
+      if (containingDisclaimer) {
+        return buildResizeState(containingDisclaimer, bannerFrame);
+      }
+    }
     if (!bannerFrame) {
       return {
         type: "invalid",
@@ -1074,6 +1113,12 @@
           postError(BANNER_DISCLAIMER_DETECTION_ERROR);
           return;
         }
+      }
+      if (!resizeNode && bannerFrame) {
+        resizeNode = findContainingDisclaimerForSelection(
+          selectedNode,
+          bannerFrame
+        );
       }
       if (!resizeNode && isResizable(selectedNode)) {
         resizeNode = selectedNode;
