@@ -14,7 +14,16 @@ import type { BannerFrame, ResizableNode } from "../figma/nodeGuards";
 import type { PluginState } from "../ui/messages";
 
 export const BANNER_DISCLAIMER_DETECTION_ERROR =
-  "Не удалось определить дисклеймер на баннере. Выделите disclaimer-слой вручную";
+  "Дисклеймер не найден или плагин не смог определить его автоматически. Выделите disclaimer-слой вручную";
+
+function buildDetectionInfoState(): PluginState {
+  return {
+    type: "invalid",
+    error: BANNER_DISCLAIMER_DETECTION_ERROR,
+    feedbackTone: "info",
+    presets: DISCLAIMER_PRESETS,
+  };
+}
 
 function buildResizeState(
   disclaimerNode: ResizableNode,
@@ -79,11 +88,7 @@ export function buildState(selection: readonly SceneNode[]): PluginState {
     );
 
     if (!detectedDisclaimer) {
-      return {
-        type: "invalid",
-        error: BANNER_DISCLAIMER_DETECTION_ERROR,
-        presets: DISCLAIMER_PRESETS,
-      };
+      return buildDetectionInfoState();
     }
 
     return buildResizeState(detectedDisclaimer, sceneNode);
@@ -136,11 +141,7 @@ export function buildState(selection: readonly SceneNode[]): PluginState {
     }
 
     if (isProbableBannerSelectionFrame(sceneNode, containingBannerFrame)) {
-      return {
-        type: "invalid",
-        error: BANNER_DISCLAIMER_DETECTION_ERROR,
-        presets: DISCLAIMER_PRESETS,
-      };
+      return buildDetectionInfoState();
     }
   }
 

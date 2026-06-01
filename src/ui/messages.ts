@@ -30,6 +30,7 @@ export interface SelectionInfo {
 export interface PluginState {
   type: "no-selection" | "invalid" | "ready";
   error?: string;
+  feedbackTone?: "error" | "info";
   info?: SelectionInfo;
   presets: Record<string, DisclaimerPreset>;
 }

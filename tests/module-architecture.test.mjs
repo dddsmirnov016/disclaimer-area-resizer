@@ -63,3 +63,15 @@ test("generated asset module exports typed assets for bundled modules", async ()
   assert.match(generated, /export const DISCLAIMER_ASSETS/);
   assert.match(generated, /export const DISCLAIMER_ASSET_LIST/);
 });
+
+test("UI renders undetected-disclaimer feedback as fixed-height info message", async () => {
+  const uiHtml = await readFile("src/ui.html", "utf8");
+  const slotRule = uiHtml.match(/\.feedback-slot\s*\{[\s\S]*?\}/);
+
+  assert.ok(slotRule, "expected feedback slot CSS rule");
+  assert.match(slotRule[0], /min-height:\s*152px/);
+  assert.match(uiHtml, /\.info-box/);
+  assert.match(uiHtml, /id="infoMsg"/);
+  assert.match(uiHtml, /function showInfo/);
+  assert.match(uiHtml, /feedbackTone === 'info'/);
+});

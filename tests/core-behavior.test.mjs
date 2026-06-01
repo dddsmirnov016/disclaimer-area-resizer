@@ -224,6 +224,40 @@ test("banner selection refuses ambiguous plugin-created disclaimer candidates", 
   assert.equal(mod.state.error, mod.expectedError);
 });
 
+test("banner selection reports missing or undetected disclaimer as info feedback", async () => {
+  const mod = await bundleAndImport(`
+    import { buildState, BANNER_DISCLAIMER_DETECTION_ERROR } from ${modulePath("src/state/selectionState.ts")};
+
+    const banner = {
+      id: "Banner",
+      name: "Banner",
+      type: "FRAME",
+      width: 300,
+      height: 250,
+      x: 0,
+      y: 0,
+      locked: false,
+      visible: true,
+      layoutMode: "NONE",
+      parent: { type: "PAGE" },
+      children: [],
+      resizeWithoutConstraints() {},
+      absoluteTransform: [[1, 0, 0], [0, 1, 0]],
+      getSharedPluginData() {
+        return "";
+      },
+    };
+
+    export const expectedError = BANNER_DISCLAIMER_DETECTION_ERROR;
+    export const state = buildState([banner]);
+  `);
+
+  assert.equal(mod.state.type, "invalid");
+  assert.equal(mod.state.error, mod.expectedError);
+  assert.equal(mod.state.feedbackTone, "info");
+  assert.match(mod.state.error, /Дисклеймер не найден/);
+});
+
 test("banner selection falls back to a single heuristic disclaimer candidate", async () => {
   const mod = await bundleAndImport(`
     import { buildState } from ${modulePath("src/state/selectionState.ts")};

@@ -802,7 +802,15 @@
   }
 
   // src/state/selectionState.ts
-  var BANNER_DISCLAIMER_DETECTION_ERROR = "\u041D\u0435 \u0443\u0434\u0430\u043B\u043E\u0441\u044C \u043E\u043F\u0440\u0435\u0434\u0435\u043B\u0438\u0442\u044C \u0434\u0438\u0441\u043A\u043B\u0435\u0439\u043C\u0435\u0440 \u043D\u0430 \u0431\u0430\u043D\u043D\u0435\u0440\u0435. \u0412\u044B\u0434\u0435\u043B\u0438\u0442\u0435 disclaimer-\u0441\u043B\u043E\u0439 \u0432\u0440\u0443\u0447\u043D\u0443\u044E";
+  var BANNER_DISCLAIMER_DETECTION_ERROR = "\u0414\u0438\u0441\u043A\u043B\u0435\u0439\u043C\u0435\u0440 \u043D\u0435 \u043D\u0430\u0439\u0434\u0435\u043D \u0438\u043B\u0438 \u043F\u043B\u0430\u0433\u0438\u043D \u043D\u0435 \u0441\u043C\u043E\u0433 \u043E\u043F\u0440\u0435\u0434\u0435\u043B\u0438\u0442\u044C \u0435\u0433\u043E \u0430\u0432\u0442\u043E\u043C\u0430\u0442\u0438\u0447\u0435\u0441\u043A\u0438. \u0412\u044B\u0434\u0435\u043B\u0438\u0442\u0435 disclaimer-\u0441\u043B\u043E\u0439 \u0432\u0440\u0443\u0447\u043D\u0443\u044E";
+  function buildDetectionInfoState() {
+    return {
+      type: "invalid",
+      error: BANNER_DISCLAIMER_DETECTION_ERROR,
+      feedbackTone: "info",
+      presets: DISCLAIMER_PRESETS
+    };
+  }
   function buildResizeState(disclaimerNode, bannerFrame) {
     const disclaimerArea = disclaimerNode.width * disclaimerNode.height;
     const bannerArea = bannerFrame.width * bannerFrame.height;
@@ -853,11 +861,7 @@
         null
       );
       if (!detectedDisclaimer) {
-        return {
-          type: "invalid",
-          error: BANNER_DISCLAIMER_DETECTION_ERROR,
-          presets: DISCLAIMER_PRESETS
-        };
+        return buildDetectionInfoState();
       }
       return buildResizeState(detectedDisclaimer, sceneNode);
     }
@@ -900,11 +904,7 @@
         return buildResizeState(detectedDisclaimer, bannerFrame2);
       }
       if (isProbableBannerSelectionFrame(sceneNode, containingBannerFrame)) {
-        return {
-          type: "invalid",
-          error: BANNER_DISCLAIMER_DETECTION_ERROR,
-          presets: DISCLAIMER_PRESETS
-        };
+        return buildDetectionInfoState();
       }
     }
     const bannerFrame = containingBannerFrame || findBannerFrame(sceneNode);
@@ -1064,7 +1064,7 @@
     const resultMessage = actionLabel + ": " + round2(result.node.width) + "\xD7" + round2(result.node.height) + " px \u2014 " + result.actualPercent + "% \u043F\u043B\u043E\u0449\u0430\u0434\u0438 \u0431\u0430\u043D\u043D\u0435\u0440\u0430";
     selectAndReport(result.node, resultMessage);
   }
-  figma.showUI(__html__, { width: 432, height: 704 });
+  figma.showUI(__html__, { width: 432, height: 776 });
   sendState();
   figma.on("selectionchange", () => {
     sendState();

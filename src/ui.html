@@ -205,13 +205,14 @@
   /* Слот под ошибку/успех — всегда занимает место, кнопка не прыгает */
   .feedback-slot {
     position: relative;
-    min-height: 80px;
+    min-height: 152px;
     width: 100%;
     flex-shrink: 0;
   }
 
   .error-box,
-  .success-box {
+  .success-box,
+  .info-box {
     position: absolute;
     top: 0;
     left: 0;
@@ -243,6 +244,16 @@
   }
 
   .success-box.visible {
+    visibility: visible;
+    opacity: 1;
+  }
+
+  .info-box {
+    background: rgba(13, 153, 255, 0.12);
+    color: #0d99ff;
+  }
+
+  .info-box.visible {
     visibility: visible;
     opacity: 1;
   }
@@ -332,6 +343,7 @@
     <div class="feedback-slot">
       <div id="errorBox" class="error-box"></div>
       <div id="successMsg" class="success-box"></div>
+      <div id="infoMsg" class="info-box"></div>
     </div>
     <button id="applyBtn" disabled>Применить</button>
   </div>
@@ -340,8 +352,8 @@
 <script>
 (function () {
   var WINDOW_W = 432;
-  var HEIGHT_BASE = 704;
-  var HEIGHT_CUSTOM = 784;
+  var HEIGHT_BASE = 776;
+  var HEIGHT_CUSTOM = 856;
 
   var state = null;
   var presets = {};
@@ -358,6 +370,7 @@
   var applyBtn = document.getElementById('applyBtn');
   var errorBox = document.getElementById('errorBox');
   var successMsg = document.getElementById('successMsg');
+  var infoMsg = document.getElementById('infoMsg');
 
   function formatRuNumber(n) {
     if (n === null || n === undefined || isNaN(n)) return '—';
@@ -484,6 +497,7 @@
     errorBox.textContent = text;
     errorBox.classList.add('visible');
     hideSuccess();
+    hideInfo();
   }
 
   function hideError() {
@@ -495,11 +509,24 @@
     successMsg.textContent = text;
     successMsg.classList.add('visible');
     hideError();
+    hideInfo();
   }
 
   function hideSuccess() {
     successMsg.classList.remove('visible');
     successMsg.textContent = '';
+  }
+
+  function showInfo(text) {
+    infoMsg.textContent = text;
+    infoMsg.classList.add('visible');
+    hideError();
+    hideSuccess();
+  }
+
+  function hideInfo() {
+    infoMsg.classList.remove('visible');
+    infoMsg.textContent = '';
   }
 
   function renderState(msg) {
@@ -520,6 +547,7 @@
       syncAddTargetAvailability();
       hideError();
       hideSuccess();
+      hideInfo();
       return;
     }
 
@@ -532,7 +560,11 @@
       applyBtn.disabled = true;
       applyBtn.textContent = 'Применить';
       syncAddTargetAvailability();
-      showError(msg.error || 'Неверный выбор');
+      if (msg.feedbackTone === 'info') {
+        showInfo(msg.error || 'Дисклеймер не найден');
+      } else {
+        showError(msg.error || 'Неверный выбор');
+      }
       return;
     }
 
@@ -554,6 +586,7 @@
     } else {
       hideError();
       hideSuccess();
+      hideInfo();
     }
   }
 
@@ -562,18 +595,21 @@
     updatePercentColor();
     hideError();
     hideSuccess();
+    hideInfo();
   });
 
   customInput.addEventListener('input', function () {
     updatePercentColor();
     hideError();
     hideSuccess();
+    hideInfo();
   });
 
   createAllInput.addEventListener('change', function () {
     applyBtn.textContent = getIdleButtonLabel();
     hideError();
     hideSuccess();
+    hideInfo();
   });
 
   applyBtn.addEventListener('click', function () {
@@ -595,6 +631,7 @@
     applyBtn.textContent = 'Применяю…';
     hideError();
     hideSuccess();
+    hideInfo();
 
     parent.postMessage({ pluginMessage: {
       type: 'apply-resize',

@@ -197,7 +197,7 @@ function handleApplyResize(msg: Extract<UiMessage, { type: "apply-resize" }>): v
   selectAndReport(result.node, resultMessage);
 }
 
-figma.showUI(__html__, { width: 432, height: 704 });
+figma.showUI(__html__, { width: 432, height: 776 });
 
 sendState();
 
