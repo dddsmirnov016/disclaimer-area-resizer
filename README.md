@@ -17,7 +17,7 @@ npm install
 npm run build
 ```
 
-Создастся файл `dist/main.js`.
+Команда регенерирует SVG-ассеты, проверит TypeScript и соберёт `dist/main.js` через `esbuild`.
 
 ### 3. Подключение в Figma
 
@@ -32,7 +32,7 @@ npm run build
 npm run watch
 ```
 
-Автоматическая пересборка при изменении `src/main.ts`.
+Автоматическая пересборка при изменении TypeScript-модулей, импортируемых из `src/plugin.ts`.
 
 ---
 
@@ -123,7 +123,7 @@ SVG можно деформировать по высоте: плагин сох
 
 ## Пресеты и их настройка
 
-Пресеты находятся в `src/main.ts`, объект `DISCLAIMER_PRESETS`. Каждый пресет содержит процент и `assetKey` — ключ SVG-дисклеймера из `src/generatedDisclaimerAssets.ts`.
+Пресеты находятся в `src/core/presets.ts`, объект `DISCLAIMER_PRESETS`. Каждый пресет содержит процент и `assetKey` — ключ SVG-дисклеймера из `src/generatedDisclaimerAssets.ts`.
 
 Чтобы изменить процент — отредактируйте поле `percent` нужного пресета и пересоберите плагин:
 
@@ -166,6 +166,20 @@ npm run generate:assets
 | `finance_credit_5` | `Изучите все условия кредита...svg` |
 | `finance_custom_10` | `Банкротство влечёт...svg` |
 | `custom` | `Есть противопоказания...svg` |
+
+---
+
+## Разработка
+
+Runtime плагина собирается из `src/plugin.ts`. Код разложен по модулям:
+
+- `src/core/` — чистая математика, типы и пресеты;
+- `src/figma/` — безопасные обёртки над Figma Plugin API;
+- `src/features/` — сценарии resize/add/create-all;
+- `src/state/` — состояние текущего выделения для UI;
+- `src/ui/` — типы сообщений между UI и runtime.
+
+После изменения TypeScript-кода всегда коммитить обновлённый `dist/main.js`. После изменения SVG также коммитить обновлённый `src/generatedDisclaimerAssets.ts`.
 
 ---
 

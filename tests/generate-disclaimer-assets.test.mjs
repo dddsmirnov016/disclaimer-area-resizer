@@ -72,8 +72,8 @@ test("buildAssetModule emits a typed TypeScript asset registry", async () => {
   ]);
 
   assert.match(moduleText, /interface DisclaimerAsset/);
-  assert.match(moduleText, /const DISCLAIMER_ASSETS/);
-  assert.doesNotMatch(moduleText, /export\s+/);
+  assert.match(moduleText, /export const DISCLAIMER_ASSETS/);
+  assert.match(moduleText, /export const DISCLAIMER_ASSET_LIST/);
   assert.match(moduleText, /"Sample disclaimer"/);
   assert.match(moduleText, /Quote \\"ok\\"/);
 

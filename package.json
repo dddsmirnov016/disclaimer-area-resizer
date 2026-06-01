@@ -4,12 +4,13 @@
   "private": true,
   "scripts": {
     "generate:assets": "node scripts/generate-disclaimer-assets.mjs",
-    "build": "npm run generate:assets && tsc -p tsconfig.json",
+    "build": "node scripts/build-plugin.mjs",
     "test": "node --test tests/*.test.mjs",
-    "watch": "tsc -w -p tsconfig.json"
+    "watch": "node scripts/build-plugin.mjs --watch"
   },
   "devDependencies": {
-    "typescript": "^5.4.5",
-    "@figma/plugin-typings": "^1.124.0"
+    "@figma/plugin-typings": "^1.124.0",
+    "esbuild": "^0.28.0",
+    "typescript": "^5.4.5"
   }
 }

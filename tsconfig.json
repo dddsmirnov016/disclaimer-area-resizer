@@ -1,14 +1,14 @@
 {
   "compilerOptions": {
-    "target": "ES6",
-    "module": "none",
-    "lib": ["ES6"],
-    "outFile": "dist/main.js",
-    "rootDir": "src",
+    "target": "ES2020",
+    "module": "ESNext",
+    "moduleResolution": "Node",
+    "lib": ["ES2020"],
     "strict": true,
     "noImplicitAny": true,
     "types": ["@figma/plugin-typings"],
-    "skipLibCheck": true
+    "skipLibCheck": true,
+    "noEmit": true
   },
-  "files": ["src/generatedDisclaimerAssets.ts", "src/main.ts"]
+  "include": ["src/**/*.ts"]
 }
