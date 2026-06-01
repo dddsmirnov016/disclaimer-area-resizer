@@ -126,8 +126,8 @@
       assetKey: ASSET_NOT_MEDICINE
     },
     finance_credit_5: {
-      label: "\u0424\u0438\u043D\u0430\u043D\u0441\u044B: \u043A\u0440\u0435\u0434\u0438\u0442 \u0438\u043B\u0438 \u0437\u0430\u0451\u043C \u2014 5\xA0%",
-      percent: 5,
+      label: "\u0424\u0438\u043D\u0430\u043D\u0441\u044B: \u043A\u0440\u0435\u0434\u0438\u0442 \u0438\u043B\u0438 \u0437\u0430\u0451\u043C \u2014 10\xA0%",
+      percent: 10,
       assetKey: ASSET_CREDIT
     },
     finance_custom_10: {

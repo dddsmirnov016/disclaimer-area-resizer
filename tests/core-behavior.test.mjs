@@ -88,6 +88,19 @@ test("bankruptcy preset keeps stable key and uses edited Russian label", async (
   assert.match(mod.assetKey, /^Банкротство влечёт негативные последствия/);
 });
 
+test("credit preset keeps stable key and uses 10 percent area", async () => {
+  const mod = await bundleAndImport(`
+    import { DISCLAIMER_PRESETS, getTargetPercent } from ${modulePath("src/core/presets.ts")};
+    export const label = DISCLAIMER_PRESETS.finance_credit_5.label;
+    export const percent = DISCLAIMER_PRESETS.finance_credit_5.percent;
+    export const targetPercent = getTargetPercent("finance_credit_5", null);
+  `);
+
+  assert.equal(mod.label, "Финансы: кредит или заём — 10 %");
+  assert.equal(mod.percent, 10);
+  assert.equal(mod.targetPercent, 10);
+});
+
 test("preset percent labels use non-breaking spaces before percent signs", async () => {
   const mod = await bundleAndImport(`
     import { DISCLAIMER_PRESETS } from ${modulePath("src/core/presets.ts")};

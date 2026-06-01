@@ -31,8 +31,8 @@ export const DISCLAIMER_PRESETS: Record<string, DisclaimerPreset> = {
     assetKey: ASSET_NOT_MEDICINE,
   },
   finance_credit_5: {
-    label: "Финансы: кредит или заём — 5 %",
-    percent: 5,
+    label: "Финансы: кредит или заём — 10 %",
+    percent: 10,
     assetKey: ASSET_CREDIT,
   },
   finance_custom_10: {
