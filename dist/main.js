@@ -412,14 +412,20 @@
   }
   function prepareSvgNodeForDeformation(node) {
     if ("clipsContent" in node) {
-      node.clipsContent = true;
+      try {
+        node.clipsContent = true;
+      } catch (e) {
+      }
     }
     visitDescendants(node, (child) => {
       if ("constraints" in child) {
-        child.constraints = {
-          horizontal: "SCALE",
-          vertical: "SCALE"
-        };
+        try {
+          child.constraints = {
+            horizontal: "SCALE",
+            vertical: "SCALE"
+          };
+        } catch (e) {
+        }
       }
     });
   }
@@ -516,7 +522,10 @@
     if (!hasChildren(wrapper) || nested.parent !== wrapper) return false;
     const wrapperName = wrapper.name.trim().toLowerCase();
     const nestedName = nested.name.trim().toLowerCase();
-    return Boolean(wrapperName && nestedName.startsWith(wrapperName + "-"));
+    return Boolean(wrapperName && nestedName.startsWith(wrapperName + "-")) || hasHugSizing(wrapper);
+  }
+  function hasHugSizing(node) {
+    return "layoutSizingHorizontal" in node && node.layoutSizingHorizontal === "HUG" || "layoutSizingVertical" in node && node.layoutSizingVertical === "HUG";
   }
   function hasAncestorInSet(node, candidates, root) {
     let current = node.parent;

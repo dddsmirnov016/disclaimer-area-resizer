@@ -125,6 +125,52 @@ test("figma disclaimer helpers resize generated SVGs with resize instead of resi
   assert.doesNotMatch(helper[0], /resizeWithoutConstraints/);
 });
 
+test("SVG resize still runs when descendant constraint preparation is read-only", async () => {
+  const mod = await bundleAndImport(`
+    import { resizeSvgNodeToFrame } from ${modulePath("src/figma/disclaimerNodes.ts")};
+
+    const child = {
+      id: "Vector",
+      name: "Vector",
+      type: "VECTOR",
+      parent: null,
+      children: [],
+    };
+    Object.defineProperty(child, "constraints", {
+      get() {
+        return { horizontal: "MIN", vertical: "MIN" };
+      },
+      set() {
+        throw new Error("Cannot set readonly constraints");
+      },
+      configurable: true,
+    });
+
+    const node = {
+      id: "Disclaimer",
+      name: "Disclaimer",
+      type: "BOOLEAN_OPERATION",
+      width: 546,
+      height: 12,
+      parent: null,
+      children: [child],
+      resize(w, h) {
+        this.width = w;
+        this.height = h;
+      },
+    };
+    child.parent = node;
+
+    resizeSvgNodeToFrame(node, 546, 7.74);
+
+    export const width = node.width;
+    export const height = node.height;
+  `);
+
+  assert.equal(mod.width, 546);
+  assert.equal(mod.height, 7.74);
+});
+
 test("create-all variants remove known disclaimers before inserting new ones", async () => {
   const source = await readFile("src/features/createAllVariants.ts", "utf8");
 
@@ -886,7 +932,7 @@ test("banner selection measures a nested actual disclaimer instead of its wrappe
     }
 
     const actualDisclaimer = makeNode({
-      name: "disclaimer-1",
+      name: "warning copy",
       type: "BOOLEAN_OPERATION",
       width: 546.73828125,
       height: 12,
@@ -948,13 +994,13 @@ test("banner selection measures a nested actual disclaimer instead of its wrappe
 
   assert.equal(mod.bannerState.type, "ready");
   assert.equal(mod.bannerState.info.mode, "resize-existing");
-  assert.equal(mod.bannerState.info.disclaimerName, "disclaimer-1");
+  assert.equal(mod.bannerState.info.disclaimerName, "warning copy");
   assert.equal(mod.bannerState.info.disclaimerWidth, 546.74);
   assert.equal(mod.bannerState.info.disclaimerHeight, 12);
   assert.equal(mod.bannerState.info.currentPercent, 7.75);
 
   assert.equal(mod.wrapperState.type, "ready");
-  assert.equal(mod.wrapperState.info.disclaimerName, "disclaimer-1");
+  assert.equal(mod.wrapperState.info.disclaimerName, "warning copy");
   assert.equal(mod.wrapperState.info.disclaimerWidth, 546.74);
   assert.equal(mod.wrapperState.info.disclaimerHeight, 12);
 });
@@ -1000,7 +1046,7 @@ test("apply resize keeps a wrapper hug-sized and deforms its nested disclaimer",
     }
 
     const disclaimerGlyphs = makeNode({
-      name: "disclaimer-1",
+      name: "warning copy",
       type: "BOOLEAN_OPERATION",
       width: 546.73828125,
       height: 12,
@@ -1098,9 +1144,9 @@ test("apply resize keeps a wrapper hug-sized and deforms its nested disclaimer",
   `);
 
   assert.equal(mod.lastError, null);
-  assert.equal(mod.initialDisclaimerName, "disclaimer-1");
+  assert.equal(mod.initialDisclaimerName, "warning copy");
   assert.equal(mod.initialDisclaimerHeight, 12);
-  assert.equal(mod.selectedName, "disclaimer-1");
+  assert.equal(mod.selectedName, "warning copy");
   assert.equal(mod.wrapperWidth, 594.738);
   assert.equal(mod.disclaimerHeight, 16);
   assert.equal(mod.wrapperHorizontalSizing, "HUG");

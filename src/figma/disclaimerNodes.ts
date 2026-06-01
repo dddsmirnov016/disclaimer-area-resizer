@@ -29,15 +29,23 @@ export function hasHeuristicDisclaimerName(node: BaseNode): boolean {
 
 export function prepareSvgNodeForDeformation(node: SceneNode): void {
   if ("clipsContent" in node) {
-    (node as SceneNode & { clipsContent: boolean }).clipsContent = true;
+    try {
+      (node as SceneNode & { clipsContent: boolean }).clipsContent = true;
+    } catch {
+      // Existing SVGs can contain read-only descendants; root resize is still useful.
+    }
   }
 
   visitDescendants(node, (child) => {
     if ("constraints" in child) {
-      (child as SceneNode & { constraints: Constraints }).constraints = {
-        horizontal: "SCALE",
-        vertical: "SCALE",
-      };
+      try {
+        (child as SceneNode & { constraints: Constraints }).constraints = {
+          horizontal: "SCALE",
+          vertical: "SCALE",
+        };
+      } catch {
+        // Keep best-effort preparation from blocking editable root layers.
+      }
     }
   });
 }
@@ -212,7 +220,21 @@ function isDirectVectorDisclaimerForWrapper(
   const wrapperName = wrapper.name.trim().toLowerCase();
   const nestedName = nested.name.trim().toLowerCase();
 
-  return Boolean(wrapperName && nestedName.startsWith(wrapperName + "-"));
+  return (
+    Boolean(wrapperName && nestedName.startsWith(wrapperName + "-")) ||
+    hasHugSizing(wrapper)
+  );
+}
+
+function hasHugSizing(node: SceneNode): boolean {
+  return (
+    ("layoutSizingHorizontal" in node &&
+      (node as SceneNode & { layoutSizingHorizontal: string })
+        .layoutSizingHorizontal === "HUG") ||
+    ("layoutSizingVertical" in node &&
+      (node as SceneNode & { layoutSizingVertical: string })
+        .layoutSizingVertical === "HUG")
+  );
 }
 
 function hasAncestorInSet(
