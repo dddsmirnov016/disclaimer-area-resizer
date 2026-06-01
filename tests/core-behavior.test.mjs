@@ -856,7 +856,109 @@ test("apply resize uses the detected disclaimer when a nested banner frame remai
   assert.match(mod.lastSuccess, /Применено: 548×6,94 px — 5 % площади баннера/);
 });
 
-test("apply resize promotes a selected nested disclaimer glyph to its wrapper", async () => {
+test("banner selection measures a nested actual disclaimer instead of its wrapper", async () => {
+  const mod = await bundleAndImport(`
+    import { buildState } from ${modulePath("src/state/selectionState.ts")};
+
+    function makeNode(overrides) {
+      return {
+        id: overrides.name,
+        name: overrides.name,
+        type: overrides.type || "FRAME",
+        width: overrides.width,
+        height: overrides.height,
+        x: overrides.x || 0,
+        y: overrides.y || 0,
+        locked: false,
+        visible: true,
+        layoutMode: overrides.layoutMode || "NONE",
+        layoutSizingHorizontal: overrides.layoutSizingHorizontal || "FIXED",
+        layoutSizingVertical: overrides.layoutSizingVertical || "FIXED",
+        parent: null,
+        children: overrides.children || [],
+        resize() {},
+        resizeWithoutConstraints() {},
+        absoluteTransform: [[1, 0, overrides.x || 0], [0, 1, overrides.y || 0]],
+        getSharedPluginData() {
+          return "";
+        },
+      };
+    }
+
+    const actualDisclaimer = makeNode({
+      name: "disclaimer-1",
+      type: "BOOLEAN_OPERATION",
+      width: 546.73828125,
+      height: 12,
+      x: 23.9998779296875,
+      y: 0,
+    });
+    const wrapper = makeNode({
+      name: "disclaimer",
+      width: 594.738037109375,
+      height: 16,
+      x: 0,
+      y: 86,
+      layoutSizingHorizontal: "HUG",
+      layoutSizingVertical: "HUG",
+      children: [actualDisclaimer],
+    });
+    const text = makeNode({
+      name: "text",
+      width: 594.738037109375,
+      height: 86,
+      children: [],
+    });
+    const message = makeNode({
+      name: "message",
+      width: 594.738037109375,
+      height: 102,
+      x: 183.26193237304688,
+      y: 0.5,
+      children: [text, wrapper],
+    });
+    const image = makeNode({
+      name: "img",
+      width: 183.26193237304688,
+      height: 103,
+    });
+    const controls = makeNode({
+      name: "controls",
+      width: 44,
+      height: 103,
+      x: 778,
+    });
+    const banner = makeNode({
+      name: "822 x 108",
+      width: 822,
+      height: 103,
+      children: [image, message, controls],
+    });
+    image.parent = banner;
+    message.parent = banner;
+    controls.parent = banner;
+    text.parent = message;
+    wrapper.parent = message;
+    actualDisclaimer.parent = wrapper;
+
+    export const bannerState = buildState([banner]);
+    export const wrapperState = buildState([wrapper]);
+  `);
+
+  assert.equal(mod.bannerState.type, "ready");
+  assert.equal(mod.bannerState.info.mode, "resize-existing");
+  assert.equal(mod.bannerState.info.disclaimerName, "disclaimer-1");
+  assert.equal(mod.bannerState.info.disclaimerWidth, 546.74);
+  assert.equal(mod.bannerState.info.disclaimerHeight, 12);
+  assert.equal(mod.bannerState.info.currentPercent, 7.75);
+
+  assert.equal(mod.wrapperState.type, "ready");
+  assert.equal(mod.wrapperState.info.disclaimerName, "disclaimer-1");
+  assert.equal(mod.wrapperState.info.disclaimerWidth, 546.74);
+  assert.equal(mod.wrapperState.info.disclaimerHeight, 12);
+});
+
+test("apply resize keeps a wrapper hug-sized and deforms its nested disclaimer", async () => {
   const mod = await bundleAndImport(`
     const uiHandlers = {};
     const postedMessages = [];
@@ -874,6 +976,8 @@ test("apply resize promotes a selected nested disclaimer glyph to its wrapper", 
         locked: false,
         visible: true,
         layoutMode: overrides.layoutMode || "NONE",
+        layoutSizingHorizontal: overrides.layoutSizingHorizontal || "FIXED",
+        layoutSizingVertical: overrides.layoutSizingVertical || "FIXED",
         parent: null,
         children: overrides.children || [],
         resize(w, h) {
@@ -897,45 +1001,41 @@ test("apply resize promotes a selected nested disclaimer glyph to its wrapper", 
     const disclaimerGlyphs = makeNode({
       name: "disclaimer-1",
       type: "BOOLEAN_OPERATION",
-      width: 528,
-      height: 14,
-      x: 19.99981689453125,
+      width: 546.73828125,
+      height: 12,
+      x: 23.9998779296875,
       y: 0,
     });
     const disclaimer = makeNode({
-      name: "Disclaimer",
-      width: 548,
+      name: "disclaimer",
+      width: 594.738037109375,
       height: 16,
       x: 0,
-      y: 79,
+      y: 86,
+      layoutSizingHorizontal: "HUG",
+      layoutSizingVertical: "HUG",
       children: [disclaimerGlyphs],
     });
     const container = makeNode({
-      name: "Container",
-      width: 548,
-      height: 95,
+      name: "message",
+      width: 594.738037109375,
+      height: 102,
+      x: 183.26193237304688,
+      y: 0.5,
       children: [disclaimer],
     });
     const image = makeNode({
-      name: "Image",
-      width: 240,
-      height: 95,
-      x: 560,
+      name: "img",
+      width: 183.26193237304688,
+      height: 103,
       y: 0,
     });
     const adFrame = makeNode({
-      name: "Ad",
-      width: 800,
-      height: 95,
+      name: "822 x 108",
+      width: 822,
+      height: 103,
       children: [container, image],
     });
-    const wrapper = makeNode({
-      name: " ",
-      width: 800,
-      height: 95.0719985961914,
-      children: [adFrame],
-    });
-    adFrame.parent = wrapper;
     container.parent = adFrame;
     disclaimer.parent = container;
     disclaimerGlyphs.parent = disclaimer;
@@ -944,7 +1044,7 @@ test("apply resize promotes a selected nested disclaimer glyph to its wrapper", 
     globalThis.__html__ = "";
     globalThis.figma = {
       currentPage: {
-        selection: [disclaimerGlyphs],
+        selection: [disclaimer],
       },
       ui: {
         postMessage(message) {
@@ -979,7 +1079,10 @@ test("apply resize promotes a selected nested disclaimer glyph to its wrapper", 
     export const initialDisclaimerName = initialState.info?.disclaimerName || null;
     export const initialDisclaimerHeight = initialState.info?.disclaimerHeight || null;
     export const selectedName = globalThis.figma.currentPage.selection[0].name;
+    export const wrapperWidth = Math.round(disclaimer.width * 1000) / 1000;
     export const disclaimerHeight = Math.round(disclaimer.height * 1000) / 1000;
+    export const wrapperHorizontalSizing = disclaimer.layoutSizingHorizontal;
+    export const wrapperVerticalSizing = disclaimer.layoutSizingVertical;
     export const glyphHeight = Math.round(disclaimerGlyphs.height * 1000) / 1000;
     export const lastError = postedMessages
       .filter((message) => message.type === "error")
@@ -990,10 +1093,13 @@ test("apply resize promotes a selected nested disclaimer glyph to its wrapper", 
   `);
 
   assert.equal(mod.lastError, null);
-  assert.equal(mod.initialDisclaimerName, "Disclaimer");
-  assert.equal(mod.initialDisclaimerHeight, 16);
-  assert.equal(mod.selectedName, "Disclaimer");
-  assert.equal(mod.disclaimerHeight, 6.94);
-  assert.equal(mod.glyphHeight, 14);
-  assert.match(mod.lastSuccess, /Применено: 548×6,94 px — 5 % площади баннера/);
+  assert.equal(mod.initialDisclaimerName, "disclaimer-1");
+  assert.equal(mod.initialDisclaimerHeight, 12);
+  assert.equal(mod.selectedName, "disclaimer-1");
+  assert.equal(mod.wrapperWidth, 594.738);
+  assert.equal(mod.disclaimerHeight, 16);
+  assert.equal(mod.wrapperHorizontalSizing, "HUG");
+  assert.equal(mod.wrapperVerticalSizing, "HUG");
+  assert.equal(mod.glyphHeight, 7.743);
+  assert.match(mod.lastSuccess, /Применено: 546,74×7,74 px — 5 % площади баннера/);
 });

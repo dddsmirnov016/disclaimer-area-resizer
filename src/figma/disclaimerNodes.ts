@@ -7,6 +7,8 @@ import {
 } from "./layout";
 import {
   canInsertChildren,
+  hasChildren,
+  isFrameLike,
   isResizable,
   type BannerFrame,
   type ResizableNode,
@@ -162,9 +164,55 @@ function collectHeuristicDisclaimers(
     }
   });
 
-  return candidates.filter(
-    (candidate) => !hasAncestorInSet(candidate, candidates, bannerFrame)
+  const resolvedCandidates = uniqueCandidates(
+    candidates.map((candidate) =>
+      resolveHeuristicWrapperCandidate(candidate, candidates)
+    )
   );
+
+  return resolvedCandidates.filter(
+    (candidate) => !hasAncestorInSet(candidate, resolvedCandidates, bannerFrame)
+  );
+}
+
+function uniqueCandidates(candidates: readonly ResizableNode[]): ResizableNode[] {
+  const unique: ResizableNode[] = [];
+
+  for (const candidate of candidates) {
+    if (!unique.includes(candidate)) {
+      unique.push(candidate);
+    }
+  }
+
+  return unique;
+}
+
+function resolveHeuristicWrapperCandidate(
+  candidate: ResizableNode,
+  candidates: readonly ResizableNode[]
+): ResizableNode {
+  const nestedCandidate = getSingleCandidate(
+    candidates.filter((nested) =>
+      isDirectVectorDisclaimerForWrapper(candidate, nested)
+    )
+  );
+
+  return nestedCandidate || candidate;
+}
+
+function isDirectVectorDisclaimerForWrapper(
+  wrapper: ResizableNode,
+  nested: ResizableNode
+): boolean {
+  if (wrapper === nested) return false;
+  if (!isFrameLike(wrapper)) return false;
+  if (isFrameLike(nested)) return false;
+  if (!hasChildren(wrapper) || nested.parent !== wrapper) return false;
+
+  const wrapperName = wrapper.name.trim().toLowerCase();
+  const nestedName = nested.name.trim().toLowerCase();
+
+  return Boolean(wrapperName && nestedName.startsWith(wrapperName + "-"));
 }
 
 function hasAncestorInSet(
@@ -206,7 +254,8 @@ function findSingleCandidateContainingSelection(
 ): ResizableNode | null {
   return getSingleCandidate(
     candidates.filter((candidate) =>
-      nodeContainsSelection(candidate, selectedNode)
+      nodeContainsSelection(candidate, selectedNode) ||
+      nodeContainsSelection(selectedNode, candidate)
     )
   );
 }
