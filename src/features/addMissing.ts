@@ -29,14 +29,14 @@ export function addDisclaimerToBody(params: {
   const bodyContainer = findBodyContainer(bannerFrame);
 
   if (!bodyContainer) {
-    throw new Error("Не удалось найти текстовый auto-layout контейнер в баннере");
+    throw new Error("Не удалось найти текстовый контейнер в баннере.");
   }
 
   const padding = getAutoLayoutPadding(bodyContainer);
   const contentWidth = bodyContainer.width - padding.left - padding.right;
 
   if (contentWidth <= 0) {
-    throw new Error("В текстовом контейнере нет доступной ширины для дисклеймера");
+    throw new Error("В текстовом контейнере нет места для дисклеймера.");
   }
 
   const node = createDisclaimerNode(asset, presetKey);
@@ -76,13 +76,13 @@ export function placeDisclaimerOverImage(params: {
   const { bannerFrame, node, asset, presetKey, targetPercent } = params;
 
   if (node.locked) {
-    throw new Error("Слой заблокирован (locked). Разблокируйте и попробуйте снова");
+    throw new Error("Слой заблокирован. Разблокируйте его и попробуйте ещё раз.");
   }
 
   const mainImage = findMainImageNode(bannerFrame);
 
   if (!mainImage) {
-    throw new Error("Не удалось найти картинку или медиа-область в баннере");
+    throw new Error("Не удалось найти изображение или медиаобласть в баннере.");
   }
 
   const mediaBounds = getRelativeBoundsFromAbsolute(

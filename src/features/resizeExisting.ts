@@ -29,7 +29,7 @@ export function resizeExistingDisclaimer(params: {
   } = params;
 
   if (node.locked) {
-    throw new Error("Слой заблокирован (locked). Разблокируйте и попробуйте снова");
+    throw new Error("Слой заблокирован. Разблокируйте его и попробуйте ещё раз.");
   }
 
   const currentPercent = calcActualPercent(

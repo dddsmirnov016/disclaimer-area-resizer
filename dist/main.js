@@ -106,42 +106,42 @@
   var ASSET_BANKRUPTCY = "\u0411\u0430\u043D\u043A\u0440\u043E\u0442\u0441\u0442\u0432\u043E \u0432\u043B\u0435\u0447\u0451\u0442 \u043D\u0435\u0433\u0430\u0442\u0438\u0432\u043D\u044B\u0435 \u043F\u043E\u0441\u043B\u0435\u0434\u0441\u0442\u0432\u0438\u044F, \u0432\xA0\u0442\u043E\u043C\xA0\u0447\u0438\u0441\u043B\u0435 \u043E\u0433\u0440\u0430\u043D\u0438\u0447\u0435\u043D\u0438\u044F \u043D\u0430\xA0\u043F\u043E\u043B\u0443\u0447\u0435\u043D\u0438\u0435 \u043A\u0440\u0435\u0434\u0438\u0442\u0430 \u0438\xA0\u043F\u043E\u0432\u0442\u043E\u0440\u043D\u043E\u0435 \u0431\u0430\u043D\u043A\u0440\u043E\u0442\u0441\u0442\u0432\u043E \u0432\xA0\u0442\u0435\u0447\u0435\u043D\u0438\u0435 \u043F\u044F\u0442\u0438\xA0\u043B\u0435\u0442";
   var DISCLAIMER_PRESETS = {
     medicine_video_7: {
-      label: "\u041C\u0435\u0434\u0438\u0446\u0438\u043D\u0430 \u2014 7% / \u0422\u0412, \u0432\u0438\u0434\u0435\u043E \u0438\u043B\u0438 \u043F\u043E \u0422\u0417",
+      label: "\u041C\u0435\u0434\u0438\u0446\u0438\u043D\u0430 \u2014 7\xA0%: \u0422\u0412, \u0432\u0438\u0434\u0435\u043E \u0438\u043B\u0438 \u043F\u043E \u0422\u0417",
       percent: 7,
       assetKey: ASSET_MEDICINE
     },
     medicine_static_5: {
-      label: "\u041C\u0435\u0434\u0438\u0446\u0438\u043D\u0430 \u2014 5% / \u0441\u0442\u0430\u0442\u0438\u0447\u043D\u044B\u0439 \u0431\u0430\u043D\u043D\u0435\u0440, \u043F\u0440\u043E\u0447\u0438\u0435 \u0441\u043F\u043E\u0441\u043E\u0431\u044B",
+      label: "\u041C\u0435\u0434\u0438\u0446\u0438\u043D\u0430 \u2014 5\xA0%: \u0441\u0442\u0430\u0442\u0438\u0447\u043D\u044B\u0439 \u0431\u0430\u043D\u043D\u0435\u0440 \u0438 \u0434\u0440\u0443\u0433\u0438\u0435 \u0444\u043E\u0440\u043C\u0430\u0442\u044B",
       percent: 5,
       assetKey: ASSET_MEDICINE
     },
     bad_static_10: {
-      label: "\u0411\u0410\u0414 \u2014 10% / \u0441\u0442\u0430\u0442\u0438\u0447\u043D\u044B\u0439 \u0431\u0430\u043D\u043D\u0435\u0440, \u043F\u0440\u043E\u0447\u0438\u0435 \u0441\u043F\u043E\u0441\u043E\u0431\u044B",
+      label: "\u0411\u0410\u0414 \u2014 10\xA0%: \u0441\u0442\u0430\u0442\u0438\u0447\u043D\u044B\u0439 \u0431\u0430\u043D\u043D\u0435\u0440 \u0438 \u0434\u0440\u0443\u0433\u0438\u0435 \u0444\u043E\u0440\u043C\u0430\u0442\u044B",
       percent: 10,
       assetKey: ASSET_NOT_MEDICINE
     },
     bad_video_7: {
-      label: "\u0411\u0410\u0414 \u2014 7% / \u0422\u0412, \u0432\u0438\u0434\u0435\u043E",
+      label: "\u0411\u0410\u0414 \u2014 7\xA0%: \u0422\u0412 \u0438 \u0432\u0438\u0434\u0435\u043E",
       percent: 7,
       assetKey: ASSET_NOT_MEDICINE
     },
     finance_credit_5: {
-      label: "\u0424\u0438\u043D\u0430\u043D\u0441\u044B / \u043A\u0440\u0435\u0434\u0438\u0442, \u0437\u0430\u0439\u043C \u2014 5%",
+      label: "\u0424\u0438\u043D\u0430\u043D\u0441\u044B: \u043A\u0440\u0435\u0434\u0438\u0442 \u0438\u043B\u0438 \u0437\u0430\u0451\u043C \u2014 5\xA0%",
       percent: 5,
       assetKey: ASSET_CREDIT
     },
     finance_custom_10: {
-      label: "\u0424\u0438\u043D\u0430\u043D\u0441\u044B \u2014 10% / \u043A\u0430\u0441\u0442\u043E\u043C \u043F\u043E \u0422\u0417 \u043A\u043B\u0438\u0435\u043D\u0442\u0430",
+      label: "\u0424\u0438\u043D\u0430\u043D\u0441\u044B: \u0431\u0430\u043D\u043A\u0440\u043E\u0442\u0441\u0442\u0432\u043E \u2014 10\xA0%",
       percent: 10,
       assetKey: ASSET_BANKRUPTCY
     },
     energy_7: {
-      label: "\u042D\u043D\u0435\u0440\u0433\u0435\u0442\u0438\u0447\u0435\u0441\u043A\u0438\u0435 \u043D\u0430\u043F\u0438\u0442\u043A\u0438 \u2014 7%",
+      label: "\u042D\u043D\u0435\u0440\u0433\u0435\u0442\u0438\u0447\u0435\u0441\u043A\u0438\u0435 \u043D\u0430\u043F\u0438\u0442\u043A\u0438 \u2014 7\xA0%",
       percent: 7,
       assetKey: ASSET_NOT_MEDICINE
     },
     custom: {
-      label: "\u041A\u0430\u0441\u0442\u043E\u043C\u043D\u044B\u0439 \u043F\u0440\u043E\u0446\u0435\u043D\u0442",
+      label: "\u0421\u0432\u043E\u0439 \u043F\u0440\u043E\u0446\u0435\u043D\u0442",
       percent: null,
       assetKey: ASSET_MEDICINE
     }
@@ -426,7 +426,7 @@
   function resizeSvgNodeToFrame(node, width, height) {
     prepareSvgNodeForDeformation(node);
     if (!("resize" in node) || typeof node.resize !== "function") {
-      throw new Error("SVG-\u0434\u0438\u0441\u043A\u043B\u0435\u0439\u043C\u0435\u0440 \u043D\u0435 \u043F\u043E\u0434\u0434\u0435\u0440\u0436\u0438\u0432\u0430\u0435\u0442 \u0434\u0435\u0444\u043E\u0440\u043C\u0430\u0446\u0438\u044E \u0441\u043E\u0434\u0435\u0440\u0436\u0438\u043C\u043E\u0433\u043E");
+      throw new Error("\u041D\u0435 \u0443\u0434\u0430\u043B\u043E\u0441\u044C \u0438\u0437\u043C\u0435\u043D\u0438\u0442\u044C SVG-\u0434\u0438\u0441\u043A\u043B\u0435\u0439\u043C\u0435\u0440.");
     }
     node.resize(
       width,
@@ -558,7 +558,7 @@
     node.name = "Disclaimer \u2014 " + asset.label;
     if (!isResizable(node)) {
       node.remove();
-      throw new Error("SVG-\u0434\u0438\u0441\u043A\u043B\u0435\u0439\u043C\u0435\u0440 \u043D\u0435 \u043F\u043E\u0434\u0434\u0435\u0440\u0436\u0438\u0432\u0430\u0435\u0442 \u0438\u0437\u043C\u0435\u043D\u0435\u043D\u0438\u0435 \u0440\u0430\u0437\u043C\u0435\u0440\u0430");
+      throw new Error("SVG-\u0434\u0438\u0441\u043A\u043B\u0435\u0439\u043C\u0435\u0440 \u043D\u0435\u043B\u044C\u0437\u044F \u0438\u0437\u043C\u0435\u043D\u0438\u0442\u044C \u0432 \u0440\u0430\u0437\u043C\u0435\u0440\u0435.");
     }
     markDisclaimerNode(node, asset, presetKey);
     setLayoutSizingFixed(node, "proportional");
@@ -592,12 +592,12 @@
     const { bannerFrame, asset, presetKey, targetPercent } = params;
     const bodyContainer = findBodyContainer(bannerFrame);
     if (!bodyContainer) {
-      throw new Error("\u041D\u0435 \u0443\u0434\u0430\u043B\u043E\u0441\u044C \u043D\u0430\u0439\u0442\u0438 \u0442\u0435\u043A\u0441\u0442\u043E\u0432\u044B\u0439 auto-layout \u043A\u043E\u043D\u0442\u0435\u0439\u043D\u0435\u0440 \u0432 \u0431\u0430\u043D\u043D\u0435\u0440\u0435");
+      throw new Error("\u041D\u0435 \u0443\u0434\u0430\u043B\u043E\u0441\u044C \u043D\u0430\u0439\u0442\u0438 \u0442\u0435\u043A\u0441\u0442\u043E\u0432\u044B\u0439 \u043A\u043E\u043D\u0442\u0435\u0439\u043D\u0435\u0440 \u0432 \u0431\u0430\u043D\u043D\u0435\u0440\u0435.");
     }
     const padding = getAutoLayoutPadding(bodyContainer);
     const contentWidth = bodyContainer.width - padding.left - padding.right;
     if (contentWidth <= 0) {
-      throw new Error("\u0412 \u0442\u0435\u043A\u0441\u0442\u043E\u0432\u043E\u043C \u043A\u043E\u043D\u0442\u0435\u0439\u043D\u0435\u0440\u0435 \u043D\u0435\u0442 \u0434\u043E\u0441\u0442\u0443\u043F\u043D\u043E\u0439 \u0448\u0438\u0440\u0438\u043D\u044B \u0434\u043B\u044F \u0434\u0438\u0441\u043A\u043B\u0435\u0439\u043C\u0435\u0440\u0430");
+      throw new Error("\u0412 \u0442\u0435\u043A\u0441\u0442\u043E\u0432\u043E\u043C \u043A\u043E\u043D\u0442\u0435\u0439\u043D\u0435\u0440\u0435 \u043D\u0435\u0442 \u043C\u0435\u0441\u0442\u0430 \u0434\u043B\u044F \u0434\u0438\u0441\u043A\u043B\u0435\u0439\u043C\u0435\u0440\u0430.");
     }
     const node = createDisclaimerNode(asset, presetKey);
     const { newWidth, newHeight } = calcAreaWithWidth(
@@ -626,11 +626,11 @@
   function placeDisclaimerOverImage(params) {
     const { bannerFrame, node, asset, presetKey, targetPercent } = params;
     if (node.locked) {
-      throw new Error("\u0421\u043B\u043E\u0439 \u0437\u0430\u0431\u043B\u043E\u043A\u0438\u0440\u043E\u0432\u0430\u043D (locked). \u0420\u0430\u0437\u0431\u043B\u043E\u043A\u0438\u0440\u0443\u0439\u0442\u0435 \u0438 \u043F\u043E\u043F\u0440\u043E\u0431\u0443\u0439\u0442\u0435 \u0441\u043D\u043E\u0432\u0430");
+      throw new Error("\u0421\u043B\u043E\u0439 \u0437\u0430\u0431\u043B\u043E\u043A\u0438\u0440\u043E\u0432\u0430\u043D. \u0420\u0430\u0437\u0431\u043B\u043E\u043A\u0438\u0440\u0443\u0439\u0442\u0435 \u0435\u0433\u043E \u0438 \u043F\u043E\u043F\u0440\u043E\u0431\u0443\u0439\u0442\u0435 \u0435\u0449\u0451 \u0440\u0430\u0437.");
     }
     const mainImage = findMainImageNode(bannerFrame);
     if (!mainImage) {
-      throw new Error("\u041D\u0435 \u0443\u0434\u0430\u043B\u043E\u0441\u044C \u043D\u0430\u0439\u0442\u0438 \u043A\u0430\u0440\u0442\u0438\u043D\u043A\u0443 \u0438\u043B\u0438 \u043C\u0435\u0434\u0438\u0430-\u043E\u0431\u043B\u0430\u0441\u0442\u044C \u0432 \u0431\u0430\u043D\u043D\u0435\u0440\u0435");
+      throw new Error("\u041D\u0435 \u0443\u0434\u0430\u043B\u043E\u0441\u044C \u043D\u0430\u0439\u0442\u0438 \u0438\u0437\u043E\u0431\u0440\u0430\u0436\u0435\u043D\u0438\u0435 \u0438\u043B\u0438 \u043C\u0435\u0434\u0438\u0430\u043E\u0431\u043B\u0430\u0441\u0442\u044C \u0432 \u0431\u0430\u043D\u043D\u0435\u0440\u0435.");
     }
     const mediaBounds = getRelativeBoundsFromAbsolute(
       mainImage.bounds,
@@ -690,11 +690,11 @@
     const { bannerFrame, addTarget } = params;
     const parent = bannerFrame.parent;
     if (!canInsertChildren(parent)) {
-      throw new Error("\u041D\u0435 \u0443\u0434\u0430\u043B\u043E\u0441\u044C \u043D\u0430\u0439\u0442\u0438 \u0440\u043E\u0434\u0438\u0442\u0435\u043B\u044F \u0431\u0430\u043D\u043D\u0435\u0440\u0430 \u0434\u043B\u044F \u0434\u0443\u0431\u043B\u0438\u0440\u043E\u0432\u0430\u043D\u0438\u044F");
+      throw new Error("\u041D\u0435 \u0443\u0434\u0430\u043B\u043E\u0441\u044C \u043D\u0430\u0439\u0442\u0438 \u043A\u043E\u043D\u0442\u0435\u0439\u043D\u0435\u0440 \u0431\u0430\u043D\u043D\u0435\u0440\u0430 \u0434\u043B\u044F \u0434\u0443\u0431\u043B\u0438\u0440\u043E\u0432\u0430\u043D\u0438\u044F.");
     }
     const entries = getPrimaryPresetEntriesByAsset();
     if (entries.length === 0) {
-      throw new Error("\u041D\u0435 \u043D\u0430\u0439\u0434\u0435\u043D\u043E SVG-\u0430\u0441\u0441\u0435\u0442\u043E\u0432 \u0434\u043B\u044F \u0441\u043E\u0437\u0434\u0430\u043D\u0438\u044F \u0432\u0430\u0440\u0438\u0430\u043D\u0442\u043E\u0432");
+      throw new Error("\u041D\u0435\u0442 SVG-\u0434\u0438\u0441\u043A\u043B\u0435\u0439\u043C\u0435\u0440\u043E\u0432 \u0434\u043B\u044F \u0441\u043E\u0437\u0434\u0430\u043D\u0438\u044F \u0432\u0430\u0440\u0438\u0430\u043D\u0442\u043E\u0432.");
     }
     const createdNodes = [];
     try {
@@ -711,7 +711,7 @@
         removeKnownDisclaimers(duplicate);
         const targetPercent = entry.preset.percent;
         if (targetPercent === null) {
-          throw new Error(`\u0423 \u043F\u0440\u0435\u0441\u0435\u0442\u0430 "${entry.preset.label}" \u043D\u0435\u0442 \u043F\u0440\u043E\u0446\u0435\u043D\u0442\u0430`);
+          throw new Error(`\u0414\u043B\u044F \u0442\u0438\u043F\u0430 \xAB${entry.preset.label}\xBB \u043D\u0435 \u0437\u0430\u0434\u0430\u043D \u043F\u0440\u043E\u0446\u0435\u043D\u0442.`);
         }
         if (addTarget === "image") {
           addDisclaimerToImage({
@@ -750,7 +750,7 @@
       presetKey
     } = params;
     if (node.locked) {
-      throw new Error("\u0421\u043B\u043E\u0439 \u0437\u0430\u0431\u043B\u043E\u043A\u0438\u0440\u043E\u0432\u0430\u043D (locked). \u0420\u0430\u0437\u0431\u043B\u043E\u043A\u0438\u0440\u0443\u0439\u0442\u0435 \u0438 \u043F\u043E\u043F\u0440\u043E\u0431\u0443\u0439\u0442\u0435 \u0441\u043D\u043E\u0432\u0430");
+      throw new Error("\u0421\u043B\u043E\u0439 \u0437\u0430\u0431\u043B\u043E\u043A\u0438\u0440\u043E\u0432\u0430\u043D. \u0420\u0430\u0437\u0431\u043B\u043E\u043A\u0438\u0440\u0443\u0439\u0442\u0435 \u0435\u0433\u043E \u0438 \u043F\u043E\u043F\u0440\u043E\u0431\u0443\u0439\u0442\u0435 \u0435\u0449\u0451 \u0440\u0430\u0437.");
     }
     const currentPercent = calcActualPercent(
       node.width * node.height,
@@ -802,7 +802,7 @@
   }
 
   // src/state/selectionState.ts
-  var BANNER_DISCLAIMER_DETECTION_ERROR = "\u0414\u0438\u0441\u043A\u043B\u0435\u0439\u043C\u0435\u0440 \u043D\u0435 \u043D\u0430\u0439\u0434\u0435\u043D \u0438\u043B\u0438 \u043F\u043B\u0430\u0433\u0438\u043D \u043D\u0435 \u0441\u043C\u043E\u0433 \u043E\u043F\u0440\u0435\u0434\u0435\u043B\u0438\u0442\u044C \u0435\u0433\u043E \u0430\u0432\u0442\u043E\u043C\u0430\u0442\u0438\u0447\u0435\u0441\u043A\u0438. \u0412\u044B\u0434\u0435\u043B\u0438\u0442\u0435 disclaimer-\u0441\u043B\u043E\u0439 \u0432\u0440\u0443\u0447\u043D\u0443\u044E";
+  var BANNER_DISCLAIMER_DETECTION_ERROR = "\u0414\u0438\u0441\u043A\u043B\u0435\u0439\u043C\u0435\u0440 \u043D\u0435 \u043D\u0430\u0439\u0434\u0435\u043D. \u0412\u044B\u0434\u0435\u043B\u0438\u0442\u0435 \u0441\u043B\u043E\u0439 \u0441 \u0434\u0438\u0441\u043A\u043B\u0435\u0439\u043C\u0435\u0440\u043E\u043C \u0432\u0440\u0443\u0447\u043D\u0443\u044E.";
   function buildDetectionInfoState() {
     return {
       type: "invalid",
@@ -836,7 +836,7 @@
     if (selection.length !== 1) {
       return {
         type: selection.length === 0 ? "no-selection" : "invalid",
-        error: selection.length === 0 ? "\u0412\u044B\u0431\u0435\u0440\u0438\u0442\u0435 \u043E\u0434\u0438\u043D disclaimer-\u0441\u043B\u043E\u0439 \u0438\u043B\u0438 \u0431\u0430\u043D\u043D\u0435\u0440\u043D\u044B\u0439 \u0444\u0440\u0435\u0439\u043C" : "\u0412\u044B\u0431\u0435\u0440\u0438\u0442\u0435 \u0440\u043E\u0432\u043D\u043E \u043E\u0434\u0438\u043D \u0441\u043B\u043E\u0439",
+        error: selection.length === 0 ? "\u0412\u044B\u0434\u0435\u043B\u0438\u0442\u0435 \u043E\u0434\u0438\u043D \u0441\u043B\u043E\u0439 \u0441 \u0434\u0438\u0441\u043A\u043B\u0435\u0439\u043C\u0435\u0440\u043E\u043C \u0438\u043B\u0438 \u0431\u0430\u043D\u043D\u0435\u0440\u043D\u044B\u0439 \u0444\u0440\u0435\u0439\u043C." : "\u0412\u044B\u0434\u0435\u043B\u0438\u0442\u0435 \u0442\u043E\u043B\u044C\u043A\u043E \u043E\u0434\u0438\u043D \u0441\u043B\u043E\u0439.",
         presets: DISCLAIMER_PRESETS
       };
     }
@@ -845,14 +845,14 @@
       if (sceneNode.locked) {
         return {
           type: "invalid",
-          error: "\u0411\u0430\u043D\u043D\u0435\u0440 \u0437\u0430\u0431\u043B\u043E\u043A\u0438\u0440\u043E\u0432\u0430\u043D (locked). \u0420\u0430\u0437\u0431\u043B\u043E\u043A\u0438\u0440\u0443\u0439\u0442\u0435 \u0438 \u043F\u043E\u043F\u0440\u043E\u0431\u0443\u0439\u0442\u0435 \u0441\u043D\u043E\u0432\u0430",
+          error: "\u0411\u0430\u043D\u043D\u0435\u0440 \u0437\u0430\u0431\u043B\u043E\u043A\u0438\u0440\u043E\u0432\u0430\u043D. \u0420\u0430\u0437\u0431\u043B\u043E\u043A\u0438\u0440\u0443\u0439\u0442\u0435 \u0435\u0433\u043E \u0438 \u043F\u043E\u043F\u0440\u043E\u0431\u0443\u0439\u0442\u0435 \u0435\u0449\u0451 \u0440\u0430\u0437.",
           presets: DISCLAIMER_PRESETS
         };
       }
       if (sceneNode.width <= 0 || sceneNode.height <= 0) {
         return {
           type: "invalid",
-          error: `\u041D\u0435\u043A\u043E\u0440\u0440\u0435\u043A\u0442\u043D\u044B\u0435 \u0440\u0430\u0437\u043C\u0435\u0440\u044B \u0431\u0430\u043D\u043D\u0435\u0440\u0430: ${sceneNode.width}\xD7${sceneNode.height}`,
+          error: `\u0420\u0430\u0437\u043C\u0435\u0440 \u0431\u0430\u043D\u043D\u0435\u0440\u0430 \u0434\u043E\u043B\u0436\u0435\u043D \u0431\u044B\u0442\u044C \u0431\u043E\u043B\u044C\u0448\u0435 \u043D\u0443\u043B\u044F: ${sceneNode.width}\xD7${sceneNode.height}`,
           presets: DISCLAIMER_PRESETS
         };
       }
@@ -868,21 +868,21 @@
     if (!isResizable(sceneNode)) {
       return {
         type: "invalid",
-        error: `\u0422\u0438\u043F \u0441\u043B\u043E\u044F "${sceneNode.type}" \u043D\u0435 \u043F\u043E\u0434\u0434\u0435\u0440\u0436\u0438\u0432\u0430\u0435\u0442 \u0438\u0437\u043C\u0435\u043D\u0435\u043D\u0438\u0435 \u0440\u0430\u0437\u043C\u0435\u0440\u0430`,
+        error: `\u0421\u043B\u043E\u0439 \u0442\u0438\u043F\u0430 \xAB${sceneNode.type}\xBB \u043D\u0435\u043B\u044C\u0437\u044F \u0438\u0437\u043C\u0435\u043D\u0438\u0442\u044C \u0432 \u0440\u0430\u0437\u043C\u0435\u0440\u0435.`,
         presets: DISCLAIMER_PRESETS
       };
     }
     if (sceneNode.locked) {
       return {
         type: "invalid",
-        error: "\u0421\u043B\u043E\u0439 \u0437\u0430\u0431\u043B\u043E\u043A\u0438\u0440\u043E\u0432\u0430\u043D (locked). \u0420\u0430\u0437\u0431\u043B\u043E\u043A\u0438\u0440\u0443\u0439\u0442\u0435 \u0438 \u043F\u043E\u043F\u0440\u043E\u0431\u0443\u0439\u0442\u0435 \u0441\u043D\u043E\u0432\u0430",
+        error: "\u0421\u043B\u043E\u0439 \u0437\u0430\u0431\u043B\u043E\u043A\u0438\u0440\u043E\u0432\u0430\u043D. \u0420\u0430\u0437\u0431\u043B\u043E\u043A\u0438\u0440\u0443\u0439\u0442\u0435 \u0435\u0433\u043E \u0438 \u043F\u043E\u043F\u0440\u043E\u0431\u0443\u0439\u0442\u0435 \u0435\u0449\u0451 \u0440\u0430\u0437.",
         presets: DISCLAIMER_PRESETS
       };
     }
     if (sceneNode.width <= 0 || sceneNode.height <= 0) {
       return {
         type: "invalid",
-        error: `\u041D\u0435\u043A\u043E\u0440\u0440\u0435\u043A\u0442\u043D\u044B\u0435 \u0440\u0430\u0437\u043C\u0435\u0440\u044B disclaimer: ${sceneNode.width}\xD7${sceneNode.height}`,
+        error: `\u0420\u0430\u0437\u043C\u0435\u0440 \u0434\u0438\u0441\u043A\u043B\u0435\u0439\u043C\u0435\u0440\u0430 \u0434\u043E\u043B\u0436\u0435\u043D \u0431\u044B\u0442\u044C \u0431\u043E\u043B\u044C\u0448\u0435 \u043D\u0443\u043B\u044F: ${sceneNode.width}\xD7${sceneNode.height}`,
         presets: DISCLAIMER_PRESETS
       };
     }
@@ -897,7 +897,7 @@
         if (bannerFrame2.width <= 0 || bannerFrame2.height <= 0) {
           return {
             type: "invalid",
-            error: `\u041D\u0435\u043A\u043E\u0440\u0440\u0435\u043A\u0442\u043D\u044B\u0435 \u0440\u0430\u0437\u043C\u0435\u0440\u044B \u0431\u0430\u043D\u043D\u0435\u0440\u0430: ${bannerFrame2.width}\xD7${bannerFrame2.height}`,
+            error: `\u0420\u0430\u0437\u043C\u0435\u0440 \u0431\u0430\u043D\u043D\u0435\u0440\u0430 \u0434\u043E\u043B\u0436\u0435\u043D \u0431\u044B\u0442\u044C \u0431\u043E\u043B\u044C\u0448\u0435 \u043D\u0443\u043B\u044F: ${bannerFrame2.width}\xD7${bannerFrame2.height}`,
             presets: DISCLAIMER_PRESETS
           };
         }
@@ -911,14 +911,14 @@
     if (!bannerFrame) {
       return {
         type: "invalid",
-        error: "\u0412\u044B\u0434\u0435\u043B\u0438\u0442\u0435 disclaimer \u0432\u043D\u0443\u0442\u0440\u0438 \u0431\u0430\u043D\u043D\u0435\u0440\u043D\u043E\u0433\u043E \u0444\u0440\u0435\u0439\u043C\u0430 \u0438\u043B\u0438 \u0441\u0430\u043C \u0431\u0430\u043D\u043D\u0435\u0440",
+        error: "\u0412\u044B\u0434\u0435\u043B\u0438\u0442\u0435 \u0441\u043B\u043E\u0439 \u0441 \u0434\u0438\u0441\u043A\u043B\u0435\u0439\u043C\u0435\u0440\u043E\u043C \u0432\u043D\u0443\u0442\u0440\u0438 \u0431\u0430\u043D\u043D\u0435\u0440\u0430 \u0438\u043B\u0438 \u0441\u0430\u043C \u0431\u0430\u043D\u043D\u0435\u0440.",
         presets: DISCLAIMER_PRESETS
       };
     }
     if (bannerFrame.width <= 0 || bannerFrame.height <= 0) {
       return {
         type: "invalid",
-        error: `\u041D\u0435\u043A\u043E\u0440\u0440\u0435\u043A\u0442\u043D\u044B\u0435 \u0440\u0430\u0437\u043C\u0435\u0440\u044B \u0431\u0430\u043D\u043D\u0435\u0440\u0430: ${bannerFrame.width}\xD7${bannerFrame.height}`,
+        error: `\u0420\u0430\u0437\u043C\u0435\u0440 \u0431\u0430\u043D\u043D\u0435\u0440\u0430 \u0434\u043E\u043B\u0436\u0435\u043D \u0431\u044B\u0442\u044C \u0431\u043E\u043B\u044C\u0448\u0435 \u043D\u0443\u043B\u044F: ${bannerFrame.width}\xD7${bannerFrame.height}`,
         presets: DISCLAIMER_PRESETS
       };
     }
@@ -935,6 +935,18 @@
   function postSuccess(message) {
     figma.ui.postMessage({ type: "success", message });
   }
+  function formatRuNumber(n) {
+    const rounded = round2(n);
+    const sign = rounded < 0 ? "\u2212" : "";
+    const abs = Math.abs(rounded);
+    const [intPart, decimalPart = ""] = String(abs).split(".");
+    const groupedInt = intPart.replace(/\B(?=(\d{3})+(?!\d))/g, "\xA0");
+    const trimmedDecimal = decimalPart.replace(/0+$/, "");
+    return sign + groupedInt + (trimmedDecimal ? "," + trimmedDecimal : "");
+  }
+  function formatRuPercent(n) {
+    return formatRuNumber(n) + "\xA0%";
+  }
   function selectAndReport(node, message) {
     figma.currentPage.selection = [node];
     figma.notify(message, { timeout: 4e3 });
@@ -944,25 +956,25 @@
   function handleApplyResize(msg) {
     const state = buildState(figma.currentPage.selection);
     if (state.type !== "ready" || !state.info) {
-      postError(state.error !== void 0 ? state.error : "\u041D\u0435\u0442 \u0432\u044B\u0431\u0440\u0430\u043D\u043D\u043E\u0433\u043E \u0441\u043B\u043E\u044F");
+      postError(state.error !== void 0 ? state.error : "\u0412\u044B\u0434\u0435\u043B\u0438\u0442\u0435 \u0441\u043B\u043E\u0439.");
       return;
     }
     const selection = figma.currentPage.selection;
     if (selection.length !== 1) {
-      postError("\u0412\u044B\u0431\u043E\u0440 \u0438\u0437\u043C\u0435\u043D\u0438\u043B\u0441\u044F. \u041F\u043E\u0432\u0442\u043E\u0440\u0438\u0442\u0435.");
+      postError("\u0412\u044B\u0434\u0435\u043B\u0435\u043D\u0438\u0435 \u0438\u0437\u043C\u0435\u043D\u0438\u043B\u043E\u0441\u044C. \u041F\u043E\u043F\u0440\u043E\u0431\u0443\u0439\u0442\u0435 \u0435\u0449\u0451 \u0440\u0430\u0437.");
       return;
     }
     const selectedNode = selection[0];
     if (state.info.mode === "add-missing" && msg.createAll) {
       if (!isFrameLike(selectedNode)) {
-        postError("\u0412\u044B\u0431\u0435\u0440\u0438\u0442\u0435 \u0431\u0430\u043D\u043D\u0435\u0440\u043D\u044B\u0439 \u0444\u0440\u0435\u0439\u043C");
+        postError("\u0412\u044B\u0434\u0435\u043B\u0438\u0442\u0435 \u0431\u0430\u043D\u043D\u0435\u0440\u043D\u044B\u0439 \u0444\u0440\u0435\u0439\u043C.");
         return;
       }
       const created = createAllDisclaimerVariants({
         bannerFrame: selectedNode,
         addTarget: msg.addTarget
       });
-      const resultMessage2 = `\u0421\u043E\u0437\u0434\u0430\u043D\u043E: ${created.count} \u0432\u0430\u0440\u0438\u0430\u043D\u0442\u043E\u0432 \u0434\u0438\u0441\u043A\u043B\u0435\u0439\u043C\u0435\u0440\u043E\u0432`;
+      const resultMessage2 = `\u0421\u043E\u0437\u0434\u0430\u043D\u043E \u0432\u0430\u0440\u0438\u0430\u043D\u0442\u043E\u0432: ${formatRuNumber(created.count)}`;
       figma.currentPage.selection = [selectedNode];
       figma.notify(resultMessage2, { timeout: 4e3 });
       postSuccess(resultMessage2);
@@ -971,12 +983,12 @@
     }
     const presetAndAsset = getPresetAndAsset(msg.presetKey);
     if (!presetAndAsset) {
-      postError("\u041D\u0435 \u043D\u0430\u0439\u0434\u0435\u043D SVG-\u0430\u0441\u0441\u0435\u0442 \u0434\u043B\u044F \u0432\u044B\u0431\u0440\u0430\u043D\u043D\u043E\u0433\u043E \u043F\u0440\u0435\u0441\u0435\u0442\u0430");
+      postError("\u0414\u043B\u044F \u0432\u044B\u0431\u0440\u0430\u043D\u043D\u043E\u0433\u043E \u0442\u0438\u043F\u0430 \u043D\u0435\u0442 SVG-\u0434\u0438\u0441\u043A\u043B\u0435\u0439\u043C\u0435\u0440\u0430.");
       return;
     }
     const targetPercent = getTargetPercent(msg.presetKey, msg.customPercent);
     if (targetPercent === null) {
-      postError("\u0423\u043A\u0430\u0436\u0438\u0442\u0435 \u043A\u043E\u0440\u0440\u0435\u043A\u0442\u043D\u044B\u0439 \u043F\u0440\u043E\u0446\u0435\u043D\u0442 (0\u2013100)");
+      postError("\u0423\u043A\u0430\u0436\u0438\u0442\u0435 \u043F\u0440\u043E\u0446\u0435\u043D\u0442 \u0431\u043E\u043B\u044C\u0448\u0435 0 \u0438 \u043D\u0435 \u0431\u043E\u043B\u044C\u0448\u0435 100.");
       return;
     }
     const { asset } = presetAndAsset;
@@ -984,7 +996,7 @@
     let actionLabel = "\u041F\u0440\u0438\u043C\u0435\u043D\u0435\u043D\u043E";
     if (state.info.mode === "add-missing") {
       if (!isFrameLike(selectedNode)) {
-        postError("\u0412\u044B\u0431\u0435\u0440\u0438\u0442\u0435 \u0431\u0430\u043D\u043D\u0435\u0440\u043D\u044B\u0439 \u0444\u0440\u0435\u0439\u043C");
+        postError("\u0412\u044B\u0434\u0435\u043B\u0438\u0442\u0435 \u0431\u0430\u043D\u043D\u0435\u0440\u043D\u044B\u0439 \u0444\u0440\u0435\u0439\u043C.");
         return;
       }
       const existingDisclaimer = findMatchingDisclaimer(selectedNode, asset.key);
@@ -1043,12 +1055,12 @@
       }
       if (!resizeNode) {
         postError(
-          isFrameLike(selectedNode) ? BANNER_DISCLAIMER_DETECTION_ERROR : "\u0421\u043B\u043E\u0439 \u043D\u0435 \u043F\u043E\u0434\u0434\u0435\u0440\u0436\u0438\u0432\u0430\u0435\u0442 resize"
+          isFrameLike(selectedNode) ? BANNER_DISCLAIMER_DETECTION_ERROR : "\u042D\u0442\u043E\u0442 \u0441\u043B\u043E\u0439 \u043D\u0435\u043B\u044C\u0437\u044F \u0438\u0437\u043C\u0435\u043D\u0438\u0442\u044C \u0432 \u0440\u0430\u0437\u043C\u0435\u0440\u0435."
         );
         return;
       }
       if (!bannerFrame) {
-        postError("\u0412\u044B\u0434\u0435\u043B\u0438\u0442\u0435 disclaimer \u0432\u043D\u0443\u0442\u0440\u0438 \u0431\u0430\u043D\u043D\u0435\u0440\u043D\u043E\u0433\u043E \u0444\u0440\u0435\u0439\u043C\u0430");
+        postError("\u0412\u044B\u0434\u0435\u043B\u0438\u0442\u0435 \u0441\u043B\u043E\u0439 \u0441 \u0434\u0438\u0441\u043A\u043B\u0435\u0439\u043C\u0435\u0440\u043E\u043C \u0432\u043D\u0443\u0442\u0440\u0438 \u0431\u0430\u043D\u043D\u0435\u0440\u0430.");
         return;
       }
       result = resizeExistingDisclaimer({
@@ -1061,7 +1073,7 @@
         presetKey: msg.presetKey
       });
     }
-    const resultMessage = actionLabel + ": " + round2(result.node.width) + "\xD7" + round2(result.node.height) + " px \u2014 " + result.actualPercent + "% \u043F\u043B\u043E\u0449\u0430\u0434\u0438 \u0431\u0430\u043D\u043D\u0435\u0440\u0430";
+    const resultMessage = actionLabel + ": " + formatRuNumber(result.node.width) + "\xD7" + formatRuNumber(result.node.height) + "\xA0px \u2014 " + formatRuPercent(result.actualPercent) + " \u043F\u043B\u043E\u0449\u0430\u0434\u0438 \u0431\u0430\u043D\u043D\u0435\u0440\u0430";
     selectAndReport(result.node, resultMessage);
   }
   figma.showUI(__html__, { width: 432, height: 776 });
@@ -1083,7 +1095,9 @@
         handleApplyResize(msg);
       }
     } catch (err) {
-      postError("\u041E\u0448\u0438\u0431\u043A\u0430: " + String(err instanceof Error ? err.message : err));
+      postError(
+        "\u041D\u0435 \u0443\u0434\u0430\u043B\u043E\u0441\u044C \u043F\u0440\u0438\u043C\u0435\u043D\u0438\u0442\u044C \u0438\u0437\u043C\u0435\u043D\u0435\u043D\u0438\u044F: " + String(err instanceof Error ? err.message : err)
+      );
     }
   });
 })();

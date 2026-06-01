@@ -19,13 +19,13 @@ export function createAllDisclaimerVariants(params: {
   const parent = bannerFrame.parent;
 
   if (!canInsertChildren(parent)) {
-    throw new Error("Не удалось найти родителя баннера для дублирования");
+    throw new Error("Не удалось найти контейнер баннера для дублирования.");
   }
 
   const entries = getPrimaryPresetEntriesByAsset();
 
   if (entries.length === 0) {
-    throw new Error("Не найдено SVG-ассетов для создания вариантов");
+    throw new Error("Нет SVG-дисклеймеров для создания вариантов.");
   }
 
   const createdNodes: BannerFrame[] = [];
@@ -49,7 +49,7 @@ export function createAllDisclaimerVariants(params: {
 
       const targetPercent = entry.preset.percent;
       if (targetPercent === null) {
-        throw new Error(`У пресета "${entry.preset.label}" нет процента`);
+        throw new Error(`Для типа «${entry.preset.label}» не задан процент.`);
       }
 
       if (addTarget === "image") {

@@ -75,3 +75,32 @@ test("UI renders undetected-disclaimer feedback as fixed-height info message", a
   assert.match(uiHtml, /function showInfo/);
   assert.match(uiHtml, /feedbackTone === 'info'/);
 });
+
+test("visible Russian copy avoids technical wording", async () => {
+  const visibleCopySources = [
+    "src/plugin.ts",
+    "src/state/selectionState.ts",
+    "src/features/addMissing.ts",
+    "src/features/createAllVariants.ts",
+    "src/features/resizeExisting.ts",
+    "src/ui.html",
+  ];
+  const forbiddenFragments = [
+    "disclaimer-слой",
+    "не поддерживает resize",
+    "(locked)",
+    "SVG-ассет",
+    "выбранного пресета",
+    "У пресета",
+  ];
+
+  for (const file of visibleCopySources) {
+    const source = await readFile(file, "utf8");
+    for (const fragment of forbiddenFragments) {
+      assert.ok(
+        !source.includes(fragment),
+        `${file} should not expose "${fragment}"`
+      );
+    }
+  }
+});

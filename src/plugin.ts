@@ -32,6 +32,21 @@ function postSuccess(message: string): void {
   figma.ui.postMessage({ type: "success", message });
 }
 
+function formatRuNumber(n: number): string {
+  const rounded = round2(n);
+  const sign = rounded < 0 ? "−" : "";
+  const abs = Math.abs(rounded);
+  const [intPart, decimalPart = ""] = String(abs).split(".");
+  const groupedInt = intPart.replace(/\B(?=(\d{3})+(?!\d))/g, " ");
+  const trimmedDecimal = decimalPart.replace(/0+$/, "");
+
+  return sign + groupedInt + (trimmedDecimal ? "," + trimmedDecimal : "");
+}
+
+function formatRuPercent(n: number): string {
+  return formatRuNumber(n) + " %";
+}
+
 function selectAndReport(node: SceneNode, message: string): void {
   figma.currentPage.selection = [node];
   figma.notify(message, { timeout: 4000 });
@@ -43,14 +58,14 @@ function handleApplyResize(msg: Extract<UiMessage, { type: "apply-resize" }>): v
   const state = buildState(figma.currentPage.selection);
 
   if (state.type !== "ready" || !state.info) {
-    postError(state.error !== undefined ? state.error : "Нет выбранного слоя");
+    postError(state.error !== undefined ? state.error : "Выделите слой.");
     return;
   }
 
   const selection = figma.currentPage.selection;
 
   if (selection.length !== 1) {
-    postError("Выбор изменился. Повторите.");
+    postError("Выделение изменилось. Попробуйте ещё раз.");
     return;
   }
 
@@ -58,7 +73,7 @@ function handleApplyResize(msg: Extract<UiMessage, { type: "apply-resize" }>): v
 
   if (state.info.mode === "add-missing" && msg.createAll) {
     if (!isFrameLike(selectedNode)) {
-      postError("Выберите баннерный фрейм");
+      postError("Выделите баннерный фрейм.");
       return;
     }
 
@@ -66,7 +81,7 @@ function handleApplyResize(msg: Extract<UiMessage, { type: "apply-resize" }>): v
       bannerFrame: selectedNode,
       addTarget: msg.addTarget,
     });
-    const resultMessage = `Создано: ${created.count} вариантов дисклеймеров`;
+    const resultMessage = `Создано вариантов: ${formatRuNumber(created.count)}`;
 
     figma.currentPage.selection = [selectedNode];
     figma.notify(resultMessage, { timeout: 4000 });
@@ -77,13 +92,13 @@ function handleApplyResize(msg: Extract<UiMessage, { type: "apply-resize" }>): v
 
   const presetAndAsset = getPresetAndAsset(msg.presetKey);
   if (!presetAndAsset) {
-    postError("Не найден SVG-ассет для выбранного пресета");
+    postError("Для выбранного типа нет SVG-дисклеймера.");
     return;
   }
 
   const targetPercent = getTargetPercent(msg.presetKey, msg.customPercent);
   if (targetPercent === null) {
-    postError("Укажите корректный процент (0–100)");
+    postError("Укажите процент больше 0 и не больше 100.");
     return;
   }
 
@@ -93,7 +108,7 @@ function handleApplyResize(msg: Extract<UiMessage, { type: "apply-resize" }>): v
 
   if (state.info.mode === "add-missing") {
     if (!isFrameLike(selectedNode)) {
-      postError("Выберите баннерный фрейм");
+      postError("Выделите баннерный фрейм.");
       return;
     }
 
@@ -163,13 +178,13 @@ function handleApplyResize(msg: Extract<UiMessage, { type: "apply-resize" }>): v
       postError(
         isFrameLike(selectedNode)
           ? BANNER_DISCLAIMER_DETECTION_ERROR
-          : "Слой не поддерживает resize"
+          : "Этот слой нельзя изменить в размере."
       );
       return;
     }
 
     if (!bannerFrame) {
-      postError("Выделите disclaimer внутри баннерного фрейма");
+      postError("Выделите слой с дисклеймером внутри баннера.");
       return;
     }
 
@@ -187,12 +202,12 @@ function handleApplyResize(msg: Extract<UiMessage, { type: "apply-resize" }>): v
   const resultMessage =
     actionLabel +
     ": " +
-    round2(result.node.width) +
+    formatRuNumber(result.node.width) +
     "×" +
-    round2(result.node.height) +
-    " px — " +
-    result.actualPercent +
-    "% площади баннера";
+    formatRuNumber(result.node.height) +
+    " px — " +
+    formatRuPercent(result.actualPercent) +
+    " площади баннера";
 
   selectAndReport(result.node, resultMessage);
 }
@@ -221,6 +236,9 @@ figma.ui.on("message", (msg: UiMessage) => {
       handleApplyResize(msg);
     }
   } catch (err) {
-    postError("Ошибка: " + String(err instanceof Error ? err.message : err));
+    postError(
+      "Не удалось применить изменения: " +
+        String(err instanceof Error ? err.message : err)
+    );
   }
 });

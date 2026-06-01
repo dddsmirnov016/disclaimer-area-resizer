@@ -11,42 +11,42 @@ export const ASSET_BANKRUPTCY =
 
 export const DISCLAIMER_PRESETS: Record<string, DisclaimerPreset> = {
   medicine_video_7: {
-    label: "Медицина — 7% / ТВ, видео или по ТЗ",
+    label: "Медицина — 7 %: ТВ, видео или по ТЗ",
     percent: 7,
     assetKey: ASSET_MEDICINE,
   },
   medicine_static_5: {
-    label: "Медицина — 5% / статичный баннер, прочие способы",
+    label: "Медицина — 5 %: статичный баннер и другие форматы",
     percent: 5,
     assetKey: ASSET_MEDICINE,
   },
   bad_static_10: {
-    label: "БАД — 10% / статичный баннер, прочие способы",
+    label: "БАД — 10 %: статичный баннер и другие форматы",
     percent: 10,
     assetKey: ASSET_NOT_MEDICINE,
   },
   bad_video_7: {
-    label: "БАД — 7% / ТВ, видео",
+    label: "БАД — 7 %: ТВ и видео",
     percent: 7,
     assetKey: ASSET_NOT_MEDICINE,
   },
   finance_credit_5: {
-    label: "Финансы / кредит, займ — 5%",
+    label: "Финансы: кредит или заём — 5 %",
     percent: 5,
     assetKey: ASSET_CREDIT,
   },
   finance_custom_10: {
-    label: "Финансы — 10% / кастом по ТЗ клиента",
+    label: "Финансы: банкротство — 10 %",
     percent: 10,
     assetKey: ASSET_BANKRUPTCY,
   },
   energy_7: {
-    label: "Энергетические напитки — 7%",
+    label: "Энергетические напитки — 7 %",
     percent: 7,
     assetKey: ASSET_NOT_MEDICINE,
   },
   custom: {
-    label: "Кастомный процент",
+    label: "Свой процент",
     percent: null,
     assetKey: ASSET_MEDICINE,
   },

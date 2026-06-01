@@ -14,7 +14,7 @@ import type { BannerFrame, ResizableNode } from "../figma/nodeGuards";
 import type { PluginState } from "../ui/messages";
 
 export const BANNER_DISCLAIMER_DETECTION_ERROR =
-  "Дисклеймер не найден или плагин не смог определить его автоматически. Выделите disclaimer-слой вручную";
+  "Дисклеймер не найден. Выделите слой с дисклеймером вручную.";
 
 function buildDetectionInfoState(): PluginState {
   return {
@@ -57,8 +57,8 @@ export function buildState(selection: readonly SceneNode[]): PluginState {
       type: selection.length === 0 ? "no-selection" : "invalid",
       error:
         selection.length === 0
-          ? "Выберите один disclaimer-слой или баннерный фрейм"
-          : "Выберите ровно один слой",
+          ? "Выделите один слой с дисклеймером или баннерный фрейм."
+          : "Выделите только один слой.",
       presets: DISCLAIMER_PRESETS,
     };
   }
@@ -69,7 +69,7 @@ export function buildState(selection: readonly SceneNode[]): PluginState {
     if (sceneNode.locked) {
       return {
         type: "invalid",
-        error: "Баннер заблокирован (locked). Разблокируйте и попробуйте снова",
+        error: "Баннер заблокирован. Разблокируйте его и попробуйте ещё раз.",
         presets: DISCLAIMER_PRESETS,
       };
     }
@@ -77,7 +77,7 @@ export function buildState(selection: readonly SceneNode[]): PluginState {
     if (sceneNode.width <= 0 || sceneNode.height <= 0) {
       return {
         type: "invalid",
-        error: `Некорректные размеры баннера: ${sceneNode.width}×${sceneNode.height}`,
+        error: `Размер баннера должен быть больше нуля: ${sceneNode.width}×${sceneNode.height}`,
         presets: DISCLAIMER_PRESETS,
       };
     }
@@ -97,7 +97,7 @@ export function buildState(selection: readonly SceneNode[]): PluginState {
   if (!isResizable(sceneNode)) {
     return {
       type: "invalid",
-      error: `Тип слоя "${sceneNode.type}" не поддерживает изменение размера`,
+      error: `Слой типа «${sceneNode.type}» нельзя изменить в размере.`,
       presets: DISCLAIMER_PRESETS,
     };
   }
@@ -105,7 +105,7 @@ export function buildState(selection: readonly SceneNode[]): PluginState {
   if (sceneNode.locked) {
     return {
       type: "invalid",
-      error: "Слой заблокирован (locked). Разблокируйте и попробуйте снова",
+      error: "Слой заблокирован. Разблокируйте его и попробуйте ещё раз.",
       presets: DISCLAIMER_PRESETS,
     };
   }
@@ -113,7 +113,7 @@ export function buildState(selection: readonly SceneNode[]): PluginState {
   if (sceneNode.width <= 0 || sceneNode.height <= 0) {
     return {
       type: "invalid",
-      error: `Некорректные размеры disclaimer: ${sceneNode.width}×${sceneNode.height}`,
+      error: `Размер дисклеймера должен быть больше нуля: ${sceneNode.width}×${sceneNode.height}`,
       presets: DISCLAIMER_PRESETS,
     };
   }
@@ -133,7 +133,7 @@ export function buildState(selection: readonly SceneNode[]): PluginState {
       if (bannerFrame.width <= 0 || bannerFrame.height <= 0) {
         return {
           type: "invalid",
-          error: `Некорректные размеры баннера: ${bannerFrame.width}×${bannerFrame.height}`,
+          error: `Размер баннера должен быть больше нуля: ${bannerFrame.width}×${bannerFrame.height}`,
           presets: DISCLAIMER_PRESETS,
         };
       }
@@ -150,7 +150,7 @@ export function buildState(selection: readonly SceneNode[]): PluginState {
   if (!bannerFrame) {
     return {
       type: "invalid",
-      error: "Выделите disclaimer внутри баннерного фрейма или сам баннер",
+      error: "Выделите слой с дисклеймером внутри баннера или сам баннер.",
       presets: DISCLAIMER_PRESETS,
     };
   }
@@ -158,7 +158,7 @@ export function buildState(selection: readonly SceneNode[]): PluginState {
   if (bannerFrame.width <= 0 || bannerFrame.height <= 0) {
     return {
       type: "invalid",
-      error: `Некорректные размеры баннера: ${bannerFrame.width}×${bannerFrame.height}`,
+      error: `Размер баннера должен быть больше нуля: ${bannerFrame.width}×${bannerFrame.height}`,
       presets: DISCLAIMER_PRESETS,
     };
   }

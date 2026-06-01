@@ -48,7 +48,7 @@ export function resizeSvgNodeToFrame(
   prepareSvgNodeForDeformation(node);
 
   if (!("resize" in node) || typeof node.resize !== "function") {
-    throw new Error("SVG-дисклеймер не поддерживает деформацию содержимого");
+    throw new Error("Не удалось изменить SVG-дисклеймер.");
   }
 
   (node as ResizableNode & { resize: (w: number, h: number) => void }).resize(
@@ -281,7 +281,7 @@ export function createDisclaimerNode(
 
   if (!isResizable(node)) {
     node.remove();
-    throw new Error("SVG-дисклеймер не поддерживает изменение размера");
+    throw new Error("SVG-дисклеймер нельзя изменить в размере.");
   }
 
   markDisclaimerNode(node, asset, presetKey);

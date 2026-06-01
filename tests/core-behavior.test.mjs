@@ -77,6 +77,32 @@ test("preset helpers return one primary create-all entry per unique SVG asset", 
   assert.equal(new Set(mod.entries.map((entry) => entry.assetKey)).size, 4);
 });
 
+test("bankruptcy preset keeps stable key and uses edited Russian label", async () => {
+  const mod = await bundleAndImport(`
+    import { DISCLAIMER_PRESETS } from ${modulePath("src/core/presets.ts")};
+    export const label = DISCLAIMER_PRESETS.finance_custom_10.label;
+    export const assetKey = DISCLAIMER_PRESETS.finance_custom_10.assetKey;
+  `);
+
+  assert.equal(mod.label, "Финансы: банкротство — 10 %");
+  assert.match(mod.assetKey, /^Банкротство влечёт негативные последствия/);
+});
+
+test("preset percent labels use non-breaking spaces before percent signs", async () => {
+  const mod = await bundleAndImport(`
+    import { DISCLAIMER_PRESETS } from ${modulePath("src/core/presets.ts")};
+    export const labels = Object.values(DISCLAIMER_PRESETS).map((preset) => preset.label);
+  `);
+
+  const percentLabels = mod.labels.filter((label) => /\d/.test(label));
+  assert.ok(percentLabels.length > 0, "expected labels with percentages");
+
+  for (const label of percentLabels) {
+    assert.match(label, /\d %/, label);
+    assert.doesNotMatch(label, /\d%/, label);
+  }
+});
+
 test("figma disclaimer helpers resize generated SVGs with resize instead of resizeWithoutConstraints", async () => {
   const source = await readFile("src/figma/disclaimerNodes.ts", "utf8");
   const helper = source.match(/function resizeSvgNodeToFrame[\s\S]*?\n}\n/);
@@ -581,7 +607,7 @@ test("apply resize uses the detected disclaimer when the banner remains selected
   assert.equal(mod.selectedName, "дисклеймер — legal copy");
   assert.equal(mod.disclaimerHeight, 17.045);
   assert.equal(mod.textAutoResize, "NONE");
-  assert.match(mod.lastSuccess, /Применено: 220×17\.05 px — 5% площади баннера/);
+  assert.match(mod.lastSuccess, /Применено: 220×17,05 px — 5 % площади баннера/);
 });
 
 test("apply resize uses the detected disclaimer when a nested banner frame remains selected", async () => {
@@ -717,5 +743,5 @@ test("apply resize uses the detected disclaimer when a nested banner frame remai
   assert.equal(mod.selectedName, "Disclaimer");
   assert.equal(mod.adHeight, 95);
   assert.equal(mod.disclaimerHeight, 6.94);
-  assert.match(mod.lastSuccess, /Применено: 548×6\.94 px — 5% площади баннера/);
+  assert.match(mod.lastSuccess, /Применено: 548×6,94 px — 5 % площади баннера/);
 });

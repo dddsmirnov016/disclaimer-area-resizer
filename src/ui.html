@@ -202,7 +202,7 @@
     width: 100%;
   }
 
-  /* Слот под ошибку/успех — всегда занимает место, кнопка не прыгает */
+  /* Слот под сообщение всегда занимает место, кнопка не прыгает */
   .feedback-slot {
     position: relative;
     min-height: 152px;
@@ -307,7 +307,7 @@
         </div>
       </div>
       <div class="metric-block">
-        <div class="metric-label">Текущий процент</div>
+        <div class="metric-label">Текущая доля</div>
         <div class="metric-value green muted" id="percentVal">—</div>
       </div>
     </div>
@@ -324,17 +324,17 @@
         </div>
       </div>
       <div id="customBlock" class="custom-block" style="display:none">
-        <label class="field-label secondary" for="customInput">Процент (%)</label>
+        <label class="field-label secondary" for="customInput">Доля, %</label>
         <input type="number" id="customInput" class="custom-input"
-               min="0.01" max="100" step="0.01" placeholder="например, 7,5" />
+               min="0.01" max="100" step="0.01" placeholder="Например, 7,5" />
       </div>
       <div class="checkbox-row">
         <input type="checkbox" id="addToImageInput" />
-        <label for="addToImageInput">Поверх картинки</label>
+        <label for="addToImageInput">Поверх изображения</label>
       </div>
       <div class="checkbox-row">
         <input type="checkbox" id="createAllInput" />
-        <label for="createAllInput">Создать все типы</label>
+        <label for="createAllInput">Создать все варианты</label>
       </div>
     </div>
   </div>
@@ -394,7 +394,7 @@
 
   function formatRuPercent(n) {
     if (n === null || n === undefined || isNaN(n)) return '—';
-    return formatRuNumber(n) + '%';
+    return formatRuNumber(n) + ' %';
   }
 
   function setSizeMetric(el, w, h, empty) {
@@ -561,9 +561,9 @@
       applyBtn.textContent = 'Применить';
       syncAddTargetAvailability();
       if (msg.feedbackTone === 'info') {
-        showInfo(msg.error || 'Дисклеймер не найден');
+        showInfo(msg.error || 'Дисклеймер не найден.');
       } else {
-        showError(msg.error || 'Неверный выбор');
+        showError(msg.error || 'Выделите подходящий слой.');
       }
       return;
     }
@@ -621,14 +621,14 @@
     if (key === 'custom' && !createAllInput.checked) {
       var v = parseFloat(customInput.value.replace(',', '.'));
       if (isNaN(v) || v <= 0 || v > 100) {
-        showError('Укажите корректный процент (0–100)');
+        showError('Укажите процент больше 0 и не больше 100.');
         return;
       }
       customPct = v;
     }
 
     applyBtn.disabled = true;
-    applyBtn.textContent = 'Применяю…';
+    applyBtn.textContent = 'Применяем…';
     hideError();
     hideSuccess();
     hideInfo();
