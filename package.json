@@ -5,12 +5,18 @@
   "scripts": {
     "generate:assets": "node scripts/generate-disclaimer-assets.mjs",
     "build": "node scripts/build-plugin.mjs",
+    "watch": "node scripts/build-plugin.mjs --watch",
+    "typecheck": "tsc -p tsconfig.json",
     "test": "node --test tests/*.test.mjs",
-    "watch": "node scripts/build-plugin.mjs --watch"
+    "test:watch": "node --test --watch tests/*.test.mjs",
+    "test:ui": "node --test tests/ui-behavior.test.mjs",
+    "test:coverage": "node --experimental-test-coverage --test-coverage-exclude=\"tests/**\" --test tests/*.test.mjs",
+    "qa": "npm run typecheck && npm test && npm run build"
   },
   "devDependencies": {
     "@figma/plugin-typings": "^1.124.0",
     "esbuild": "^0.28.0",
+    "jsdom": "^29.1.1",
     "typescript": "^5.4.5"
   }
 }

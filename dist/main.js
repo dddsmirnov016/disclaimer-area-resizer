@@ -148,7 +148,7 @@
   };
   function getTargetPercent(presetKey, customPercent) {
     if (presetKey === "custom") {
-      if (customPercent === null || customPercent <= 0 || customPercent > 100) {
+      if (customPercent === null || !Number.isFinite(customPercent) || customPercent <= 0 || customPercent > 100) {
         return null;
       }
       return customPercent;
@@ -1025,6 +1025,70 @@
     return buildResizeState(sceneNode, bannerFrame);
   }
 
+  // src/ui/messageValidation.ts
+  var RESIZE_DIRECTIONS = [
+    "height",
+    "width",
+    "proportional"
+  ];
+  var ADD_TARGETS = ["body", "image"];
+  function isRecord(input) {
+    return typeof input === "object" && input !== null;
+  }
+  function isFiniteNumber(input) {
+    return typeof input === "number" && Number.isFinite(input);
+  }
+  function asBoolean(input, fallback) {
+    return typeof input === "boolean" ? input : fallback;
+  }
+  function asResizeDirection(input) {
+    return RESIZE_DIRECTIONS.includes(input) ? input : "height";
+  }
+  function asAddTarget(input) {
+    return ADD_TARGETS.includes(input) ? input : "body";
+  }
+  function asCustomPercent(input) {
+    if (input === null || input === void 0) return null;
+    if (isFiniteNumber(input)) return input;
+    if (typeof input === "string") {
+      const parsed = Number.parseFloat(input.replace(",", "."));
+      return Number.isFinite(parsed) ? parsed : null;
+    }
+    return null;
+  }
+  function parseApplyResize(input) {
+    if (typeof input.presetKey !== "string") return null;
+    return {
+      type: "apply-resize",
+      presetKey: input.presetKey,
+      customPercent: asCustomPercent(input.customPercent),
+      direction: asResizeDirection(input.direction),
+      onlyEnlarge: asBoolean(input.onlyEnlarge, false),
+      addTarget: asAddTarget(input.addTarget),
+      createAll: asBoolean(input.createAll, false)
+    };
+  }
+  function parseResize(input) {
+    if (!isFiniteNumber(input.width) || !isFiniteNumber(input.height)) {
+      return null;
+    }
+    if (input.width <= 0 || input.height <= 0) return null;
+    return { type: "resize", width: input.width, height: input.height };
+  }
+  function parseUiMessage(input) {
+    if (!isRecord(input)) return null;
+    switch (input.type) {
+      case "request-state":
+        return { type: "request-state" };
+      case "resize":
+        return parseResize(input);
+      case "apply-resize":
+        return parseApplyResize(input);
+      default:
+        return null;
+    }
+  }
+
   // src/plugin.ts
   function sendState() {
     figma.ui.postMessage(buildState(figma.currentPage.selection));
@@ -1210,7 +1274,11 @@
   figma.on("selectionchange", () => {
     sendState();
   });
-  figma.ui.on("message", (msg) => {
+  figma.ui.on("message", (rawMessage) => {
+    const msg = parseUiMessage(rawMessage);
+    if (!msg) {
+      return;
+    }
     try {
       if (msg.type === "request-state") {
         sendState();

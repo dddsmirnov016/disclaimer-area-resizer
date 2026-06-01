@@ -55,4 +55,26 @@ export interface ResizeMessage {
   height: number;
 }
 
+/** Messages the UI iframe sends to the plugin sandbox. */
 export type UiMessage = ApplyResizeMessage | RequestStateMessage | ResizeMessage;
+
+export type UiMessageType = UiMessage["type"];
+
+export interface SuccessMessage {
+  type: "success";
+  message: string;
+}
+
+export interface ErrorMessage {
+  type: "error";
+  message: string;
+}
+
+export type StateMessage = PluginState & {
+  type: "no-selection" | "invalid" | "ready";
+};
+
+/** Messages the plugin sandbox posts back to the UI iframe. */
+export type PluginMessage = StateMessage | SuccessMessage | ErrorMessage;
+
+export type PluginMessageType = PluginMessage["type"];

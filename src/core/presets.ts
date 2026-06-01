@@ -59,6 +59,7 @@ export function getTargetPercent(
   if (presetKey === "custom") {
     if (
       customPercent === null ||
+      !Number.isFinite(customPercent) ||
       customPercent <= 0 ||
       customPercent > 100
     ) {

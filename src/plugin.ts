@@ -17,6 +17,7 @@ import {
   BANNER_DISCLAIMER_DETECTION_ERROR,
   buildState,
 } from "./state/selectionState";
+import { parseUiMessage } from "./ui/messageValidation";
 import type { UiMessage } from "./ui/messages";
 
 declare const __html__: string;
@@ -262,7 +263,13 @@ figma.on("selectionchange", () => {
   sendState();
 });
 
-figma.ui.on("message", (msg: UiMessage) => {
+figma.ui.on("message", (rawMessage: unknown) => {
+  const msg = parseUiMessage(rawMessage);
+
+  if (!msg) {
+    return;
+  }
+
   try {
     if (msg.type === "request-state") {
       sendState();
