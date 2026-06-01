@@ -129,7 +129,13 @@ function collectPluginCreatedDisclaimers(
     }
   });
 
-  return candidates;
+  const resolvedCandidates = uniqueCandidates(
+    candidates.map(resolveMarkedWrapperCandidate)
+  );
+
+  return resolvedCandidates.filter(
+    (candidate) => !hasAncestorInSet(candidate, resolvedCandidates, bannerFrame)
+  );
 }
 
 function isLikelyDisclaimerByHeuristic(
@@ -206,6 +212,26 @@ function resolveHeuristicWrapperCandidate(
   );
 
   return nestedCandidate || candidate;
+}
+
+function resolveMarkedWrapperCandidate(candidate: ResizableNode): ResizableNode {
+  return findDirectDisclaimerChildForWrapper(candidate) || candidate;
+}
+
+function findDirectDisclaimerChildForWrapper(
+  wrapper: ResizableNode
+): ResizableNode | null {
+  if (!isFrameLike(wrapper) || !hasChildren(wrapper)) return null;
+
+  return getSingleCandidate(
+    wrapper.children.filter(
+      (child): child is ResizableNode =>
+        isResizable(child) &&
+        !isFrameLike(child) &&
+        isVisibleInHierarchy(child, wrapper) &&
+        isDirectVectorDisclaimerForWrapper(wrapper, child)
+    )
+  );
 }
 
 function isDirectVectorDisclaimerForWrapper(

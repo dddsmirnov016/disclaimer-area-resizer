@@ -1005,8 +1005,103 @@ test("banner selection measures a nested actual disclaimer instead of its wrappe
   assert.equal(mod.wrapperState.info.disclaimerHeight, 12);
 });
 
+test("banner selection resolves a previously marked wrapper to its nested visible disclaimer", async () => {
+  const mod = await bundleAndImport(`
+    import { buildState } from ${modulePath("src/state/selectionState.ts")};
+    import { PLUGIN_DATA_NAMESPACE, PLUGIN_DATA_ASSET_KEY } from ${modulePath("src/figma/disclaimerNodes.ts")};
+
+    function makeNode(overrides) {
+      const pluginData = overrides.pluginData || {};
+      return {
+        id: overrides.name,
+        name: overrides.name,
+        type: overrides.type || "FRAME",
+        width: overrides.width,
+        height: overrides.height,
+        x: overrides.x || 0,
+        y: overrides.y || 0,
+        locked: false,
+        visible: true,
+        layoutMode: overrides.layoutMode || "NONE",
+        layoutSizingHorizontal: overrides.layoutSizingHorizontal || "FIXED",
+        layoutSizingVertical: overrides.layoutSizingVertical || "FIXED",
+        parent: null,
+        children: overrides.children || [],
+        resize() {},
+        resizeWithoutConstraints() {},
+        absoluteTransform: [[1, 0, overrides.x || 0], [0, 1, overrides.y || 0]],
+        getSharedPluginData(namespace, key) {
+          return pluginData[namespace + ":" + key] || "";
+        },
+      };
+    }
+
+    const actualDisclaimer = makeNode({
+      name: "disclaimer-1",
+      type: "BOOLEAN_OPERATION",
+      width: 546.73828125,
+      height: 12,
+      x: 23.9998779296875,
+      y: 0,
+    });
+    delete actualDisclaimer.resizeWithoutConstraints;
+    const wrapper = makeNode({
+      name: "disclaimer",
+      width: 594.738037109375,
+      height: 16,
+      x: 0,
+      y: 86,
+      layoutMode: "HORIZONTAL",
+      layoutSizingHorizontal: "FILL",
+      layoutSizingVertical: "FIXED",
+      pluginData: {
+        [PLUGIN_DATA_NAMESPACE + ":" + PLUGIN_DATA_ASSET_KEY]: "Есть противопоказания. Посоветуйтесь с врачом . Возможен вред здоровью и бесплодие.",
+      },
+      children: [actualDisclaimer],
+    });
+    const message = makeNode({
+      name: "message",
+      width: 594.738037109375,
+      height: 102,
+      x: 183.26193237304688,
+      y: 0.5,
+      children: [wrapper],
+    });
+    const image = makeNode({
+      name: "img",
+      width: 183.26193237304688,
+      height: 103,
+    });
+    const banner = makeNode({
+      name: "822 x 108",
+      width: 822,
+      height: 103,
+      children: [image, message],
+    });
+    image.parent = banner;
+    message.parent = banner;
+    wrapper.parent = message;
+    actualDisclaimer.parent = wrapper;
+
+    export const bannerState = buildState([banner]);
+    export const wrapperState = buildState([wrapper]);
+  `);
+
+  assert.equal(mod.bannerState.type, "ready");
+  assert.equal(mod.bannerState.info.disclaimerName, "disclaimer-1");
+  assert.equal(mod.bannerState.info.disclaimerWidth, 546.74);
+  assert.equal(mod.bannerState.info.disclaimerHeight, 12);
+
+  assert.equal(mod.wrapperState.type, "ready");
+  assert.equal(mod.wrapperState.info.disclaimerName, "disclaimer-1");
+  assert.equal(mod.wrapperState.info.disclaimerWidth, 546.74);
+  assert.equal(mod.wrapperState.info.disclaimerHeight, 12);
+});
+
 test("apply resize keeps a wrapper hug-sized and deforms its nested disclaimer", async () => {
   const mod = await bundleAndImport(`
+    import { PLUGIN_DATA_NAMESPACE, PLUGIN_DATA_ASSET_KEY } from ${modulePath("src/figma/disclaimerNodes.ts")};
+
     const uiHandlers = {};
     const postedMessages = [];
 
@@ -1062,6 +1157,9 @@ test("apply resize keeps a wrapper hug-sized and deforms its nested disclaimer",
       y: 86,
       layoutSizingHorizontal: "HUG",
       layoutSizingVertical: "HUG",
+      pluginData: {
+        [PLUGIN_DATA_NAMESPACE + ":" + PLUGIN_DATA_ASSET_KEY]: "Есть противопоказания. Посоветуйтесь с врачом . Возможен вред здоровью и бесплодие.",
+      },
       children: [disclaimerGlyphs],
     });
     disclaimer.resize = () => {

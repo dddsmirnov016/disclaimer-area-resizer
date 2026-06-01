@@ -468,7 +468,12 @@
         candidates.push(node);
       }
     });
-    return candidates;
+    const resolvedCandidates = uniqueCandidates(
+      candidates.map(resolveMarkedWrapperCandidate)
+    );
+    return resolvedCandidates.filter(
+      (candidate) => !hasAncestorInSet(candidate, resolvedCandidates, bannerFrame)
+    );
   }
   function isLikelyDisclaimerByHeuristic(node, bannerFrame) {
     if (!isResizable(node)) return false;
@@ -514,6 +519,17 @@
       )
     );
     return nestedCandidate || candidate;
+  }
+  function resolveMarkedWrapperCandidate(candidate) {
+    return findDirectDisclaimerChildForWrapper(candidate) || candidate;
+  }
+  function findDirectDisclaimerChildForWrapper(wrapper) {
+    if (!isFrameLike(wrapper) || !hasChildren(wrapper)) return null;
+    return getSingleCandidate(
+      wrapper.children.filter(
+        (child) => isResizable(child) && !isFrameLike(child) && isVisibleInHierarchy(child, wrapper) && isDirectVectorDisclaimerForWrapper(wrapper, child)
+      )
+    );
   }
   function isDirectVectorDisclaimerForWrapper(wrapper, nested) {
     if (wrapper === nested) return false;
