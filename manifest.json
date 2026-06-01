@@ -1,5 +1,6 @@
 {
   "name": "Disclaimer Area Resizer",
+  "id": "1643244032418327634",
   "api": "1.0.0",
   "main": "dist/main.js",
   "ui": "src/ui.html",
