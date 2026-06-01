@@ -610,6 +610,103 @@ test("apply resize uses the detected disclaimer when the banner remains selected
   assert.match(mod.lastSuccess, /Применено: 220×17,05 px — 5 % площади баннера/);
 });
 
+test("apply resize hides raw Figma API errors from users", async () => {
+  const mod = await bundleAndImport(`
+    const uiHandlers = {};
+    const postedMessages = [];
+
+    function makeNode(overrides) {
+      const pluginData = overrides.pluginData || {};
+      return {
+        id: overrides.name,
+        name: overrides.name,
+        type: overrides.type || "FRAME",
+        width: overrides.width,
+        height: overrides.height,
+        x: overrides.x || 0,
+        y: overrides.y || 0,
+        locked: false,
+        visible: true,
+        layoutMode: overrides.layoutMode || "NONE",
+        parent: null,
+        children: overrides.children || [],
+        textAutoResize: overrides.textAutoResize || "NONE",
+        resizeWithoutConstraints() {
+          throw new Error("set_constraints: This property cannot be overridden in an instance");
+        },
+        absoluteTransform: [[1, 0, overrides.x || 0], [0, 1, overrides.y || 0]],
+        getSharedPluginData(namespace, key) {
+          return pluginData[namespace + ":" + key] || "";
+        },
+        setSharedPluginData(namespace, key, value) {
+          pluginData[namespace + ":" + key] = value;
+        },
+      };
+    }
+
+    const disclaimer = makeNode({
+      name: "дисклеймер — legal copy",
+      type: "TEXT",
+      width: 220,
+      height: 16,
+      x: 40,
+      y: 224,
+      textAutoResize: "WIDTH_AND_HEIGHT",
+    });
+    const banner = makeNode({
+      name: "Banner",
+      width: 300,
+      height: 250,
+      children: [disclaimer],
+    });
+    disclaimer.parent = banner;
+
+    globalThis.__html__ = "";
+    globalThis.figma = {
+      currentPage: {
+        selection: [banner],
+      },
+      ui: {
+        postMessage(message) {
+          postedMessages.push(message);
+        },
+        resize() {},
+        on(eventName, handler) {
+          uiHandlers[eventName] = handler;
+        },
+      },
+      showUI() {},
+      notify() {},
+      on() {},
+      createNodeFromSvg() {
+        throw new Error("not expected");
+      },
+    };
+
+    await import(${modulePath("src/plugin.ts")});
+
+    uiHandlers.message({
+      type: "apply-resize",
+      presetKey: "medicine_static_5",
+      customPercent: null,
+      direction: "height",
+      onlyEnlarge: false,
+      addTarget: "body",
+      createAll: false,
+    });
+
+    export const lastError = postedMessages
+      .filter((message) => message.type === "error")
+      .at(-1)?.message || null;
+  `);
+
+  assert.equal(
+    mod.lastError,
+    "Нельзя изменить слой внутри инстанса. Отсоедините инстанс или выберите главный компонент."
+  );
+  assert.doesNotMatch(mod.lastError, /set_constraints|This property|overridden/i);
+});
+
 test("apply resize uses the detected disclaimer when a nested banner frame remains selected", async () => {
   const mod = await bundleAndImport(`
     const uiHandlers = {};

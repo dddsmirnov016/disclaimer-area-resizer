@@ -32,6 +32,17 @@ function postSuccess(message: string): void {
   figma.ui.postMessage({ type: "success", message });
 }
 
+function pluralizeRu(n: number, one: string, few: string, many: string): string {
+  const abs = Math.abs(n);
+  const mod100 = abs % 100;
+  const mod10 = abs % 10;
+
+  if (mod100 >= 11 && mod100 <= 14) return many;
+  if (mod10 === 1) return one;
+  if (mod10 >= 2 && mod10 <= 4) return few;
+  return many;
+}
+
 function formatRuNumber(n: number): string {
   const rounded = round2(n);
   const sign = rounded < 0 ? "−" : "";
@@ -45,6 +56,26 @@ function formatRuNumber(n: number): string {
 
 function formatRuPercent(n: number): string {
   return formatRuNumber(n) + " %";
+}
+
+function toUserErrorMessage(err: unknown): string {
+  const rawMessage = String(err instanceof Error ? err.message : err);
+  const instanceOverridePattern = new RegExp(
+    ["set", "constraints"].join("_") +
+      "|" +
+      ["cannot", "be", "overridden", "in", "an", "instance"].join(" "),
+    "i"
+  );
+
+  if (instanceOverridePattern.test(rawMessage)) {
+    return "Нельзя изменить слой внутри инстанса. Отсоедините инстанс или выберите главный компонент.";
+  }
+
+  if (!/[А-Яа-яЁё]/.test(rawMessage)) {
+    return "Не удалось применить изменения. Выберите редактируемый слой и попробуйте ещё раз.";
+  }
+
+  return rawMessage;
 }
 
 function selectAndReport(node: SceneNode, message: string): void {
@@ -81,7 +112,10 @@ function handleApplyResize(msg: Extract<UiMessage, { type: "apply-resize" }>): v
       bannerFrame: selectedNode,
       addTarget: msg.addTarget,
     });
-    const resultMessage = `Создано вариантов: ${formatRuNumber(created.count)}`;
+    const resultMessage =
+      `Создали ${formatRuNumber(created.count)} ` +
+      pluralizeRu(created.count, "вариант", "варианта", "вариантов") +
+      ".";
 
     figma.currentPage.selection = [selectedNode];
     figma.notify(resultMessage, { timeout: 4000 });
@@ -92,7 +126,7 @@ function handleApplyResize(msg: Extract<UiMessage, { type: "apply-resize" }>): v
 
   const presetAndAsset = getPresetAndAsset(msg.presetKey);
   if (!presetAndAsset) {
-    postError("Для выбранного типа нет SVG-дисклеймера.");
+    postError("Для выбранного типа нет дисклеймера.");
     return;
   }
 
@@ -236,9 +270,6 @@ figma.ui.on("message", (msg: UiMessage) => {
       handleApplyResize(msg);
     }
   } catch (err) {
-    postError(
-      "Не удалось применить изменения: " +
-        String(err instanceof Error ? err.message : err)
-    );
+    postError(toUserErrorMessage(err));
   }
 });

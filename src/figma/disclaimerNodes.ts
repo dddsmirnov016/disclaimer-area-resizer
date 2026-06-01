@@ -48,7 +48,7 @@ export function resizeSvgNodeToFrame(
   prepareSvgNodeForDeformation(node);
 
   if (!("resize" in node) || typeof node.resize !== "function") {
-    throw new Error("Не удалось изменить SVG-дисклеймер.");
+    throw new Error("Не удалось изменить дисклеймер.");
   }
 
   (node as ResizableNode & { resize: (w: number, h: number) => void }).resize(
@@ -277,11 +277,11 @@ export function createDisclaimerNode(
   presetKey: string
 ): ResizableNode {
   const node = figma.createNodeFromSvg(asset.svg);
-  node.name = "Disclaimer — " + asset.label;
+  node.name = "Дисклеймер — " + asset.label;
 
   if (!isResizable(node)) {
     node.remove();
-    throw new Error("SVG-дисклеймер нельзя изменить в размере.");
+    throw new Error("Этот дисклеймер нельзя изменить в размере.");
   }
 
   markDisclaimerNode(node, asset, presetKey);

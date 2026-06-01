@@ -19,13 +19,13 @@ export function createAllDisclaimerVariants(params: {
   const parent = bannerFrame.parent;
 
   if (!canInsertChildren(parent)) {
-    throw new Error("Не удалось найти контейнер баннера для дублирования.");
+    throw new Error("Баннер нельзя продублировать: у него нет доступного контейнера.");
   }
 
   const entries = getPrimaryPresetEntriesByAsset();
 
   if (entries.length === 0) {
-    throw new Error("Нет SVG-дисклеймеров для создания вариантов.");
+    throw new Error("Нет дисклеймеров для создания вариантов.");
   }
 
   const createdNodes: BannerFrame[] = [];

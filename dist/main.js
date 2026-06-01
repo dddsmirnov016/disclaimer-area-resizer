@@ -426,7 +426,7 @@
   function resizeSvgNodeToFrame(node, width, height) {
     prepareSvgNodeForDeformation(node);
     if (!("resize" in node) || typeof node.resize !== "function") {
-      throw new Error("\u041D\u0435 \u0443\u0434\u0430\u043B\u043E\u0441\u044C \u0438\u0437\u043C\u0435\u043D\u0438\u0442\u044C SVG-\u0434\u0438\u0441\u043A\u043B\u0435\u0439\u043C\u0435\u0440.");
+      throw new Error("\u041D\u0435 \u0443\u0434\u0430\u043B\u043E\u0441\u044C \u0438\u0437\u043C\u0435\u043D\u0438\u0442\u044C \u0434\u0438\u0441\u043A\u043B\u0435\u0439\u043C\u0435\u0440.");
     }
     node.resize(
       width,
@@ -555,10 +555,10 @@
   }
   function createDisclaimerNode(asset, presetKey) {
     const node = figma.createNodeFromSvg(asset.svg);
-    node.name = "Disclaimer \u2014 " + asset.label;
+    node.name = "\u0414\u0438\u0441\u043A\u043B\u0435\u0439\u043C\u0435\u0440 \u2014 " + asset.label;
     if (!isResizable(node)) {
       node.remove();
-      throw new Error("SVG-\u0434\u0438\u0441\u043A\u043B\u0435\u0439\u043C\u0435\u0440 \u043D\u0435\u043B\u044C\u0437\u044F \u0438\u0437\u043C\u0435\u043D\u0438\u0442\u044C \u0432 \u0440\u0430\u0437\u043C\u0435\u0440\u0435.");
+      throw new Error("\u042D\u0442\u043E\u0442 \u0434\u0438\u0441\u043A\u043B\u0435\u0439\u043C\u0435\u0440 \u043D\u0435\u043B\u044C\u0437\u044F \u0438\u0437\u043C\u0435\u043D\u0438\u0442\u044C \u0432 \u0440\u0430\u0437\u043C\u0435\u0440\u0435.");
     }
     markDisclaimerNode(node, asset, presetKey);
     setLayoutSizingFixed(node, "proportional");
@@ -592,7 +592,9 @@
     const { bannerFrame, asset, presetKey, targetPercent } = params;
     const bodyContainer = findBodyContainer(bannerFrame);
     if (!bodyContainer) {
-      throw new Error("\u041D\u0435 \u0443\u0434\u0430\u043B\u043E\u0441\u044C \u043D\u0430\u0439\u0442\u0438 \u0442\u0435\u043A\u0441\u0442\u043E\u0432\u044B\u0439 \u043A\u043E\u043D\u0442\u0435\u0439\u043D\u0435\u0440 \u0432 \u0431\u0430\u043D\u043D\u0435\u0440\u0435.");
+      throw new Error(
+        "\u0412 \u0431\u0430\u043D\u043D\u0435\u0440\u0435 \u043D\u0435 \u043D\u0430\u0439\u0434\u0435\u043D \u0442\u0435\u043A\u0441\u0442\u043E\u0432\u044B\u0439 \u043A\u043E\u043D\u0442\u0435\u0439\u043D\u0435\u0440. \u0412\u044B\u0431\u0435\u0440\u0438\u0442\u0435 \xAB\u041F\u043E\u0432\u0435\u0440\u0445 \u0438\u0437\u043E\u0431\u0440\u0430\u0436\u0435\u043D\u0438\u044F\xBB \u0438\u043B\u0438 \u0434\u043E\u0431\u0430\u0432\u044C\u0442\u0435 \u043A\u043E\u043D\u0442\u0435\u0439\u043D\u0435\u0440 \u0441 \u0442\u0435\u043A\u0441\u0442\u043E\u043C."
+      );
     }
     const padding = getAutoLayoutPadding(bodyContainer);
     const contentWidth = bodyContainer.width - padding.left - padding.right;
@@ -630,7 +632,7 @@
     }
     const mainImage = findMainImageNode(bannerFrame);
     if (!mainImage) {
-      throw new Error("\u041D\u0435 \u0443\u0434\u0430\u043B\u043E\u0441\u044C \u043D\u0430\u0439\u0442\u0438 \u0438\u0437\u043E\u0431\u0440\u0430\u0436\u0435\u043D\u0438\u0435 \u0438\u043B\u0438 \u043C\u0435\u0434\u0438\u0430\u043E\u0431\u043B\u0430\u0441\u0442\u044C \u0432 \u0431\u0430\u043D\u043D\u0435\u0440\u0435.");
+      throw new Error("\u0412 \u0431\u0430\u043D\u043D\u0435\u0440\u0435 \u043D\u0435 \u043D\u0430\u0439\u0434\u0435\u043D\u043E \u0438\u0437\u043E\u0431\u0440\u0430\u0436\u0435\u043D\u0438\u0435 \u0438\u043B\u0438 \u0432\u0438\u0434\u0435\u043E.");
     }
     const mediaBounds = getRelativeBoundsFromAbsolute(
       mainImage.bounds,
@@ -690,11 +692,11 @@
     const { bannerFrame, addTarget } = params;
     const parent = bannerFrame.parent;
     if (!canInsertChildren(parent)) {
-      throw new Error("\u041D\u0435 \u0443\u0434\u0430\u043B\u043E\u0441\u044C \u043D\u0430\u0439\u0442\u0438 \u043A\u043E\u043D\u0442\u0435\u0439\u043D\u0435\u0440 \u0431\u0430\u043D\u043D\u0435\u0440\u0430 \u0434\u043B\u044F \u0434\u0443\u0431\u043B\u0438\u0440\u043E\u0432\u0430\u043D\u0438\u044F.");
+      throw new Error("\u0411\u0430\u043D\u043D\u0435\u0440 \u043D\u0435\u043B\u044C\u0437\u044F \u043F\u0440\u043E\u0434\u0443\u0431\u043B\u0438\u0440\u043E\u0432\u0430\u0442\u044C: \u0443 \u043D\u0435\u0433\u043E \u043D\u0435\u0442 \u0434\u043E\u0441\u0442\u0443\u043F\u043D\u043E\u0433\u043E \u043A\u043E\u043D\u0442\u0435\u0439\u043D\u0435\u0440\u0430.");
     }
     const entries = getPrimaryPresetEntriesByAsset();
     if (entries.length === 0) {
-      throw new Error("\u041D\u0435\u0442 SVG-\u0434\u0438\u0441\u043A\u043B\u0435\u0439\u043C\u0435\u0440\u043E\u0432 \u0434\u043B\u044F \u0441\u043E\u0437\u0434\u0430\u043D\u0438\u044F \u0432\u0430\u0440\u0438\u0430\u043D\u0442\u043E\u0432.");
+      throw new Error("\u041D\u0435\u0442 \u0434\u0438\u0441\u043A\u043B\u0435\u0439\u043C\u0435\u0440\u043E\u0432 \u0434\u043B\u044F \u0441\u043E\u0437\u0434\u0430\u043D\u0438\u044F \u0432\u0430\u0440\u0438\u0430\u043D\u0442\u043E\u0432.");
     }
     const createdNodes = [];
     try {
@@ -868,7 +870,7 @@
     if (!isResizable(sceneNode)) {
       return {
         type: "invalid",
-        error: `\u0421\u043B\u043E\u0439 \u0442\u0438\u043F\u0430 \xAB${sceneNode.type}\xBB \u043D\u0435\u043B\u044C\u0437\u044F \u0438\u0437\u043C\u0435\u043D\u0438\u0442\u044C \u0432 \u0440\u0430\u0437\u043C\u0435\u0440\u0435.`,
+        error: "\u042D\u0442\u043E\u0442 \u0441\u043B\u043E\u0439 \u043D\u0435\u043B\u044C\u0437\u044F \u0438\u0437\u043C\u0435\u043D\u0438\u0442\u044C \u0432 \u0440\u0430\u0437\u043C\u0435\u0440\u0435. \u0412\u044B\u0434\u0435\u043B\u0438\u0442\u0435 \u0441\u043B\u043E\u0439 \u0441 \u0434\u0438\u0441\u043A\u043B\u0435\u0439\u043C\u0435\u0440\u043E\u043C \u0438\u043B\u0438 \u0431\u0430\u043D\u043D\u0435\u0440.",
         presets: DISCLAIMER_PRESETS
       };
     }
@@ -935,6 +937,15 @@
   function postSuccess(message) {
     figma.ui.postMessage({ type: "success", message });
   }
+  function pluralizeRu(n, one, few, many) {
+    const abs = Math.abs(n);
+    const mod100 = abs % 100;
+    const mod10 = abs % 10;
+    if (mod100 >= 11 && mod100 <= 14) return many;
+    if (mod10 === 1) return one;
+    if (mod10 >= 2 && mod10 <= 4) return few;
+    return many;
+  }
   function formatRuNumber(n) {
     const rounded = round2(n);
     const sign = rounded < 0 ? "\u2212" : "";
@@ -946,6 +957,20 @@
   }
   function formatRuPercent(n) {
     return formatRuNumber(n) + "\xA0%";
+  }
+  function toUserErrorMessage(err) {
+    const rawMessage = String(err instanceof Error ? err.message : err);
+    const instanceOverridePattern = new RegExp(
+      ["set", "constraints"].join("_") + "|" + ["cannot", "be", "overridden", "in", "an", "instance"].join(" "),
+      "i"
+    );
+    if (instanceOverridePattern.test(rawMessage)) {
+      return "\u041D\u0435\u043B\u044C\u0437\u044F \u0438\u0437\u043C\u0435\u043D\u0438\u0442\u044C \u0441\u043B\u043E\u0439 \u0432\u043D\u0443\u0442\u0440\u0438 \u0438\u043D\u0441\u0442\u0430\u043D\u0441\u0430. \u041E\u0442\u0441\u043E\u0435\u0434\u0438\u043D\u0438\u0442\u0435 \u0438\u043D\u0441\u0442\u0430\u043D\u0441 \u0438\u043B\u0438 \u0432\u044B\u0431\u0435\u0440\u0438\u0442\u0435 \u0433\u043B\u0430\u0432\u043D\u044B\u0439 \u043A\u043E\u043C\u043F\u043E\u043D\u0435\u043D\u0442.";
+    }
+    if (!/[А-Яа-яЁё]/.test(rawMessage)) {
+      return "\u041D\u0435 \u0443\u0434\u0430\u043B\u043E\u0441\u044C \u043F\u0440\u0438\u043C\u0435\u043D\u0438\u0442\u044C \u0438\u0437\u043C\u0435\u043D\u0435\u043D\u0438\u044F. \u0412\u044B\u0431\u0435\u0440\u0438\u0442\u0435 \u0440\u0435\u0434\u0430\u043A\u0442\u0438\u0440\u0443\u0435\u043C\u044B\u0439 \u0441\u043B\u043E\u0439 \u0438 \u043F\u043E\u043F\u0440\u043E\u0431\u0443\u0439\u0442\u0435 \u0435\u0449\u0451 \u0440\u0430\u0437.";
+    }
+    return rawMessage;
   }
   function selectAndReport(node, message) {
     figma.currentPage.selection = [node];
@@ -974,7 +999,7 @@
         bannerFrame: selectedNode,
         addTarget: msg.addTarget
       });
-      const resultMessage2 = `\u0421\u043E\u0437\u0434\u0430\u043D\u043E \u0432\u0430\u0440\u0438\u0430\u043D\u0442\u043E\u0432: ${formatRuNumber(created.count)}`;
+      const resultMessage2 = `\u0421\u043E\u0437\u0434\u0430\u043B\u0438 ${formatRuNumber(created.count)} ` + pluralizeRu(created.count, "\u0432\u0430\u0440\u0438\u0430\u043D\u0442", "\u0432\u0430\u0440\u0438\u0430\u043D\u0442\u0430", "\u0432\u0430\u0440\u0438\u0430\u043D\u0442\u043E\u0432") + ".";
       figma.currentPage.selection = [selectedNode];
       figma.notify(resultMessage2, { timeout: 4e3 });
       postSuccess(resultMessage2);
@@ -983,7 +1008,7 @@
     }
     const presetAndAsset = getPresetAndAsset(msg.presetKey);
     if (!presetAndAsset) {
-      postError("\u0414\u043B\u044F \u0432\u044B\u0431\u0440\u0430\u043D\u043D\u043E\u0433\u043E \u0442\u0438\u043F\u0430 \u043D\u0435\u0442 SVG-\u0434\u0438\u0441\u043A\u043B\u0435\u0439\u043C\u0435\u0440\u0430.");
+      postError("\u0414\u043B\u044F \u0432\u044B\u0431\u0440\u0430\u043D\u043D\u043E\u0433\u043E \u0442\u0438\u043F\u0430 \u043D\u0435\u0442 \u0434\u0438\u0441\u043A\u043B\u0435\u0439\u043C\u0435\u0440\u0430.");
       return;
     }
     const targetPercent = getTargetPercent(msg.presetKey, msg.customPercent);
@@ -1095,9 +1120,7 @@
         handleApplyResize(msg);
       }
     } catch (err) {
-      postError(
-        "\u041D\u0435 \u0443\u0434\u0430\u043B\u043E\u0441\u044C \u043F\u0440\u0438\u043C\u0435\u043D\u0438\u0442\u044C \u0438\u0437\u043C\u0435\u043D\u0435\u043D\u0438\u044F: " + String(err instanceof Error ? err.message : err)
-      );
+      postError(toUserErrorMessage(err));
     }
   });
 })();

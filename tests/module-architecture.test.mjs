@@ -79,6 +79,7 @@ test("UI renders undetected-disclaimer feedback as fixed-height info message", a
 test("visible Russian copy avoids technical wording", async () => {
   const visibleCopySources = [
     "src/plugin.ts",
+    "src/figma/disclaimerNodes.ts",
     "src/state/selectionState.ts",
     "src/features/addMissing.ts",
     "src/features/createAllVariants.ts",
@@ -92,6 +93,10 @@ test("visible Russian copy avoids technical wording", async () => {
     "SVG-ассет",
     "выбранного пресета",
     "У пресета",
+    "Не удалось применить изменения:",
+    "This property cannot",
+    "cannot be overridden",
+    "set_constraints",
   ];
 
   for (const file of visibleCopySources) {
@@ -103,4 +108,11 @@ test("visible Russian copy avoids technical wording", async () => {
       );
     }
   }
+});
+
+test("new generated disclaimer layers use Russian naming", async () => {
+  const source = await readFile("src/figma/disclaimerNodes.ts", "utf8");
+
+  assert.match(source, /node\.name = "Дисклеймер — " \+ asset\.label/);
+  assert.match(source, /node\.name\.startsWith\("Disclaimer — "\)/);
 });

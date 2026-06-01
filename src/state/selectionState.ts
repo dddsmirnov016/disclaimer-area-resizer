@@ -97,7 +97,7 @@ export function buildState(selection: readonly SceneNode[]): PluginState {
   if (!isResizable(sceneNode)) {
     return {
       type: "invalid",
-      error: `Слой типа «${sceneNode.type}» нельзя изменить в размере.`,
+      error: "Этот слой нельзя изменить в размере. Выделите слой с дисклеймером или баннер.",
       presets: DISCLAIMER_PRESETS,
     };
   }

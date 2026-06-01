@@ -29,7 +29,9 @@ export function addDisclaimerToBody(params: {
   const bodyContainer = findBodyContainer(bannerFrame);
 
   if (!bodyContainer) {
-    throw new Error("Не удалось найти текстовый контейнер в баннере.");
+    throw new Error(
+      "В баннере не найден текстовый контейнер. Выберите «Поверх изображения» или добавьте контейнер с текстом."
+    );
   }
 
   const padding = getAutoLayoutPadding(bodyContainer);
@@ -82,7 +84,7 @@ export function placeDisclaimerOverImage(params: {
   const mainImage = findMainImageNode(bannerFrame);
 
   if (!mainImage) {
-    throw new Error("Не удалось найти изображение или медиаобласть в баннере.");
+    throw new Error("В баннере не найдено изображение или видео.");
   }
 
   const mediaBounds = getRelativeBoundsFromAbsolute(
