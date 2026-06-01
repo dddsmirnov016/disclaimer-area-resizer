@@ -5,8 +5,11 @@ import {
   isTopLevelFrame,
   nodeHasAutoLayout,
 } from "../figma/bannerDetection";
-import { findDetectedDisclaimer } from "../figma/disclaimerNodes";
-import { isResizable } from "../figma/nodeGuards";
+import {
+  findDetectedDisclaimerForBannerSelection,
+  isProbableBannerSelectionFrame,
+} from "../figma/disclaimerNodes";
+import { isFrameLike, isResizable } from "../figma/nodeGuards";
 import type { BannerFrame, ResizableNode } from "../figma/nodeGuards";
 import type { PluginState } from "../ui/messages";
 
@@ -70,7 +73,10 @@ export function buildState(selection: readonly SceneNode[]): PluginState {
       };
     }
 
-    const detectedDisclaimer = findDetectedDisclaimer(sceneNode);
+    const detectedDisclaimer = findDetectedDisclaimerForBannerSelection(
+      sceneNode,
+      null
+    );
 
     if (!detectedDisclaimer) {
       return {
@@ -107,7 +113,38 @@ export function buildState(selection: readonly SceneNode[]): PluginState {
     };
   }
 
-  const bannerFrame = findBannerFrame(sceneNode);
+  const containingBannerFrame = isFrameLike(sceneNode)
+    ? findBannerFrame(sceneNode)
+    : null;
+
+  if (isFrameLike(sceneNode)) {
+    const detectedDisclaimer = findDetectedDisclaimerForBannerSelection(
+      sceneNode,
+      containingBannerFrame
+    );
+
+    if (detectedDisclaimer) {
+      const bannerFrame = containingBannerFrame || sceneNode;
+      if (bannerFrame.width <= 0 || bannerFrame.height <= 0) {
+        return {
+          type: "invalid",
+          error: `Некорректные размеры баннера: ${bannerFrame.width}×${bannerFrame.height}`,
+          presets: DISCLAIMER_PRESETS,
+        };
+      }
+      return buildResizeState(detectedDisclaimer, bannerFrame);
+    }
+
+    if (isProbableBannerSelectionFrame(sceneNode, containingBannerFrame)) {
+      return {
+        type: "invalid",
+        error: BANNER_DISCLAIMER_DETECTION_ERROR,
+        presets: DISCLAIMER_PRESETS,
+      };
+    }
+  }
+
+  const bannerFrame = containingBannerFrame || findBannerFrame(sceneNode);
 
   if (!bannerFrame) {
     return {

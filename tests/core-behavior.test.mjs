@@ -359,6 +359,90 @@ test("banner selection treats nested heuristic matches as one disclaimer contain
   assert.equal(mod.state.info.currentPercent, 12.47);
 });
 
+test("nested banner frame selection uses its detected disclaimer, not the frame area", async () => {
+  const mod = await bundleAndImport(`
+    import { buildState } from ${modulePath("src/state/selectionState.ts")};
+
+    function makeNode(overrides) {
+      return {
+        id: overrides.name,
+        name: overrides.name,
+        type: overrides.type || "FRAME",
+        width: overrides.width,
+        height: overrides.height,
+        x: overrides.x || 0,
+        y: overrides.y || 0,
+        locked: false,
+        visible: true,
+        layoutMode: overrides.layoutMode || "NONE",
+        parent: null,
+        children: overrides.children || [],
+        resizeWithoutConstraints() {},
+        absoluteTransform: [[1, 0, overrides.x || 0], [0, 1, overrides.y || 0]],
+        getSharedPluginData() {
+          return "";
+        },
+      };
+    }
+
+    const disclaimerGlyphs = makeNode({
+      name: "Не является лекарством",
+      width: 528,
+      height: 14,
+      x: 19.99981689453125,
+      y: 0,
+    });
+    const disclaimerContainer = makeNode({
+      name: "Disclaimer",
+      width: 548,
+      height: 16,
+      x: 0,
+      y: 79,
+      children: [disclaimerGlyphs],
+    });
+    const container = makeNode({
+      name: "Container",
+      width: 548,
+      height: 95,
+      children: [disclaimerContainer],
+    });
+    const image = makeNode({
+      name: "Image",
+      width: 240,
+      height: 95,
+      x: 560,
+      y: 0,
+    });
+    const adFrame = makeNode({
+      name: "Ad",
+      width: 800,
+      height: 95,
+      children: [container, image],
+    });
+    const wrapper = makeNode({
+      name: " ",
+      width: 800,
+      height: 95.0719985961914,
+      children: [adFrame],
+    });
+    adFrame.parent = wrapper;
+    container.parent = adFrame;
+    disclaimerContainer.parent = container;
+    disclaimerGlyphs.parent = disclaimerContainer;
+    image.parent = adFrame;
+
+    export const state = buildState([adFrame]);
+  `);
+
+  assert.equal(mod.state.type, "ready");
+  assert.equal(mod.state.info.mode, "resize-existing");
+  assert.equal(mod.state.info.disclaimerName, "Disclaimer");
+  assert.equal(mod.state.info.disclaimerWidth, 548);
+  assert.equal(mod.state.info.disclaimerHeight, 16);
+  assert.equal(mod.state.info.bannerName, " ");
+  assert.equal(mod.state.info.currentPercent, 11.53);
+});
+
 test("apply resize uses the detected disclaimer when the banner remains selected", async () => {
   const mod = await bundleAndImport(`
     const uiHandlers = {};
@@ -464,4 +548,140 @@ test("apply resize uses the detected disclaimer when the banner remains selected
   assert.equal(mod.disclaimerHeight, 17.045);
   assert.equal(mod.textAutoResize, "NONE");
   assert.match(mod.lastSuccess, /Применено: 220×17\.05 px — 5% площади баннера/);
+});
+
+test("apply resize uses the detected disclaimer when a nested banner frame remains selected", async () => {
+  const mod = await bundleAndImport(`
+    const uiHandlers = {};
+    const postedMessages = [];
+
+    function makeNode(overrides) {
+      const pluginData = overrides.pluginData || {};
+      return {
+        id: overrides.name,
+        name: overrides.name,
+        type: overrides.type || "FRAME",
+        width: overrides.width,
+        height: overrides.height,
+        x: overrides.x || 0,
+        y: overrides.y || 0,
+        locked: false,
+        visible: true,
+        layoutMode: overrides.layoutMode || "NONE",
+        parent: null,
+        children: overrides.children || [],
+        resize(w, h) {
+          this.width = w;
+          this.height = h;
+        },
+        resizeWithoutConstraints(w, h) {
+          this.width = w;
+          this.height = h;
+        },
+        absoluteTransform: [[1, 0, overrides.x || 0], [0, 1, overrides.y || 0]],
+        getSharedPluginData(namespace, key) {
+          return pluginData[namespace + ":" + key] || "";
+        },
+        setSharedPluginData(namespace, key, value) {
+          pluginData[namespace + ":" + key] = value;
+        },
+      };
+    }
+
+    const disclaimerGlyphs = makeNode({
+      name: "Не является лекарством",
+      width: 528,
+      height: 14,
+      x: 19.99981689453125,
+      y: 0,
+    });
+    const disclaimer = makeNode({
+      name: "Disclaimer",
+      width: 548,
+      height: 16,
+      x: 0,
+      y: 79,
+      children: [disclaimerGlyphs],
+    });
+    const container = makeNode({
+      name: "Container",
+      width: 548,
+      height: 95,
+      children: [disclaimer],
+    });
+    const image = makeNode({
+      name: "Image",
+      width: 240,
+      height: 95,
+      x: 560,
+      y: 0,
+    });
+    const adFrame = makeNode({
+      name: "Ad",
+      width: 800,
+      height: 95,
+      children: [container, image],
+    });
+    const wrapper = makeNode({
+      name: " ",
+      width: 800,
+      height: 95.0719985961914,
+      children: [adFrame],
+    });
+    adFrame.parent = wrapper;
+    container.parent = adFrame;
+    disclaimer.parent = container;
+    disclaimerGlyphs.parent = disclaimer;
+    image.parent = adFrame;
+
+    globalThis.__html__ = "";
+    globalThis.figma = {
+      currentPage: {
+        selection: [adFrame],
+      },
+      ui: {
+        postMessage(message) {
+          postedMessages.push(message);
+        },
+        resize() {},
+        on(eventName, handler) {
+          uiHandlers[eventName] = handler;
+        },
+      },
+      showUI() {},
+      notify() {},
+      on() {},
+      createNodeFromSvg() {
+        throw new Error("not expected");
+      },
+    };
+
+    await import(${modulePath("src/plugin.ts")});
+
+    uiHandlers.message({
+      type: "apply-resize",
+      presetKey: "medicine_static_5",
+      customPercent: null,
+      direction: "height",
+      onlyEnlarge: false,
+      addTarget: "body",
+      createAll: false,
+    });
+
+    export const selectedName = globalThis.figma.currentPage.selection[0].name;
+    export const adHeight = Math.round(adFrame.height * 1000) / 1000;
+    export const disclaimerHeight = Math.round(disclaimer.height * 1000) / 1000;
+    export const lastError = postedMessages
+      .filter((message) => message.type === "error")
+      .at(-1)?.message || null;
+    export const lastSuccess = postedMessages
+      .filter((message) => message.type === "success")
+      .at(-1)?.message || null;
+  `);
+
+  assert.equal(mod.lastError, null);
+  assert.equal(mod.selectedName, "Disclaimer");
+  assert.equal(mod.adHeight, 95);
+  assert.equal(mod.disclaimerHeight, 6.94);
+  assert.match(mod.lastSuccess, /Применено: 548×6\.94 px — 5% площади баннера/);
 });

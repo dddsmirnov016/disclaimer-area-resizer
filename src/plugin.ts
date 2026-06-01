@@ -7,8 +7,9 @@ import { createAllDisclaimerVariants } from "./features/createAllVariants";
 import { resizeExistingDisclaimer } from "./features/resizeExisting";
 import { findBannerFrame } from "./figma/bannerDetection";
 import {
-  findDetectedDisclaimer,
+  findDetectedDisclaimerForBannerSelection,
   findMatchingDisclaimer,
+  isProbableBannerSelectionFrame,
 } from "./figma/disclaimerNodes";
 import { isFrameLike, isResizable, type ResizableNode } from "./figma/nodeGuards";
 import {
@@ -140,10 +141,21 @@ function handleApplyResize(msg: Extract<UiMessage, { type: "apply-resize" }>): v
     let resizeNode: ResizableNode | null = null;
     let bannerFrame = findBannerFrame(selectedNode);
 
-    if (isFrameLike(selectedNode) && !bannerFrame) {
-      bannerFrame = selectedNode;
-      resizeNode = findDetectedDisclaimer(selectedNode);
-    } else if (isResizable(selectedNode)) {
+    if (isFrameLike(selectedNode)) {
+      resizeNode = findDetectedDisclaimerForBannerSelection(
+        selectedNode,
+        bannerFrame
+      );
+
+      if (resizeNode) {
+        bannerFrame = bannerFrame || selectedNode;
+      } else if (isProbableBannerSelectionFrame(selectedNode, bannerFrame)) {
+        postError(BANNER_DISCLAIMER_DETECTION_ERROR);
+        return;
+      }
+    }
+
+    if (!resizeNode && isResizable(selectedNode)) {
       resizeNode = selectedNode;
     }
 

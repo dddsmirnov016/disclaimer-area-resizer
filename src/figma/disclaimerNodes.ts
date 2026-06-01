@@ -19,6 +19,11 @@ export const PLUGIN_DATA_PRESET_KEY = "presetKey";
 
 const HEURISTIC_DISCLAIMER_NAME_RE =
   /disclaimer|дисклеймер|legal|warning|предупрежд|противопоказан|лекарств|условия кредита|займ|банкротств/i;
+const MIN_BANNER_SELECTION_AREA_RATIO = 0.4;
+
+export function hasHeuristicDisclaimerName(node: BaseNode): boolean {
+  return HEURISTIC_DISCLAIMER_NAME_RE.test(node.name);
+}
 
 export function prepareSvgNodeForDeformation(node: SceneNode): void {
   if ("clipsContent" in node) {
@@ -123,7 +128,7 @@ function isLikelyDisclaimerByHeuristic(
 ): node is ResizableNode {
   if (!isResizable(node)) return false;
   if (!isVisibleInHierarchy(node, bannerFrame)) return false;
-  if (!HEURISTIC_DISCLAIMER_NAME_RE.test(node.name)) return false;
+  if (!hasHeuristicDisclaimerName(node)) return false;
 
   const bannerArea = bannerFrame.width * bannerFrame.height;
   if (bannerArea <= 0) return false;
@@ -189,6 +194,39 @@ export function findDetectedDisclaimer(
   }
 
   return findHeuristicDisclaimer(bannerFrame);
+}
+
+export function isProbableBannerSelectionFrame(
+  selectedFrame: BannerFrame,
+  containingBannerFrame: BannerFrame | null
+): boolean {
+  if (
+    isPluginCreatedDisclaimerCandidate(selectedFrame) ||
+    hasHeuristicDisclaimerName(selectedFrame)
+  ) {
+    return false;
+  }
+
+  if (!containingBannerFrame) {
+    return true;
+  }
+
+  const containingArea = containingBannerFrame.width * containingBannerFrame.height;
+  if (containingArea <= 0) return false;
+
+  const selectedArea = selectedFrame.width * selectedFrame.height;
+  return selectedArea / containingArea >= MIN_BANNER_SELECTION_AREA_RATIO;
+}
+
+export function findDetectedDisclaimerForBannerSelection(
+  selectedFrame: BannerFrame,
+  containingBannerFrame: BannerFrame | null
+): ResizableNode | null {
+  if (!isProbableBannerSelectionFrame(selectedFrame, containingBannerFrame)) {
+    return null;
+  }
+
+  return findDetectedDisclaimer(selectedFrame);
 }
 
 export function findMatchingDisclaimer(

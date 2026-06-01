@@ -406,6 +406,10 @@
   var PLUGIN_DATA_ASSET_KEY = "assetKey";
   var PLUGIN_DATA_PRESET_KEY = "presetKey";
   var HEURISTIC_DISCLAIMER_NAME_RE = /disclaimer|дисклеймер|legal|warning|предупрежд|противопоказан|лекарств|условия кредита|займ|банкротств/i;
+  var MIN_BANNER_SELECTION_AREA_RATIO = 0.4;
+  function hasHeuristicDisclaimerName(node) {
+    return HEURISTIC_DISCLAIMER_NAME_RE.test(node.name);
+  }
   function prepareSvgNodeForDeformation(node) {
     if ("clipsContent" in node) {
       node.clipsContent = true;
@@ -463,7 +467,7 @@
   function isLikelyDisclaimerByHeuristic(node, bannerFrame) {
     if (!isResizable(node)) return false;
     if (!isVisibleInHierarchy(node, bannerFrame)) return false;
-    if (!HEURISTIC_DISCLAIMER_NAME_RE.test(node.name)) return false;
+    if (!hasHeuristicDisclaimerName(node)) return false;
     const bannerArea = bannerFrame.width * bannerFrame.height;
     if (bannerArea <= 0) return false;
     const areaPercent = node.width * node.height / bannerArea * 100;
@@ -499,6 +503,24 @@
       return getSingleCandidate(pluginCandidates);
     }
     return findHeuristicDisclaimer(bannerFrame);
+  }
+  function isProbableBannerSelectionFrame(selectedFrame, containingBannerFrame) {
+    if (isPluginCreatedDisclaimerCandidate(selectedFrame) || hasHeuristicDisclaimerName(selectedFrame)) {
+      return false;
+    }
+    if (!containingBannerFrame) {
+      return true;
+    }
+    const containingArea = containingBannerFrame.width * containingBannerFrame.height;
+    if (containingArea <= 0) return false;
+    const selectedArea = selectedFrame.width * selectedFrame.height;
+    return selectedArea / containingArea >= MIN_BANNER_SELECTION_AREA_RATIO;
+  }
+  function findDetectedDisclaimerForBannerSelection(selectedFrame, containingBannerFrame) {
+    if (!isProbableBannerSelectionFrame(selectedFrame, containingBannerFrame)) {
+      return null;
+    }
+    return findDetectedDisclaimer(selectedFrame);
   }
   function findMatchingDisclaimer(bannerFrame, assetKey) {
     let result = null;
@@ -826,7 +848,10 @@
           presets: DISCLAIMER_PRESETS
         };
       }
-      const detectedDisclaimer = findDetectedDisclaimer(sceneNode);
+      const detectedDisclaimer = findDetectedDisclaimerForBannerSelection(
+        sceneNode,
+        null
+      );
       if (!detectedDisclaimer) {
         return {
           type: "invalid",
@@ -857,7 +882,32 @@
         presets: DISCLAIMER_PRESETS
       };
     }
-    const bannerFrame = findBannerFrame(sceneNode);
+    const containingBannerFrame = isFrameLike(sceneNode) ? findBannerFrame(sceneNode) : null;
+    if (isFrameLike(sceneNode)) {
+      const detectedDisclaimer = findDetectedDisclaimerForBannerSelection(
+        sceneNode,
+        containingBannerFrame
+      );
+      if (detectedDisclaimer) {
+        const bannerFrame2 = containingBannerFrame || sceneNode;
+        if (bannerFrame2.width <= 0 || bannerFrame2.height <= 0) {
+          return {
+            type: "invalid",
+            error: `\u041D\u0435\u043A\u043E\u0440\u0440\u0435\u043A\u0442\u043D\u044B\u0435 \u0440\u0430\u0437\u043C\u0435\u0440\u044B \u0431\u0430\u043D\u043D\u0435\u0440\u0430: ${bannerFrame2.width}\xD7${bannerFrame2.height}`,
+            presets: DISCLAIMER_PRESETS
+          };
+        }
+        return buildResizeState(detectedDisclaimer, bannerFrame2);
+      }
+      if (isProbableBannerSelectionFrame(sceneNode, containingBannerFrame)) {
+        return {
+          type: "invalid",
+          error: BANNER_DISCLAIMER_DETECTION_ERROR,
+          presets: DISCLAIMER_PRESETS
+        };
+      }
+    }
+    const bannerFrame = containingBannerFrame || findBannerFrame(sceneNode);
     if (!bannerFrame) {
       return {
         type: "invalid",
@@ -976,10 +1026,19 @@
     } else {
       let resizeNode = null;
       let bannerFrame = findBannerFrame(selectedNode);
-      if (isFrameLike(selectedNode) && !bannerFrame) {
-        bannerFrame = selectedNode;
-        resizeNode = findDetectedDisclaimer(selectedNode);
-      } else if (isResizable(selectedNode)) {
+      if (isFrameLike(selectedNode)) {
+        resizeNode = findDetectedDisclaimerForBannerSelection(
+          selectedNode,
+          bannerFrame
+        );
+        if (resizeNode) {
+          bannerFrame = bannerFrame || selectedNode;
+        } else if (isProbableBannerSelectionFrame(selectedNode, bannerFrame)) {
+          postError(BANNER_DISCLAIMER_DETECTION_ERROR);
+          return;
+        }
+      }
+      if (!resizeNode && isResizable(selectedNode)) {
         resizeNode = selectedNode;
       }
       if (!resizeNode) {
