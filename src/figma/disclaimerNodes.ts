@@ -157,7 +157,26 @@ function collectHeuristicDisclaimers(
     }
   });
 
-  return candidates;
+  return candidates.filter(
+    (candidate) => !hasAncestorInSet(candidate, candidates, bannerFrame)
+  );
+}
+
+function hasAncestorInSet(
+  node: SceneNode,
+  candidates: readonly SceneNode[],
+  root: BaseNode
+): boolean {
+  let current = node.parent;
+
+  while (current && current !== root) {
+    if (candidates.includes(current as SceneNode)) {
+      return true;
+    }
+    current = current.parent;
+  }
+
+  return false;
 }
 
 export function findDetectedDisclaimer(

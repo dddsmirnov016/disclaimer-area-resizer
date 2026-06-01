@@ -283,6 +283,82 @@ test("banner selection falls back to a single heuristic disclaimer candidate", a
   assert.equal(mod.state.info.currentPercent, 4.69);
 });
 
+test("banner selection treats nested heuristic matches as one disclaimer container", async () => {
+  const mod = await bundleAndImport(`
+    import { buildState } from ${modulePath("src/state/selectionState.ts")};
+
+    function makeNode(overrides) {
+      return {
+        id: overrides.name,
+        name: overrides.name,
+        type: overrides.type || "FRAME",
+        width: overrides.width,
+        height: overrides.height,
+        x: overrides.x || 0,
+        y: overrides.y || 0,
+        locked: false,
+        visible: true,
+        layoutMode: overrides.layoutMode || "NONE",
+        parent: null,
+        children: overrides.children || [],
+        resizeWithoutConstraints() {},
+        absoluteTransform: [[1, 0, overrides.x || 0], [0, 1, overrides.y || 0]],
+        getSharedPluginData() {
+          return "";
+        },
+      };
+    }
+
+    const disclaimerGlyphs = makeNode({
+      name: "Не является лекарством",
+      width: 425.2207336425781,
+      height: 13,
+      x: 22.389633178710938,
+      y: 0,
+    });
+    const disclaimerContainer = makeNode({
+      name: "Disclaimer",
+      width: 450,
+      height: 15,
+      x: 0,
+      y: 67,
+      children: [disclaimerGlyphs],
+    });
+    const body = makeNode({
+      name: "Container",
+      width: 450,
+      height: 82,
+      children: [disclaimerContainer],
+    });
+    const image = makeNode({
+      name: "Image",
+      width: 198,
+      height: 82,
+      x: 462,
+      y: 0,
+    });
+    const banner = makeNode({
+      name: " ",
+      width: 660,
+      height: 82,
+      children: [body, image],
+    });
+    body.parent = banner;
+    disclaimerContainer.parent = body;
+    disclaimerGlyphs.parent = disclaimerContainer;
+    image.parent = banner;
+
+    export const state = buildState([banner]);
+  `);
+
+  assert.equal(mod.state.type, "ready");
+  assert.equal(mod.state.info.mode, "resize-existing");
+  assert.equal(mod.state.info.disclaimerName, "Disclaimer");
+  assert.equal(mod.state.info.disclaimerWidth, 450);
+  assert.equal(mod.state.info.disclaimerHeight, 15);
+  assert.equal(mod.state.info.currentPercent, 12.47);
+});
+
 test("apply resize uses the detected disclaimer when the banner remains selected", async () => {
   const mod = await bundleAndImport(`
     const uiHandlers = {};

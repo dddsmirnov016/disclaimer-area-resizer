@@ -479,7 +479,19 @@
         candidates.push(node);
       }
     });
-    return candidates;
+    return candidates.filter(
+      (candidate) => !hasAncestorInSet(candidate, candidates, bannerFrame)
+    );
+  }
+  function hasAncestorInSet(node, candidates, root) {
+    let current = node.parent;
+    while (current && current !== root) {
+      if (candidates.includes(current)) {
+        return true;
+      }
+      current = current.parent;
+    }
+    return false;
   }
   function findDetectedDisclaimer(bannerFrame) {
     const pluginCandidates = collectPluginCreatedDisclaimers(bannerFrame);
