@@ -8,6 +8,7 @@ import { createAllDisclaimerVariants } from "./features/createAllVariants";
 import { resizeExistingDisclaimer } from "./features/resizeExisting";
 import { findBannerFrame } from "./figma/bannerDetection";
 import {
+  buildBannerDisclaimerIndex,
   findContainingDisclaimerForSelection,
   findDetectedDisclaimerForBannerSelection,
   findMatchingDisclaimer,
@@ -183,14 +184,18 @@ function handleApplyResize(msg: Extract<UiMessage, { type: "apply-resize" }>): v
     let bannerFrame = findBannerFrame(selectedNode);
 
     if (isFrameLike(selectedNode)) {
+      const selectionIndex = buildBannerDisclaimerIndex(selectedNode);
       resizeNode = findDetectedDisclaimerForBannerSelection(
         selectedNode,
-        bannerFrame
+        bannerFrame,
+        selectionIndex
       );
 
       if (resizeNode) {
         bannerFrame = bannerFrame || selectedNode;
-      } else if (isProbableBannerSelectionFrame(selectedNode, bannerFrame)) {
+      } else if (
+        isProbableBannerSelectionFrame(selectedNode, bannerFrame, selectionIndex)
+      ) {
         postError(BANNER_DISCLAIMER_DETECTION_ERROR);
         return;
       }
@@ -242,12 +247,35 @@ function handleApplyResize(msg: Extract<UiMessage, { type: "apply-resize" }>): v
   selectAndReport(result.node, resultMessage);
 }
 
+// Skip invisible instance internals during traversal: the plugin cannot edit
+// them anyway, and skipping makes large-document walks significantly faster.
+figma.skipInvisibleInstanceChildren = true;
+
 figma.showUI(__html__, { width: 384, height: 776 });
 
 sendState();
 
+// Leading + trailing debounce: a single click updates the panel instantly,
+// while rapid selection storms (drag-select, arrow-key walking) collapse into
+// at most one extra refresh per window instead of a full recompute per event.
+const SELECTION_REFRESH_DEBOUNCE_MS = 80;
+let selectionRefreshTimer: number | null = null;
+let selectionRefreshQueued = false;
+
 figma.on("selectionchange", () => {
+  if (selectionRefreshTimer !== null) {
+    selectionRefreshQueued = true;
+    return;
+  }
+
   sendState();
+  selectionRefreshTimer = setTimeout(() => {
+    selectionRefreshTimer = null;
+    if (selectionRefreshQueued) {
+      selectionRefreshQueued = false;
+      sendState();
+    }
+  }, SELECTION_REFRESH_DEBOUNCE_MS);
 });
 
 figma.ui.on("message", (rawMessage: unknown) => {

@@ -3,10 +3,9 @@ import {
   getAbsoluteBounds,
   getIntersectionBounds,
   intersectionArea,
-  isVisibleInHierarchy,
-  visitDescendants,
 } from "./traversal";
 import {
+  hasChildren,
   isFrameLike,
   isResizable,
   type AutoLayoutFrame,
@@ -56,14 +55,6 @@ export function nodeHasAutoLayout(node: SceneNode): boolean {
   return false;
 }
 
-function countTextDescendants(node: BaseNode): number {
-  let count = 0;
-  visitDescendants(node, (child) => {
-    if (child.type === "TEXT") count += 1;
-  });
-  return count;
-}
-
 function normalizedName(node: BaseNode): string {
   return node.name.toLowerCase();
 }
@@ -86,17 +77,14 @@ export function findBodyContainer(
 ): AutoLayoutFrame | null {
   let bestNode: AutoLayoutFrame | null = null;
   let bestScore = Number.NEGATIVE_INFINITY;
+  const bannerArea = bannerFrame.width * bannerFrame.height;
 
-  const consider = (node: SceneNode): void => {
+  const consider = (node: SceneNode, textCount: number): void => {
     if (!isFrameLike(node) || node.layoutMode !== "VERTICAL") return;
-
-    const textCount = countTextDescendants(node);
     if (textCount === 0) return;
 
     const areaRatio =
-      bannerFrame.width > 0 && bannerFrame.height > 0
-        ? (node.width * node.height) / (bannerFrame.width * bannerFrame.height)
-        : 1;
+      bannerArea > 0 ? (node.width * node.height) / bannerArea : 1;
     const score =
       textCount * 20 +
       (isLikelyBodyName(node) ? 100 : 0) -
@@ -109,8 +97,23 @@ export function findBodyContainer(
     }
   };
 
-  consider(bannerFrame);
-  visitDescendants(bannerFrame, consider);
+  // Post-order walk: text counts bubble up so every frame is scored with its
+  // descendant text count in a single pass instead of one sub-walk per frame.
+  const walk = (node: SceneNode): number => {
+    let textCount = 0;
+
+    if (hasChildren(node)) {
+      for (const child of node.children) {
+        if (child.type === "TEXT") textCount += 1;
+        textCount += walk(child);
+      }
+    }
+
+    consider(node, textCount);
+    return textCount;
+  };
+
+  walk(bannerFrame);
 
   return bestNode;
 }
@@ -125,7 +128,6 @@ export function findMainImageNode(
   const consider = (node: SceneNode): void => {
     if (!isResizable(node)) return;
     if (!hasImageFill(node)) return;
-    if (!isVisibleInHierarchy(node, bannerFrame)) return;
 
     const visibleBounds = getIntersectionBounds(
       getAbsoluteBounds(node),
@@ -141,8 +143,25 @@ export function findMainImageNode(
     }
   };
 
-  consider(bannerFrame);
-  visitDescendants(bannerFrame, consider);
+  // Visibility is threaded down the walk, so hidden subtrees are skipped
+  // without re-checking every ancestor per node.
+  const walk = (parent: BaseNode, parentVisible: boolean): void => {
+    if (!hasChildren(parent)) return;
+
+    for (const child of parent.children) {
+      const childVisible = parentVisible && child.visible !== false;
+      if (!childVisible) continue;
+
+      consider(child);
+      walk(child, childVisible);
+    }
+  };
+
+  const bannerVisible = bannerFrame.visible !== false;
+  if (bannerVisible) {
+    consider(bannerFrame);
+    walk(bannerFrame, bannerVisible);
+  }
 
   return best;
 }

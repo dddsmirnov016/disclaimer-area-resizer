@@ -109,85 +109,115 @@ function isPluginCreatedDisclaimerCandidate(node: SceneNode): boolean {
   );
 }
 
-export function findPluginCreatedDisclaimer(
-  bannerFrame: BannerFrame
-): ResizableNode | null {
-  return getSingleCandidate(collectPluginCreatedDisclaimers(bannerFrame));
+/**
+ * Everything the selection flow needs to know about disclaimers inside one
+ * banner, collected in a single subtree traversal. Building this index once
+ * and passing it to the detection helpers below avoids re-walking the same
+ * banner 4–6 times per selection change.
+ */
+export interface BannerDisclaimerIndex {
+  readonly pluginDisclaimers: readonly ResizableNode[];
+  readonly heuristicDisclaimers: readonly ResizableNode[];
 }
 
-function getSingleCandidate(candidates: ResizableNode[]): ResizableNode | null {
+export function buildBannerDisclaimerIndex(
+  bannerFrame: BannerFrame
+): BannerDisclaimerIndex {
+  const pluginCandidates: ResizableNode[] = [];
+  const heuristicCandidates: ResizableNode[] = [];
+  const bannerArea = bannerFrame.width * bannerFrame.height;
+  const bannerVisible = bannerFrame.visible !== false;
+
+  const matchesHeuristicLimits = (node: ResizableNode): boolean => {
+    if (bannerArea <= 0) return false;
+    const areaPercent = ((node.width * node.height) / bannerArea) * 100;
+    return (
+      node.width >= 8 &&
+      node.height >= 4 &&
+      node.width <= bannerFrame.width * 1.05 &&
+      node.height <= bannerFrame.height * 0.35 &&
+      areaPercent >= 0.05 &&
+      areaPercent <= 20
+    );
+  };
+
+  // One depth-first pass; visibility is threaded down instead of re-walking
+  // ancestors per node (what `isVisibleInHierarchy` would cost on each hit).
+  const walk = (parent: BaseNode, parentVisible: boolean): void => {
+    if (!hasChildren(parent)) return;
+
+    for (const child of parent.children) {
+      const childVisible = parentVisible && child.visible !== false;
+
+      if (isResizable(child)) {
+        if (isPluginCreatedDisclaimerCandidate(child)) {
+          pluginCandidates.push(child);
+        }
+        if (
+          childVisible &&
+          hasHeuristicDisclaimerName(child) &&
+          matchesHeuristicLimits(child)
+        ) {
+          heuristicCandidates.push(child);
+        }
+      }
+
+      walk(child, childVisible);
+    }
+  };
+
+  walk(bannerFrame, bannerVisible);
+
+  return {
+    pluginDisclaimers: resolveTopLevelCandidates(
+      pluginCandidates.map(resolveMarkedWrapperCandidate),
+      bannerFrame
+    ),
+    heuristicDisclaimers: resolveTopLevelCandidates(
+      heuristicCandidates.map((candidate) =>
+        resolveHeuristicWrapperCandidate(candidate, heuristicCandidates)
+      ),
+      bannerFrame
+    ),
+  };
+}
+
+function resolveTopLevelCandidates(
+  candidates: readonly ResizableNode[],
+  bannerFrame: BannerFrame
+): ResizableNode[] {
+  const resolvedCandidates = uniqueCandidates(candidates);
+
+  return resolvedCandidates.filter(
+    (candidate) => !hasAncestorInSet(candidate, resolvedCandidates, bannerFrame)
+  );
+}
+
+function getIndex(
+  bannerFrame: BannerFrame,
+  index?: BannerDisclaimerIndex
+): BannerDisclaimerIndex {
+  return index || buildBannerDisclaimerIndex(bannerFrame);
+}
+
+export function findPluginCreatedDisclaimer(
+  bannerFrame: BannerFrame,
+  index?: BannerDisclaimerIndex
+): ResizableNode | null {
+  return getSingleCandidate(getIndex(bannerFrame, index).pluginDisclaimers);
+}
+
+function getSingleCandidate(
+  candidates: readonly ResizableNode[]
+): ResizableNode | null {
   return candidates.length === 1 ? candidates[0] : null;
 }
 
-function collectPluginCreatedDisclaimers(
-  bannerFrame: BannerFrame
-): ResizableNode[] {
-  const candidates: ResizableNode[] = [];
-
-  visitDescendants(bannerFrame, (node) => {
-    if (isResizable(node) && isPluginCreatedDisclaimerCandidate(node)) {
-      candidates.push(node);
-    }
-  });
-
-  const resolvedCandidates = uniqueCandidates(
-    candidates.map(resolveMarkedWrapperCandidate)
-  );
-
-  return resolvedCandidates.filter(
-    (candidate) => !hasAncestorInSet(candidate, resolvedCandidates, bannerFrame)
-  );
-}
-
-function isLikelyDisclaimerByHeuristic(
-  node: SceneNode,
-  bannerFrame: BannerFrame
-): node is ResizableNode {
-  if (!isResizable(node)) return false;
-  if (!isVisibleInHierarchy(node, bannerFrame)) return false;
-  if (!hasHeuristicDisclaimerName(node)) return false;
-
-  const bannerArea = bannerFrame.width * bannerFrame.height;
-  if (bannerArea <= 0) return false;
-
-  const areaPercent = (node.width * node.height / bannerArea) * 100;
-
-  return (
-    node.width >= 8 &&
-    node.height >= 4 &&
-    node.width <= bannerFrame.width * 1.05 &&
-    node.height <= bannerFrame.height * 0.35 &&
-    areaPercent >= 0.05 &&
-    areaPercent <= 20
-  );
-}
-
 export function findHeuristicDisclaimer(
-  bannerFrame: BannerFrame
+  bannerFrame: BannerFrame,
+  index?: BannerDisclaimerIndex
 ): ResizableNode | null {
-  return getSingleCandidate(collectHeuristicDisclaimers(bannerFrame));
-}
-
-function collectHeuristicDisclaimers(
-  bannerFrame: BannerFrame
-): ResizableNode[] {
-  const candidates: ResizableNode[] = [];
-
-  visitDescendants(bannerFrame, (node) => {
-    if (isLikelyDisclaimerByHeuristic(node, bannerFrame)) {
-      candidates.push(node);
-    }
-  });
-
-  const resolvedCandidates = uniqueCandidates(
-    candidates.map((candidate) =>
-      resolveHeuristicWrapperCandidate(candidate, candidates)
-    )
-  );
-
-  return resolvedCandidates.filter(
-    (candidate) => !hasAncestorInSet(candidate, resolvedCandidates, bannerFrame)
-  );
+  return getSingleCandidate(getIndex(bannerFrame, index).heuristicDisclaimers);
 }
 
 function uniqueCandidates(candidates: readonly ResizableNode[]): ResizableNode[] {
@@ -311,11 +341,13 @@ function findSingleCandidateContainingSelection(
 
 export function findContainingDisclaimerForSelection(
   selectedNode: SceneNode,
-  bannerFrame: BannerFrame
+  bannerFrame: BannerFrame,
+  index?: BannerDisclaimerIndex
 ): ResizableNode | null {
+  const bannerIndex = getIndex(bannerFrame, index);
   const pluginCandidate = findSingleCandidateContainingSelection(
     selectedNode,
-    collectPluginCreatedDisclaimers(bannerFrame)
+    bannerIndex.pluginDisclaimers
   );
 
   if (pluginCandidate) {
@@ -324,20 +356,21 @@ export function findContainingDisclaimerForSelection(
 
   return findSingleCandidateContainingSelection(
     selectedNode,
-    collectHeuristicDisclaimers(bannerFrame)
+    bannerIndex.heuristicDisclaimers
   );
 }
 
 export function findDetectedDisclaimer(
-  bannerFrame: BannerFrame
+  bannerFrame: BannerFrame,
+  index?: BannerDisclaimerIndex
 ): ResizableNode | null {
-  const pluginCandidates = collectPluginCreatedDisclaimers(bannerFrame);
+  const bannerIndex = getIndex(bannerFrame, index);
 
-  if (pluginCandidates.length > 0) {
-    return getSingleCandidate(pluginCandidates);
+  if (bannerIndex.pluginDisclaimers.length > 0) {
+    return getSingleCandidate(bannerIndex.pluginDisclaimers);
   }
 
-  return findHeuristicDisclaimer(bannerFrame);
+  return getSingleCandidate(bannerIndex.heuristicDisclaimers);
 }
 
 /**
@@ -347,17 +380,20 @@ export function findDetectedDisclaimer(
  * exist but are ambiguous → ask to pick manually".
  */
 export function bannerHasDisclaimerCandidates(
-  bannerFrame: BannerFrame
+  bannerFrame: BannerFrame,
+  index?: BannerDisclaimerIndex
 ): boolean {
+  const bannerIndex = getIndex(bannerFrame, index);
   return (
-    collectPluginCreatedDisclaimers(bannerFrame).length > 0 ||
-    collectHeuristicDisclaimers(bannerFrame).length > 0
+    bannerIndex.pluginDisclaimers.length > 0 ||
+    bannerIndex.heuristicDisclaimers.length > 0
   );
 }
 
 export function isProbableBannerSelectionFrame(
   selectedFrame: BannerFrame,
-  containingBannerFrame: BannerFrame | null
+  containingBannerFrame: BannerFrame | null,
+  index?: BannerDisclaimerIndex
 ): boolean {
   if (isPluginCreatedDisclaimerCandidate(selectedFrame)) {
     return false;
@@ -370,7 +406,7 @@ export function isProbableBannerSelectionFrame(
   // such a name AND holds no disclaimer inside it.
   if (
     hasHeuristicDisclaimerName(selectedFrame) &&
-    !bannerHasDisclaimerCandidates(selectedFrame)
+    !bannerHasDisclaimerCandidates(selectedFrame, index)
   ) {
     return false;
   }
@@ -388,13 +424,22 @@ export function isProbableBannerSelectionFrame(
 
 export function findDetectedDisclaimerForBannerSelection(
   selectedFrame: BannerFrame,
-  containingBannerFrame: BannerFrame | null
+  containingBannerFrame: BannerFrame | null,
+  index?: BannerDisclaimerIndex
 ): ResizableNode | null {
-  if (!isProbableBannerSelectionFrame(selectedFrame, containingBannerFrame)) {
+  const selectedFrameIndex = getIndex(selectedFrame, index);
+
+  if (
+    !isProbableBannerSelectionFrame(
+      selectedFrame,
+      containingBannerFrame,
+      selectedFrameIndex
+    )
+  ) {
     return null;
   }
 
-  return findDetectedDisclaimer(selectedFrame);
+  return findDetectedDisclaimer(selectedFrame, selectedFrameIndex);
 }
 
 export function findMatchingDisclaimer(

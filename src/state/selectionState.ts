@@ -8,12 +8,14 @@ import {
 } from "../figma/bannerDetection";
 import {
   bannerHasDisclaimerCandidates,
+  buildBannerDisclaimerIndex,
   findContainingDisclaimerForSelection,
   findDetectedDisclaimerForBannerSelection,
   isProbableBannerSelectionFrame,
   PLUGIN_DATA_ASSET_KEY,
   PLUGIN_DATA_NAMESPACE,
   PLUGIN_DATA_PRESET_KEY,
+  type BannerDisclaimerIndex,
 } from "../figma/disclaimerNodes";
 import { isFrameLike, isResizable } from "../figma/nodeGuards";
 import type { BannerFrame, ResizableNode } from "../figma/nodeGuards";
@@ -58,9 +60,10 @@ function buildAddMissingState(bannerFrame: BannerFrame): PluginState {
  * ambiguous / not auto-resolvable).
  */
 function buildBannerWithoutResolvedDisclaimerState(
-  bannerFrame: BannerFrame
+  bannerFrame: BannerFrame,
+  index: BannerDisclaimerIndex
 ): PluginState {
-  return bannerHasDisclaimerCandidates(bannerFrame)
+  return bannerHasDisclaimerCandidates(bannerFrame, index)
     ? buildDetectionInfoState()
     : buildAddMissingState(bannerFrame);
 }
@@ -139,13 +142,15 @@ export function buildState(selection: readonly SceneNode[]): PluginState {
       };
     }
 
+    const selectionIndex = buildBannerDisclaimerIndex(sceneNode);
     const detectedDisclaimer = findDetectedDisclaimerForBannerSelection(
       sceneNode,
-      null
+      null,
+      selectionIndex
     );
 
     if (!detectedDisclaimer) {
-      return buildBannerWithoutResolvedDisclaimerState(sceneNode);
+      return buildBannerWithoutResolvedDisclaimerState(sceneNode, selectionIndex);
     }
 
     return buildResizeState(detectedDisclaimer, sceneNode);
@@ -183,9 +188,11 @@ export function buildState(selection: readonly SceneNode[]): PluginState {
     : null;
 
   if (isFrameLike(sceneNode)) {
+    const selectionIndex = buildBannerDisclaimerIndex(sceneNode);
     const detectedDisclaimer = findDetectedDisclaimerForBannerSelection(
       sceneNode,
-      containingBannerFrame
+      containingBannerFrame,
+      selectionIndex
     );
 
     if (detectedDisclaimer) {
@@ -203,8 +210,14 @@ export function buildState(selection: readonly SceneNode[]): PluginState {
       return buildResizeState(detectedDisclaimer, bannerFrame);
     }
 
-    if (isProbableBannerSelectionFrame(sceneNode, containingBannerFrame)) {
-      return buildBannerWithoutResolvedDisclaimerState(sceneNode);
+    if (
+      isProbableBannerSelectionFrame(
+        sceneNode,
+        containingBannerFrame,
+        selectionIndex
+      )
+    ) {
+      return buildBannerWithoutResolvedDisclaimerState(sceneNode, selectionIndex);
     }
   }
 

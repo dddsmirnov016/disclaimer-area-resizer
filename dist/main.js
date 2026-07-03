@@ -570,13 +570,6 @@
     }
     return false;
   }
-  function countTextDescendants(node) {
-    let count = 0;
-    visitDescendants(node, (child) => {
-      if (child.type === "TEXT") count += 1;
-    });
-    return count;
-  }
   function normalizedName(node) {
     return node.name.toLowerCase();
   }
@@ -593,19 +586,29 @@
   function findBodyContainer(bannerFrame) {
     let bestNode = null;
     let bestScore = Number.NEGATIVE_INFINITY;
-    const consider = (node) => {
+    const bannerArea = bannerFrame.width * bannerFrame.height;
+    const consider = (node, textCount) => {
       if (!isFrameLike(node) || node.layoutMode !== "VERTICAL") return;
-      const textCount = countTextDescendants(node);
       if (textCount === 0) return;
-      const areaRatio = bannerFrame.width > 0 && bannerFrame.height > 0 ? node.width * node.height / (bannerFrame.width * bannerFrame.height) : 1;
+      const areaRatio = bannerArea > 0 ? node.width * node.height / bannerArea : 1;
       const score = textCount * 20 + (isLikelyBodyName(node) ? 100 : 0) - areaRatio * 10 - (node === bannerFrame ? 50 : 0);
       if (score > bestScore) {
         bestNode = node;
         bestScore = score;
       }
     };
-    consider(bannerFrame);
-    visitDescendants(bannerFrame, consider);
+    const walk = (node) => {
+      let textCount = 0;
+      if (hasChildren(node)) {
+        for (const child of node.children) {
+          if (child.type === "TEXT") textCount += 1;
+          textCount += walk(child);
+        }
+      }
+      consider(node, textCount);
+      return textCount;
+    };
+    walk(bannerFrame);
     return bestNode;
   }
   function findMainImageNode(bannerFrame) {
@@ -615,7 +618,6 @@
     const consider = (node) => {
       if (!isResizable(node)) return;
       if (!hasImageFill(node)) return;
-      if (!isVisibleInHierarchy(node, bannerFrame)) return;
       const visibleBounds = getIntersectionBounds(
         getAbsoluteBounds(node),
         bannerBounds
@@ -627,8 +629,20 @@
         bestArea = area;
       }
     };
-    consider(bannerFrame);
-    visitDescendants(bannerFrame, consider);
+    const walk = (parent, parentVisible) => {
+      if (!hasChildren(parent)) return;
+      for (const child of parent.children) {
+        const childVisible = parentVisible && child.visible !== false;
+        if (!childVisible) continue;
+        consider(child);
+        walk(child, childVisible);
+      }
+    };
+    const bannerVisible = bannerFrame.visible !== false;
+    if (bannerVisible) {
+      consider(bannerFrame);
+      walk(bannerFrame, bannerVisible);
+    }
     return best;
   }
 
@@ -744,50 +758,56 @@
       node.getSharedPluginData(PLUGIN_DATA_NAMESPACE, PLUGIN_DATA_ASSET_KEY)
     ) || node.name.startsWith("Disclaimer \u2014 ");
   }
+  function buildBannerDisclaimerIndex(bannerFrame) {
+    const pluginCandidates = [];
+    const heuristicCandidates = [];
+    const bannerArea = bannerFrame.width * bannerFrame.height;
+    const bannerVisible = bannerFrame.visible !== false;
+    const matchesHeuristicLimits = (node) => {
+      if (bannerArea <= 0) return false;
+      const areaPercent = node.width * node.height / bannerArea * 100;
+      return node.width >= 8 && node.height >= 4 && node.width <= bannerFrame.width * 1.05 && node.height <= bannerFrame.height * 0.35 && areaPercent >= 0.05 && areaPercent <= 20;
+    };
+    const walk = (parent, parentVisible) => {
+      if (!hasChildren(parent)) return;
+      for (const child of parent.children) {
+        const childVisible = parentVisible && child.visible !== false;
+        if (isResizable(child)) {
+          if (isPluginCreatedDisclaimerCandidate(child)) {
+            pluginCandidates.push(child);
+          }
+          if (childVisible && hasHeuristicDisclaimerName(child) && matchesHeuristicLimits(child)) {
+            heuristicCandidates.push(child);
+          }
+        }
+        walk(child, childVisible);
+      }
+    };
+    walk(bannerFrame, bannerVisible);
+    return {
+      pluginDisclaimers: resolveTopLevelCandidates(
+        pluginCandidates.map(resolveMarkedWrapperCandidate),
+        bannerFrame
+      ),
+      heuristicDisclaimers: resolveTopLevelCandidates(
+        heuristicCandidates.map(
+          (candidate) => resolveHeuristicWrapperCandidate(candidate, heuristicCandidates)
+        ),
+        bannerFrame
+      )
+    };
+  }
+  function resolveTopLevelCandidates(candidates, bannerFrame) {
+    const resolvedCandidates = uniqueCandidates(candidates);
+    return resolvedCandidates.filter(
+      (candidate) => !hasAncestorInSet(candidate, resolvedCandidates, bannerFrame)
+    );
+  }
+  function getIndex(bannerFrame, index) {
+    return index || buildBannerDisclaimerIndex(bannerFrame);
+  }
   function getSingleCandidate(candidates) {
     return candidates.length === 1 ? candidates[0] : null;
-  }
-  function collectPluginCreatedDisclaimers(bannerFrame) {
-    const candidates = [];
-    visitDescendants(bannerFrame, (node) => {
-      if (isResizable(node) && isPluginCreatedDisclaimerCandidate(node)) {
-        candidates.push(node);
-      }
-    });
-    const resolvedCandidates = uniqueCandidates(
-      candidates.map(resolveMarkedWrapperCandidate)
-    );
-    return resolvedCandidates.filter(
-      (candidate) => !hasAncestorInSet(candidate, resolvedCandidates, bannerFrame)
-    );
-  }
-  function isLikelyDisclaimerByHeuristic(node, bannerFrame) {
-    if (!isResizable(node)) return false;
-    if (!isVisibleInHierarchy(node, bannerFrame)) return false;
-    if (!hasHeuristicDisclaimerName(node)) return false;
-    const bannerArea = bannerFrame.width * bannerFrame.height;
-    if (bannerArea <= 0) return false;
-    const areaPercent = node.width * node.height / bannerArea * 100;
-    return node.width >= 8 && node.height >= 4 && node.width <= bannerFrame.width * 1.05 && node.height <= bannerFrame.height * 0.35 && areaPercent >= 0.05 && areaPercent <= 20;
-  }
-  function findHeuristicDisclaimer(bannerFrame) {
-    return getSingleCandidate(collectHeuristicDisclaimers(bannerFrame));
-  }
-  function collectHeuristicDisclaimers(bannerFrame) {
-    const candidates = [];
-    visitDescendants(bannerFrame, (node) => {
-      if (isLikelyDisclaimerByHeuristic(node, bannerFrame)) {
-        candidates.push(node);
-      }
-    });
-    const resolvedCandidates = uniqueCandidates(
-      candidates.map(
-        (candidate) => resolveHeuristicWrapperCandidate(candidate, candidates)
-      )
-    );
-    return resolvedCandidates.filter(
-      (candidate) => !hasAncestorInSet(candidate, resolvedCandidates, bannerFrame)
-    );
   }
   function uniqueCandidates(candidates) {
     const unique = [];
@@ -856,34 +876,36 @@
       )
     );
   }
-  function findContainingDisclaimerForSelection(selectedNode, bannerFrame) {
+  function findContainingDisclaimerForSelection(selectedNode, bannerFrame, index) {
+    const bannerIndex = getIndex(bannerFrame, index);
     const pluginCandidate = findSingleCandidateContainingSelection(
       selectedNode,
-      collectPluginCreatedDisclaimers(bannerFrame)
+      bannerIndex.pluginDisclaimers
     );
     if (pluginCandidate) {
       return pluginCandidate;
     }
     return findSingleCandidateContainingSelection(
       selectedNode,
-      collectHeuristicDisclaimers(bannerFrame)
+      bannerIndex.heuristicDisclaimers
     );
   }
-  function findDetectedDisclaimer(bannerFrame) {
-    const pluginCandidates = collectPluginCreatedDisclaimers(bannerFrame);
-    if (pluginCandidates.length > 0) {
-      return getSingleCandidate(pluginCandidates);
+  function findDetectedDisclaimer(bannerFrame, index) {
+    const bannerIndex = getIndex(bannerFrame, index);
+    if (bannerIndex.pluginDisclaimers.length > 0) {
+      return getSingleCandidate(bannerIndex.pluginDisclaimers);
     }
-    return findHeuristicDisclaimer(bannerFrame);
+    return getSingleCandidate(bannerIndex.heuristicDisclaimers);
   }
-  function bannerHasDisclaimerCandidates(bannerFrame) {
-    return collectPluginCreatedDisclaimers(bannerFrame).length > 0 || collectHeuristicDisclaimers(bannerFrame).length > 0;
+  function bannerHasDisclaimerCandidates(bannerFrame, index) {
+    const bannerIndex = getIndex(bannerFrame, index);
+    return bannerIndex.pluginDisclaimers.length > 0 || bannerIndex.heuristicDisclaimers.length > 0;
   }
-  function isProbableBannerSelectionFrame(selectedFrame, containingBannerFrame) {
+  function isProbableBannerSelectionFrame(selectedFrame, containingBannerFrame, index) {
     if (isPluginCreatedDisclaimerCandidate(selectedFrame)) {
       return false;
     }
-    if (hasHeuristicDisclaimerName(selectedFrame) && !bannerHasDisclaimerCandidates(selectedFrame)) {
+    if (hasHeuristicDisclaimerName(selectedFrame) && !bannerHasDisclaimerCandidates(selectedFrame, index)) {
       return false;
     }
     if (!containingBannerFrame) {
@@ -894,11 +916,16 @@
     const selectedArea = selectedFrame.width * selectedFrame.height;
     return selectedArea / containingArea >= MIN_BANNER_SELECTION_AREA_RATIO;
   }
-  function findDetectedDisclaimerForBannerSelection(selectedFrame, containingBannerFrame) {
-    if (!isProbableBannerSelectionFrame(selectedFrame, containingBannerFrame)) {
+  function findDetectedDisclaimerForBannerSelection(selectedFrame, containingBannerFrame, index) {
+    const selectedFrameIndex = getIndex(selectedFrame, index);
+    if (!isProbableBannerSelectionFrame(
+      selectedFrame,
+      containingBannerFrame,
+      selectedFrameIndex
+    )) {
       return null;
     }
-    return findDetectedDisclaimer(selectedFrame);
+    return findDetectedDisclaimer(selectedFrame, selectedFrameIndex);
   }
   function findMatchingDisclaimer(bannerFrame, assetKey) {
     let result = null;
@@ -1096,12 +1123,12 @@
     );
     const node = createDisclaimerNode(assetGroupKey, variant, presetKey);
     try {
-      return placeDisclaimerOverImage({
+      return placeDisclaimerAtOverlayFrame({
         bannerFrame,
         node,
         assetGroupKey,
         presetKey,
-        targetPercent
+        overlayFrame
       });
     } catch (err) {
       node.remove();
@@ -1268,8 +1295,8 @@
       presets: DISCLAIMER_PRESETS
     };
   }
-  function buildBannerWithoutResolvedDisclaimerState(bannerFrame) {
-    return bannerHasDisclaimerCandidates(bannerFrame) ? buildDetectionInfoState() : buildAddMissingState(bannerFrame);
+  function buildBannerWithoutResolvedDisclaimerState(bannerFrame, index) {
+    return bannerHasDisclaimerCandidates(bannerFrame, index) ? buildDetectionInfoState() : buildAddMissingState(bannerFrame);
   }
   function buildResizeState(disclaimerNode, bannerFrame) {
     const disclaimerArea = disclaimerNode.width * disclaimerNode.height;
@@ -1332,12 +1359,14 @@
           presets: DISCLAIMER_PRESETS
         };
       }
+      const selectionIndex = buildBannerDisclaimerIndex(sceneNode);
       const detectedDisclaimer = findDetectedDisclaimerForBannerSelection(
         sceneNode,
-        null
+        null,
+        selectionIndex
       );
       if (!detectedDisclaimer) {
-        return buildBannerWithoutResolvedDisclaimerState(sceneNode);
+        return buildBannerWithoutResolvedDisclaimerState(sceneNode, selectionIndex);
       }
       return buildResizeState(detectedDisclaimer, sceneNode);
     }
@@ -1367,9 +1396,11 @@
     }
     const containingBannerFrame = isFrameLike(sceneNode) ? findBannerFrame(sceneNode) : null;
     if (isFrameLike(sceneNode)) {
+      const selectionIndex = buildBannerDisclaimerIndex(sceneNode);
       const detectedDisclaimer = findDetectedDisclaimerForBannerSelection(
         sceneNode,
-        containingBannerFrame
+        containingBannerFrame,
+        selectionIndex
       );
       if (detectedDisclaimer) {
         const bannerFrame2 = containingBannerFrame || sceneNode;
@@ -1385,8 +1416,12 @@
         }
         return buildResizeState(detectedDisclaimer, bannerFrame2);
       }
-      if (isProbableBannerSelectionFrame(sceneNode, containingBannerFrame)) {
-        return buildBannerWithoutResolvedDisclaimerState(sceneNode);
+      if (isProbableBannerSelectionFrame(
+        sceneNode,
+        containingBannerFrame,
+        selectionIndex
+      )) {
+        return buildBannerWithoutResolvedDisclaimerState(sceneNode, selectionIndex);
       }
     }
     const bannerFrame = containingBannerFrame || findBannerFrame(sceneNode);
@@ -1614,13 +1649,15 @@
       let resizeNode = null;
       let bannerFrame = findBannerFrame(selectedNode);
       if (isFrameLike(selectedNode)) {
+        const selectionIndex = buildBannerDisclaimerIndex(selectedNode);
         resizeNode = findDetectedDisclaimerForBannerSelection(
           selectedNode,
-          bannerFrame
+          bannerFrame,
+          selectionIndex
         );
         if (resizeNode) {
           bannerFrame = bannerFrame || selectedNode;
-        } else if (isProbableBannerSelectionFrame(selectedNode, bannerFrame)) {
+        } else if (isProbableBannerSelectionFrame(selectedNode, bannerFrame, selectionIndex)) {
           postError(BANNER_DISCLAIMER_DETECTION_ERROR);
           return;
         }
@@ -1662,10 +1699,25 @@
     });
     selectAndReport(result.node, resultMessage);
   }
+  figma.skipInvisibleInstanceChildren = true;
   figma.showUI(__html__, { width: 384, height: 776 });
   sendState();
+  var SELECTION_REFRESH_DEBOUNCE_MS = 80;
+  var selectionRefreshTimer = null;
+  var selectionRefreshQueued = false;
   figma.on("selectionchange", () => {
+    if (selectionRefreshTimer !== null) {
+      selectionRefreshQueued = true;
+      return;
+    }
     sendState();
+    selectionRefreshTimer = setTimeout(() => {
+      selectionRefreshTimer = null;
+      if (selectionRefreshQueued) {
+        selectionRefreshQueued = false;
+        sendState();
+      }
+    }, SELECTION_REFRESH_DEBOUNCE_MS);
   });
   figma.ui.on("message", (rawMessage) => {
     const msg = parseUiMessage(rawMessage);

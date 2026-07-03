@@ -207,12 +207,14 @@ export function addDisclaimerToImage(params: {
   const node = createDisclaimerNode(assetGroupKey, variant, presetKey);
 
   try {
-    return placeDisclaimerOverImage({
+    // The overlay frame is already computed above (also validating that the
+    // banner has an image), so place directly instead of recomputing it.
+    return placeDisclaimerAtOverlayFrame({
       bannerFrame,
       node,
       assetGroupKey,
       presetKey,
-      targetPercent,
+      overlayFrame,
     });
   } catch (err) {
     node.remove();
