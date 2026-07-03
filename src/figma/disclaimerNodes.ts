@@ -1,5 +1,6 @@
-import { DISCLAIMER_ASSETS } from "../generatedDisclaimerAssets";
-import type { DisclaimerAsset } from "../core/types";
+import type { DisclaimerAsset } from "../generatedDisclaimerAssets";
+import { getCopy } from "../core/copy";
+import { ASSET_GROUP_KEYS } from "../core/presets";
 import {
   copyLayoutChildSettings,
   setLayoutSizingFixed,
@@ -58,7 +59,7 @@ export function resizeSvgNodeToFrame(
   prepareSvgNodeForDeformation(node);
 
   if (!("resize" in node) || typeof node.resize !== "function") {
-    throw new Error("Не удалось изменить дисклеймер.");
+    throw new Error(getCopy("plugin.errors.disclaimerChangeFailed"));
   }
 
   (node as ResizableNode & { resize: (w: number, h: number) => void }).resize(
@@ -69,10 +70,10 @@ export function resizeSvgNodeToFrame(
 
 export function markDisclaimerNode(
   node: BaseNode,
-  asset: DisclaimerAsset,
+  assetGroupKey: string,
   presetKey: string
 ): void {
-  node.setSharedPluginData(PLUGIN_DATA_NAMESPACE, PLUGIN_DATA_ASSET_KEY, asset.key);
+  node.setSharedPluginData(PLUGIN_DATA_NAMESPACE, PLUGIN_DATA_ASSET_KEY, assetGroupKey);
   node.setSharedPluginData(
     PLUGIN_DATA_NAMESPACE,
     PLUGIN_DATA_PRESET_KEY,
@@ -339,13 +340,37 @@ export function findDetectedDisclaimer(
   return findHeuristicDisclaimer(bannerFrame);
 }
 
+/**
+ * Whether the banner contains any disclaimer-like node at all (plugin-created
+ * or matched by heuristic), regardless of whether a single one can be resolved.
+ * Lets callers tell "no disclaimer → offer to add one" apart from "disclaimers
+ * exist but are ambiguous → ask to pick manually".
+ */
+export function bannerHasDisclaimerCandidates(
+  bannerFrame: BannerFrame
+): boolean {
+  return (
+    collectPluginCreatedDisclaimers(bannerFrame).length > 0 ||
+    collectHeuristicDisclaimers(bannerFrame).length > 0
+  );
+}
+
 export function isProbableBannerSelectionFrame(
   selectedFrame: BannerFrame,
   containingBannerFrame: BannerFrame | null
 ): boolean {
+  if (isPluginCreatedDisclaimerCandidate(selectedFrame)) {
+    return false;
+  }
+
+  // A disclaimer-like NAME alone must not disqualify a frame from being a
+  // banner. "Создать все варианты" names each duplicate after the asset label
+  // (e.g. "Ad Container — Не является лекарством"), which matches the heuristic
+  // keyword list. Treat the frame as the disclaimer itself only when it has
+  // such a name AND holds no disclaimer inside it.
   if (
-    isPluginCreatedDisclaimerCandidate(selectedFrame) ||
-    hasHeuristicDisclaimerName(selectedFrame)
+    hasHeuristicDisclaimerName(selectedFrame) &&
+    !bannerHasDisclaimerCandidates(selectedFrame)
   ) {
     return false;
   }
@@ -396,9 +421,7 @@ export function isKnownDisclaimerNode(node: SceneNode): boolean {
     return true;
   }
 
-  return Object.keys(DISCLAIMER_ASSETS).some((assetKey) =>
-    node.name.includes(assetKey)
-  );
+  return ASSET_GROUP_KEYS.some((assetGroupKey) => node.name.includes(assetGroupKey));
 }
 
 export function removeKnownDisclaimers(bannerFrame: BannerFrame): void {
@@ -416,18 +439,19 @@ export function removeKnownDisclaimers(bannerFrame: BannerFrame): void {
 }
 
 export function createDisclaimerNode(
-  asset: DisclaimerAsset,
+  assetGroupKey: string,
+  variant: DisclaimerAsset,
   presetKey: string
 ): ResizableNode {
-  const node = figma.createNodeFromSvg(asset.svg);
-  node.name = "Дисклеймер — " + asset.label;
+  const node = figma.createNodeFromSvg(variant.svg);
+  node.name = "Дисклеймер — " + assetGroupKey;
 
   if (!isResizable(node)) {
     node.remove();
-    throw new Error("Этот дисклеймер нельзя изменить в размере.");
+    throw new Error(getCopy("plugin.errors.disclaimerNotResizable"));
   }
 
-  markDisclaimerNode(node, asset, presetKey);
+  markDisclaimerNode(node, assetGroupKey, presetKey);
   setLayoutSizingFixed(node, "proportional");
   prepareSvgNodeForDeformation(node);
 
@@ -436,18 +460,19 @@ export function createDisclaimerNode(
 
 export function replaceGeneratedDisclaimerNode(params: {
   node: ResizableNode;
-  asset: DisclaimerAsset;
+  assetGroupKey: string;
+  variant: DisclaimerAsset;
   presetKey: string;
   newWidth: number;
   newHeight: number;
 }): ResizableNode {
-  const { node, asset, presetKey, newWidth, newHeight } = params;
+  const { node, assetGroupKey, variant, presetKey, newWidth, newHeight } = params;
   const parent = node.parent;
 
   if (!canInsertChildren(parent)) return node;
 
   const index = parent.children.indexOf(node);
-  const replacement = createDisclaimerNode(asset, presetKey);
+  const replacement = createDisclaimerNode(assetGroupKey, variant, presetKey);
 
   try {
     copyLayoutChildSettings(node, replacement);

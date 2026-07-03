@@ -1,21 +1,27 @@
 import { round2 } from "../core/geometry";
-import { DISCLAIMER_PRESETS } from "../core/presets";
+import { formatCopy, getCopy } from "../core/copy";
+import { DISCLAIMER_PRESETS, detectPresetKeyForDisclaimer } from "../core/presets";
 import {
   findBannerFrame,
   isTopLevelFrame,
   nodeHasAutoLayout,
 } from "../figma/bannerDetection";
 import {
+  bannerHasDisclaimerCandidates,
   findContainingDisclaimerForSelection,
   findDetectedDisclaimerForBannerSelection,
   isProbableBannerSelectionFrame,
+  PLUGIN_DATA_ASSET_KEY,
+  PLUGIN_DATA_NAMESPACE,
+  PLUGIN_DATA_PRESET_KEY,
 } from "../figma/disclaimerNodes";
 import { isFrameLike, isResizable } from "../figma/nodeGuards";
 import type { BannerFrame, ResizableNode } from "../figma/nodeGuards";
 import type { PluginState } from "../ui/messages";
 
-export const BANNER_DISCLAIMER_DETECTION_ERROR =
-  "Дисклеймер не найден. Выделите слой с дисклеймером вручную.";
+export const BANNER_DISCLAIMER_DETECTION_ERROR = getCopy(
+  "plugin.errors.bannerDisclaimerDetection"
+);
 
 function buildDetectionInfoState(): PluginState {
   return {
@@ -26,13 +32,59 @@ function buildDetectionInfoState(): PluginState {
   };
 }
 
+function buildAddMissingState(bannerFrame: BannerFrame): PluginState {
+  return {
+    type: "ready",
+    info: {
+      mode: "add-missing",
+      disclaimerName: null,
+      disclaimerWidth: null,
+      disclaimerHeight: null,
+      bannerName: bannerFrame.name,
+      bannerWidth: round2(bannerFrame.width),
+      bannerHeight: round2(bannerFrame.height),
+      currentPercent: null,
+      detectedPresetKey: null,
+      isText: false,
+      hasAutoLayout: nodeHasAutoLayout(bannerFrame),
+    },
+    presets: DISCLAIMER_PRESETS,
+  };
+}
+
+/**
+ * For a frame the user selected as a banner, decide between offering to add a
+ * disclaimer (none present) and asking to pick one manually (present but
+ * ambiguous / not auto-resolvable).
+ */
+function buildBannerWithoutResolvedDisclaimerState(
+  bannerFrame: BannerFrame
+): PluginState {
+  return bannerHasDisclaimerCandidates(bannerFrame)
+    ? buildDetectionInfoState()
+    : buildAddMissingState(bannerFrame);
+}
+
 function buildResizeState(
   disclaimerNode: ResizableNode,
   bannerFrame: BannerFrame
 ): PluginState {
   const disclaimerArea = disclaimerNode.width * disclaimerNode.height;
   const bannerArea = bannerFrame.width * bannerFrame.height;
-  const currentPercent = (disclaimerArea / bannerArea) * 100;
+  const currentPercent = round2((disclaimerArea / bannerArea) * 100);
+
+  const detectedPresetKey = detectPresetKeyForDisclaimer({
+    storedPresetKey: disclaimerNode.getSharedPluginData(
+      PLUGIN_DATA_NAMESPACE,
+      PLUGIN_DATA_PRESET_KEY
+    ),
+    storedAssetKey: disclaimerNode.getSharedPluginData(
+      PLUGIN_DATA_NAMESPACE,
+      PLUGIN_DATA_ASSET_KEY
+    ),
+    nodeName: disclaimerNode.name,
+    currentPercent,
+  });
 
   return {
     type: "ready",
@@ -44,7 +96,8 @@ function buildResizeState(
       bannerName: bannerFrame.name,
       bannerWidth: round2(bannerFrame.width),
       bannerHeight: round2(bannerFrame.height),
-      currentPercent: round2(currentPercent),
+      currentPercent,
+      detectedPresetKey,
       isText: disclaimerNode.type === "TEXT",
       hasAutoLayout: nodeHasAutoLayout(disclaimerNode),
     },
@@ -58,8 +111,8 @@ export function buildState(selection: readonly SceneNode[]): PluginState {
       type: selection.length === 0 ? "no-selection" : "invalid",
       error:
         selection.length === 0
-          ? "Выделите один слой с дисклеймером или баннерный фрейм."
-          : "Выделите только один слой.",
+          ? getCopy("plugin.errors.selectOneLayer")
+          : getCopy("plugin.errors.selectOnlyOneLayer"),
       presets: DISCLAIMER_PRESETS,
     };
   }
@@ -70,7 +123,7 @@ export function buildState(selection: readonly SceneNode[]): PluginState {
     if (sceneNode.locked) {
       return {
         type: "invalid",
-        error: "Баннер заблокирован. Разблокируйте его и попробуйте ещё раз.",
+        error: getCopy("plugin.errors.bannerLocked"),
         presets: DISCLAIMER_PRESETS,
       };
     }
@@ -78,7 +131,10 @@ export function buildState(selection: readonly SceneNode[]): PluginState {
     if (sceneNode.width <= 0 || sceneNode.height <= 0) {
       return {
         type: "invalid",
-        error: `Размер баннера должен быть больше нуля: ${sceneNode.width}×${sceneNode.height}`,
+        error: formatCopy("plugin.errors.bannerSizeZero", {
+          width: sceneNode.width,
+          height: sceneNode.height,
+        }),
         presets: DISCLAIMER_PRESETS,
       };
     }
@@ -89,7 +145,7 @@ export function buildState(selection: readonly SceneNode[]): PluginState {
     );
 
     if (!detectedDisclaimer) {
-      return buildDetectionInfoState();
+      return buildBannerWithoutResolvedDisclaimerState(sceneNode);
     }
 
     return buildResizeState(detectedDisclaimer, sceneNode);
@@ -98,7 +154,7 @@ export function buildState(selection: readonly SceneNode[]): PluginState {
   if (!isResizable(sceneNode)) {
     return {
       type: "invalid",
-      error: "Этот слой нельзя изменить в размере. Выделите слой с дисклеймером или баннер.",
+      error: getCopy("plugin.errors.layerNotResizable"),
       presets: DISCLAIMER_PRESETS,
     };
   }
@@ -106,7 +162,7 @@ export function buildState(selection: readonly SceneNode[]): PluginState {
   if (sceneNode.locked) {
     return {
       type: "invalid",
-      error: "Слой заблокирован. Разблокируйте его и попробуйте ещё раз.",
+      error: getCopy("plugin.errors.layerLocked"),
       presets: DISCLAIMER_PRESETS,
     };
   }
@@ -114,7 +170,10 @@ export function buildState(selection: readonly SceneNode[]): PluginState {
   if (sceneNode.width <= 0 || sceneNode.height <= 0) {
     return {
       type: "invalid",
-      error: `Размер дисклеймера должен быть больше нуля: ${sceneNode.width}×${sceneNode.height}`,
+      error: formatCopy("plugin.errors.disclaimerSizeZero", {
+        width: sceneNode.width,
+        height: sceneNode.height,
+      }),
       presets: DISCLAIMER_PRESETS,
     };
   }
@@ -134,7 +193,10 @@ export function buildState(selection: readonly SceneNode[]): PluginState {
       if (bannerFrame.width <= 0 || bannerFrame.height <= 0) {
         return {
           type: "invalid",
-          error: `Размер баннера должен быть больше нуля: ${bannerFrame.width}×${bannerFrame.height}`,
+          error: formatCopy("plugin.errors.bannerSizeZero", {
+            width: bannerFrame.width,
+            height: bannerFrame.height,
+          }),
           presets: DISCLAIMER_PRESETS,
         };
       }
@@ -142,7 +204,7 @@ export function buildState(selection: readonly SceneNode[]): PluginState {
     }
 
     if (isProbableBannerSelectionFrame(sceneNode, containingBannerFrame)) {
-      return buildDetectionInfoState();
+      return buildBannerWithoutResolvedDisclaimerState(sceneNode);
     }
   }
 
@@ -162,7 +224,7 @@ export function buildState(selection: readonly SceneNode[]): PluginState {
   if (!bannerFrame) {
     return {
       type: "invalid",
-      error: "Выделите слой с дисклеймером внутри баннера или сам баннер.",
+      error: getCopy("plugin.errors.selectDisclaimerOrBanner"),
       presets: DISCLAIMER_PRESETS,
     };
   }
@@ -170,7 +232,10 @@ export function buildState(selection: readonly SceneNode[]): PluginState {
   if (bannerFrame.width <= 0 || bannerFrame.height <= 0) {
     return {
       type: "invalid",
-      error: `Размер баннера должен быть больше нуля: ${bannerFrame.width}×${bannerFrame.height}`,
+      error: formatCopy("plugin.errors.bannerSizeZero", {
+        width: bannerFrame.width,
+        height: bannerFrame.height,
+      }),
       presets: DISCLAIMER_PRESETS,
     };
   }

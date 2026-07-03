@@ -23,6 +23,12 @@ export interface SelectionInfo {
   bannerWidth: number;
   bannerHeight: number;
   currentPercent: number | null;
+  /**
+   * Best-effort guess of which preset key an already-detected disclaimer
+   * matches (by stored plugin data or by name/percent heuristics). `null`
+   * when no confident guess is available. Always `null` in `add-missing` mode.
+   */
+  detectedPresetKey: string | null;
   isText: boolean;
   hasAutoLayout: boolean;
 }

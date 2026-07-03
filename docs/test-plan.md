@@ -47,8 +47,7 @@ plus a single `apply-resize` action from the UI.
 
 **User input (UI):**
 
-- Preset dropdown (`presetKey`) — fixed presets or `custom`.
-- Custom percent (`customInput`) — accepts `,`/`.`, validated `0 < p <= 100`.
+- Preset dropdown (`presetKey`) — 4 fixed presets: БАД (10%), Медицина (7%), Кредит или заём (10%), Банкротство (10%).
 - `Поверх изображения` checkbox → `addTarget: "image" | "body"`.
 - `Создать все варианты` checkbox → `createAll`.
 - Apply button → posts `apply-resize`.

@@ -26,6 +26,7 @@ test("source modules and agent documentation are present", async () => {
   const expectedFiles = [
     "src/plugin.ts",
     "src/core/geometry.ts",
+    "src/core/copy.ts",
     "src/core/presets.ts",
     "src/core/types.ts",
     "src/figma/nodeGuards.ts",
@@ -56,6 +57,16 @@ test("module docs describe responsibilities and safe-change rules in English", a
   }
 });
 
+test("generated copy module exports typed copy for bundled modules", async () => {
+  const generated = await readFile("src/generatedCopy.ts", "utf8");
+  const yaml = await readFile("copy/ru.yml", "utf8");
+
+  assert.match(generated, /export const COPY = \{/);
+  assert.match(generated, /export type CopyTree/);
+  assert.match(yaml, /ui:/);
+  assert.match(yaml, /plugin:/);
+});
+
 test("generated asset module exports typed assets for bundled modules", async () => {
   const generated = await readFile("src/generatedDisclaimerAssets.ts", "utf8");
 
@@ -69,7 +80,7 @@ test("UI renders undetected-disclaimer feedback as fixed-height info message", a
   const slotRule = uiHtml.match(/\.feedback-slot\s*\{[\s\S]*?\}/);
 
   assert.ok(slotRule, "expected feedback slot CSS rule");
-  assert.match(slotRule[0], /min-height:\s*152px/);
+  assert.match(slotRule[0], /min-height:\s*80px/);
   assert.match(uiHtml, /\.info-box/);
   assert.match(uiHtml, /id="infoMsg"/);
   assert.match(uiHtml, /function showInfo/);
@@ -78,12 +89,7 @@ test("UI renders undetected-disclaimer feedback as fixed-height info message", a
 
 test("visible Russian copy avoids technical wording", async () => {
   const visibleCopySources = [
-    "src/plugin.ts",
-    "src/figma/disclaimerNodes.ts",
-    "src/state/selectionState.ts",
-    "src/features/addMissing.ts",
-    "src/features/createAllVariants.ts",
-    "src/features/resizeExisting.ts",
+    "copy/ru.yml",
     "src/ui.html",
   ];
   const forbiddenFragments = [
@@ -113,6 +119,6 @@ test("visible Russian copy avoids technical wording", async () => {
 test("new generated disclaimer layers use Russian naming", async () => {
   const source = await readFile("src/figma/disclaimerNodes.ts", "utf8");
 
-  assert.match(source, /node\.name = "Дисклеймер — " \+ asset\.label/);
+  assert.match(source, /node\.name = "Дисклеймер — " \+ assetGroupKey/);
   assert.match(source, /node\.name\.startsWith\("Disclaimer — "\)/);
 });

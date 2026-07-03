@@ -1,5 +1,7 @@
 import { calcActualPercent, calcNewDimensions, round2 } from "../core/geometry";
-import type { DisclaimerAsset, ResizeDirection, ResizeOutcome } from "../core/types";
+import { getCopy } from "../core/copy";
+import { pickBestAssetVariant } from "../core/presets";
+import type { ResizeDirection, ResizeOutcome } from "../core/types";
 import {
   isPluginGeneratedDisclaimer,
   markDisclaimerNode,
@@ -15,7 +17,7 @@ export function resizeExistingDisclaimer(params: {
   targetPercent: number;
   direction: ResizeDirection;
   onlyEnlarge: boolean;
-  asset: DisclaimerAsset;
+  assetGroupKey: string;
   presetKey: string;
 }): ResizeOutcome<ResizableNode> {
   const {
@@ -24,12 +26,12 @@ export function resizeExistingDisclaimer(params: {
     targetPercent,
     direction,
     onlyEnlarge,
-    asset,
+    assetGroupKey,
     presetKey,
   } = params;
 
   if (node.locked) {
-    throw new Error("Слой заблокирован. Разблокируйте его и попробуйте ещё раз.");
+    throw new Error(getCopy("plugin.errors.layerLocked"));
   }
 
   const currentPercent = calcActualPercent(
@@ -38,7 +40,7 @@ export function resizeExistingDisclaimer(params: {
     bannerFrame.height
   );
   const shouldRefreshGeneratedSvg =
-    node.type !== "TEXT" && isPluginGeneratedDisclaimer(node, asset.key);
+    node.type !== "TEXT" && isPluginGeneratedDisclaimer(node, assetGroupKey);
 
   if (onlyEnlarge && currentPercent >= targetPercent && !shouldRefreshGeneratedSvg) {
     return { node, actualPercent: round2(currentPercent) };
@@ -65,7 +67,8 @@ export function resizeExistingDisclaimer(params: {
   const resizedNode = shouldRefreshGeneratedSvg
     ? replaceGeneratedDisclaimerNode({
         node,
-        asset,
+        assetGroupKey,
+        variant: pickBestAssetVariant(assetGroupKey, newWidth, newHeight),
         presetKey,
         newWidth,
         newHeight,
@@ -75,13 +78,13 @@ export function resizeExistingDisclaimer(params: {
   if (!shouldRefreshGeneratedSvg) {
     if (node.type === "TEXT") {
       if (typeof node.resizeWithoutConstraints !== "function") {
-        throw new Error("Не удалось изменить текстовый дисклеймер.");
+        throw new Error(getCopy("plugin.errors.textDisclaimerChangeFailed"));
       }
       node.resizeWithoutConstraints(newWidth, newHeight);
     } else {
       resizeSvgNodeToFrame(node, newWidth, newHeight);
     }
-    markDisclaimerNode(node, asset, presetKey);
+    markDisclaimerNode(node, assetGroupKey, presetKey);
   }
 
   return {

@@ -36,11 +36,11 @@ Then in Figma: **Plugins → Development → Import plugin from manifest…** an
 
 ## C. Core actions
 
+- [ ] Preset dropdown shows the 4 active presets: БАД, Медицина, Кредит или
+      заём, Банкротство.
+- [ ] There is no custom percent input in the current UI.
 - [ ] Resize an existing disclaimer to each preset; result matches the reported
       `width×height` and `%` and visually lands at the expected area.
-- [ ] **Custom percent**: enter a valid value (e.g. `7,5`) → applies; the window
-      grows to show the percent field.
-- [ ] Custom percent `0`, `>100`, empty → inline validation error, no change.
 - [ ] **Add to body** (`Поверх изображения` off) → disclaimer lands in the text
       container.
 - [ ] **Add over image** (`Поверх изображения` on) → disclaimer pinned to the
@@ -79,12 +79,11 @@ Then in Figma: **Plugins → Development → Import plugin from manifest…** an
 
 - [ ] Repeat sections B–C in **Figma Web**.
 - [ ] UI fonts/spacing/scroll look correct in both.
-- [ ] Window resize on custom-percent toggle behaves the same in both.
+- [ ] UI layout and fonts look correct in both.
 
 ## H. Accessibility / keyboard
 
-- [ ] Tab order: preset select → custom field (when visible) → checkboxes →
-      Apply.
+- [ ] Tab order: preset trigger → checkboxes → Apply.
 - [ ] The preset can be changed with the keyboard.
 - [ ] Apply can be triggered with Enter/Space when focused.
 - [ ] Focus is visible on each control.

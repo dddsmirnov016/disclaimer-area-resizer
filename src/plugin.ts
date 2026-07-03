@@ -1,7 +1,8 @@
 /// <reference types="@figma/plugin-typings" />
 
 import { round2 } from "./core/geometry";
-import { getPresetAndAsset, getTargetPercent } from "./core/presets";
+import { formatCopy, getCopy, pluralizeVariantWord } from "./core/copy";
+import { getPresetAndAssetGroup, getTargetPercent } from "./core/presets";
 import { addDisclaimerToBody, addDisclaimerToImage, placeDisclaimerOverImage } from "./features/addMissing";
 import { createAllDisclaimerVariants } from "./features/createAllVariants";
 import { resizeExistingDisclaimer } from "./features/resizeExisting";
@@ -34,17 +35,6 @@ function postSuccess(message: string): void {
   figma.ui.postMessage({ type: "success", message });
 }
 
-function pluralizeRu(n: number, one: string, few: string, many: string): string {
-  const abs = Math.abs(n);
-  const mod100 = abs % 100;
-  const mod10 = abs % 10;
-
-  if (mod100 >= 11 && mod100 <= 14) return many;
-  if (mod10 === 1) return one;
-  if (mod10 >= 2 && mod10 <= 4) return few;
-  return many;
-}
-
 function formatRuNumber(n: number): string {
   const rounded = round2(n);
   const sign = rounded < 0 ? "−" : "";
@@ -70,11 +60,11 @@ function toUserErrorMessage(err: unknown): string {
   );
 
   if (instanceOverridePattern.test(rawMessage)) {
-    return "Нельзя изменить слой внутри инстанса. Отсоедините инстанс или выберите главный компонент.";
+    return getCopy("plugin.errors.instanceOverride");
   }
 
   if (!/[А-Яа-яЁё]/.test(rawMessage)) {
-    return "Не удалось применить изменения. Выберите редактируемый слой и попробуйте ещё раз.";
+    return getCopy("plugin.errors.applyFailed");
   }
 
   return rawMessage;
@@ -91,14 +81,14 @@ function handleApplyResize(msg: Extract<UiMessage, { type: "apply-resize" }>): v
   const state = buildState(figma.currentPage.selection);
 
   if (state.type !== "ready" || !state.info) {
-    postError(state.error !== undefined ? state.error : "Выделите слой.");
+    postError(state.error !== undefined ? state.error : getCopy("plugin.errors.selectLayer"));
     return;
   }
 
   const selection = figma.currentPage.selection;
 
   if (selection.length !== 1) {
-    postError("Выделение изменилось. Попробуйте ещё раз.");
+    postError(getCopy("plugin.errors.selectionChanged"));
     return;
   }
 
@@ -106,7 +96,7 @@ function handleApplyResize(msg: Extract<UiMessage, { type: "apply-resize" }>): v
 
   if (state.info.mode === "add-missing" && msg.createAll) {
     if (!isFrameLike(selectedNode)) {
-      postError("Выделите баннерный фрейм.");
+      postError(getCopy("plugin.errors.selectBannerFrame"));
       return;
     }
 
@@ -114,10 +104,10 @@ function handleApplyResize(msg: Extract<UiMessage, { type: "apply-resize" }>): v
       bannerFrame: selectedNode,
       addTarget: msg.addTarget,
     });
-    const resultMessage =
-      `Создали ${formatRuNumber(created.count)} ` +
-      pluralizeRu(created.count, "вариант", "варианта", "вариантов") +
-      ".";
+    const resultMessage = formatCopy("plugin.messages.variantsCreated", {
+      count: formatRuNumber(created.count),
+      variantWord: pluralizeVariantWord(created.count),
+    });
 
     figma.currentPage.selection = [selectedNode];
     figma.notify(resultMessage, { timeout: 4000 });
@@ -126,40 +116,40 @@ function handleApplyResize(msg: Extract<UiMessage, { type: "apply-resize" }>): v
     return;
   }
 
-  const presetAndAsset = getPresetAndAsset(msg.presetKey);
-  if (!presetAndAsset) {
-    postError("Для выбранного типа нет дисклеймера.");
+  const presetAndAssetGroup = getPresetAndAssetGroup(msg.presetKey);
+  if (!presetAndAssetGroup) {
+    postError(getCopy("plugin.errors.noDisclaimerForPreset"));
     return;
   }
 
   const targetPercent = getTargetPercent(msg.presetKey, msg.customPercent);
   if (targetPercent === null) {
-    postError("Укажите процент больше 0 и не больше 100.");
+    postError(getCopy("plugin.errors.invalidPercent"));
     return;
   }
 
-  const { asset } = presetAndAsset;
+  const { assetGroupKey } = presetAndAssetGroup;
   let result: { node: ResizableNode; actualPercent: number };
-  let actionLabel = "Применено";
+  let actionLabel = getCopy("plugin.actions.applied");
 
   if (state.info.mode === "add-missing") {
     if (!isFrameLike(selectedNode)) {
-      postError("Выделите баннерный фрейм.");
+      postError(getCopy("plugin.errors.selectBannerFrame"));
       return;
     }
 
-    const existingDisclaimer = findMatchingDisclaimer(selectedNode, asset.key);
+    const existingDisclaimer = findMatchingDisclaimer(selectedNode, assetGroupKey);
 
     if (existingDisclaimer) {
       if (msg.addTarget === "image") {
         result = placeDisclaimerOverImage({
           bannerFrame: selectedNode,
           node: existingDisclaimer,
-          asset,
+          assetGroupKey,
           presetKey: msg.presetKey,
           targetPercent,
         });
-        actionLabel = "Перенесено";
+        actionLabel = getCopy("plugin.actions.moved");
       } else {
         result = resizeExistingDisclaimer({
           node: existingDisclaimer,
@@ -167,7 +157,7 @@ function handleApplyResize(msg: Extract<UiMessage, { type: "apply-resize" }>): v
           targetPercent,
           direction: msg.direction,
           onlyEnlarge: msg.onlyEnlarge,
-          asset,
+          assetGroupKey,
           presetKey: msg.presetKey,
         });
       }
@@ -176,17 +166,17 @@ function handleApplyResize(msg: Extract<UiMessage, { type: "apply-resize" }>): v
         msg.addTarget === "image"
           ? addDisclaimerToImage({
               bannerFrame: selectedNode,
-              asset,
+              assetGroupKey,
               presetKey: msg.presetKey,
               targetPercent,
             })
           : addDisclaimerToBody({
               bannerFrame: selectedNode,
-              asset,
+              assetGroupKey,
               presetKey: msg.presetKey,
               targetPercent,
             });
-      actionLabel = "Добавлено";
+      actionLabel = getCopy("plugin.actions.added");
     }
   } else {
     let resizeNode: ResizableNode | null = null;
@@ -221,13 +211,13 @@ function handleApplyResize(msg: Extract<UiMessage, { type: "apply-resize" }>): v
       postError(
         isFrameLike(selectedNode)
           ? BANNER_DISCLAIMER_DETECTION_ERROR
-          : "Этот слой нельзя изменить в размере."
+          : getCopy("plugin.errors.layerNotResizableShort")
       );
       return;
     }
 
     if (!bannerFrame) {
-      postError("Выделите слой с дисклеймером внутри баннера.");
+      postError(getCopy("plugin.errors.selectDisclaimerInBanner"));
       return;
     }
 
@@ -237,25 +227,22 @@ function handleApplyResize(msg: Extract<UiMessage, { type: "apply-resize" }>): v
       targetPercent,
       direction: msg.direction,
       onlyEnlarge: msg.onlyEnlarge,
-      asset,
+      assetGroupKey,
       presetKey: msg.presetKey,
     });
   }
 
-  const resultMessage =
-    actionLabel +
-    ": " +
-    formatRuNumber(result.node.width) +
-    "×" +
-    formatRuNumber(result.node.height) +
-    " px — " +
-    formatRuPercent(result.actualPercent) +
-    " площади баннера";
+  const resultMessage = formatCopy("plugin.messages.resizeResult", {
+    action: actionLabel,
+    width: formatRuNumber(result.node.width),
+    height: formatRuNumber(result.node.height),
+    percent: formatRuPercent(result.actualPercent),
+  });
 
   selectAndReport(result.node, resultMessage);
 }
 
-figma.showUI(__html__, { width: 432, height: 776 });
+figma.showUI(__html__, { width: 384, height: 776 });
 
 sendState();
 

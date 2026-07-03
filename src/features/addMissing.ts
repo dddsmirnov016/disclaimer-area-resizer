@@ -3,7 +3,9 @@ import {
   calcAreaWithWidth,
   calcImageOverlayFrame,
 } from "../core/geometry";
-import type { DisclaimerAsset, ResizeOutcome } from "../core/types";
+import { getCopy } from "../core/copy";
+import { pickBestAssetVariant } from "../core/presets";
+import type { ResizeOutcome } from "../core/types";
 import { findBodyContainer, findMainImageNode } from "../figma/bannerDetection";
 import {
   createDisclaimerNode,
@@ -18,36 +20,41 @@ import {
 } from "../figma/layout";
 import type { BannerFrame, ResizableNode } from "../figma/nodeGuards";
 import { getRelativeBoundsFromAbsolute } from "../figma/traversal";
+import type { Bounds } from "../core/types";
 
 export function addDisclaimerToBody(params: {
   bannerFrame: BannerFrame;
-  asset: DisclaimerAsset;
+  assetGroupKey: string;
   presetKey: string;
   targetPercent: number;
 }): ResizeOutcome<ResizableNode> {
-  const { bannerFrame, asset, presetKey, targetPercent } = params;
+  const { bannerFrame, assetGroupKey, presetKey, targetPercent } = params;
   const bodyContainer = findBodyContainer(bannerFrame);
 
   if (!bodyContainer) {
-    throw new Error(
-      "В баннере не найден текстовый контейнер. Выберите «Поверх изображения» или добавьте контейнер с текстом."
-    );
+    return addDisclaimerToBannerBottom({
+      bannerFrame,
+      assetGroupKey,
+      presetKey,
+      targetPercent,
+    });
   }
 
   const padding = getAutoLayoutPadding(bodyContainer);
   const contentWidth = bodyContainer.width - padding.left - padding.right;
 
   if (contentWidth <= 0) {
-    throw new Error("В текстовом контейнере нет места для дисклеймера.");
+    throw new Error(getCopy("plugin.errors.noBodySpace"));
   }
 
-  const node = createDisclaimerNode(asset, presetKey);
   const { newWidth, newHeight } = calcAreaWithWidth(
     bannerFrame.width,
     bannerFrame.height,
     targetPercent,
     contentWidth
   );
+  const variant = pickBestAssetVariant(assetGroupKey, newWidth, newHeight);
+  const node = createDisclaimerNode(assetGroupKey, variant, presetKey);
 
   try {
     resizeSvgNodeToFrame(node, newWidth, newHeight);
@@ -68,35 +75,37 @@ export function addDisclaimerToBody(params: {
   };
 }
 
-export function placeDisclaimerOverImage(params: {
-  bannerFrame: BannerFrame;
-  node: ResizableNode;
-  asset: DisclaimerAsset;
-  presetKey: string;
-  targetPercent: number;
-}): ResizeOutcome<ResizableNode> {
-  const { bannerFrame, node, asset, presetKey, targetPercent } = params;
-
-  if (node.locked) {
-    throw new Error("Слой заблокирован. Разблокируйте его и попробуйте ещё раз.");
-  }
-
+function computeImageOverlayFrame(
+  bannerFrame: BannerFrame,
+  targetPercent: number
+): Bounds {
   const mainImage = findMainImageNode(bannerFrame);
 
   if (!mainImage) {
-    throw new Error("В баннере не найдено изображение или видео.");
+    throw new Error(getCopy("plugin.errors.noImageOrVideo"));
   }
 
   const mediaBounds = getRelativeBoundsFromAbsolute(
     mainImage.bounds,
     bannerFrame
   );
-  const overlayFrame = calcImageOverlayFrame(
+
+  return calcImageOverlayFrame(
     bannerFrame.width,
     bannerFrame.height,
     targetPercent,
     mediaBounds
   );
+}
+
+function placeDisclaimerAtOverlayFrame(params: {
+  bannerFrame: BannerFrame;
+  node: ResizableNode;
+  assetGroupKey: string;
+  presetKey: string;
+  overlayFrame: Bounds;
+}): ResizeOutcome<ResizableNode> {
+  const { bannerFrame, node, assetGroupKey, presetKey, overlayFrame } = params;
 
   setLayoutSizingFixed(node, "proportional");
   bannerFrame.appendChild(node);
@@ -112,7 +121,7 @@ export function placeDisclaimerOverImage(params: {
     };
   }
 
-  markDisclaimerNode(node, asset, presetKey);
+  markDisclaimerNode(node, assetGroupKey, presetKey);
 
   return {
     node,
@@ -124,20 +133,84 @@ export function placeDisclaimerOverImage(params: {
   };
 }
 
-export function addDisclaimerToImage(params: {
+export function placeDisclaimerOverImage(params: {
   bannerFrame: BannerFrame;
-  asset: DisclaimerAsset;
+  node: ResizableNode;
+  assetGroupKey: string;
   presetKey: string;
   targetPercent: number;
 }): ResizeOutcome<ResizableNode> {
-  const { bannerFrame, asset, presetKey, targetPercent } = params;
-  const node = createDisclaimerNode(asset, presetKey);
+  const { bannerFrame, node, assetGroupKey, presetKey, targetPercent } = params;
+
+  if (node.locked) {
+    throw new Error(getCopy("plugin.errors.layerLocked"));
+  }
+
+  const overlayFrame = computeImageOverlayFrame(bannerFrame, targetPercent);
+
+  return placeDisclaimerAtOverlayFrame({
+    bannerFrame,
+    node,
+    assetGroupKey,
+    presetKey,
+    overlayFrame,
+  });
+}
+
+function addDisclaimerToBannerBottom(params: {
+  bannerFrame: BannerFrame;
+  assetGroupKey: string;
+  presetKey: string;
+  targetPercent: number;
+}): ResizeOutcome<ResizableNode> {
+  const { bannerFrame, assetGroupKey, presetKey, targetPercent } = params;
+  const overlayFrame = calcImageOverlayFrame(
+    bannerFrame.width,
+    bannerFrame.height,
+    targetPercent,
+    { x: 0, y: 0, width: bannerFrame.width, height: bannerFrame.height }
+  );
+  const variant = pickBestAssetVariant(
+    assetGroupKey,
+    overlayFrame.width,
+    overlayFrame.height
+  );
+  const node = createDisclaimerNode(assetGroupKey, variant, presetKey);
+
+  try {
+    return placeDisclaimerAtOverlayFrame({
+      bannerFrame,
+      node,
+      assetGroupKey,
+      presetKey,
+      overlayFrame,
+    });
+  } catch (err) {
+    node.remove();
+    throw err;
+  }
+}
+
+export function addDisclaimerToImage(params: {
+  bannerFrame: BannerFrame;
+  assetGroupKey: string;
+  presetKey: string;
+  targetPercent: number;
+}): ResizeOutcome<ResizableNode> {
+  const { bannerFrame, assetGroupKey, presetKey, targetPercent } = params;
+  const overlayFrame = computeImageOverlayFrame(bannerFrame, targetPercent);
+  const variant = pickBestAssetVariant(
+    assetGroupKey,
+    overlayFrame.width,
+    overlayFrame.height
+  );
+  const node = createDisclaimerNode(assetGroupKey, variant, presetKey);
 
   try {
     return placeDisclaimerOverImage({
       bannerFrame,
       node,
-      asset,
+      assetGroupKey,
       presetKey,
       targetPercent,
     });

@@ -6,6 +6,7 @@ import { promisify } from "node:util";
 
 import * as esbuild from "esbuild";
 
+import { generateCopy } from "./generate-copy.mjs";
 import { generateDisclaimerAssets } from "./generate-disclaimer-assets.mjs";
 
 const execFileAsync = promisify(execFile);
@@ -45,6 +46,7 @@ function getBuildOptions() {
 
 async function buildOnce() {
   await generateDisclaimerAssets();
+  await generateCopy();
   await typeCheck();
   await mkdir(DIST_DIR, { recursive: true });
   await esbuild.build(getBuildOptions());
@@ -52,6 +54,7 @@ async function buildOnce() {
 
 if (isWatch) {
   await generateDisclaimerAssets();
+  await generateCopy();
   await typeCheck();
   await mkdir(DIST_DIR, { recursive: true });
   const context = await esbuild.context(getBuildOptions());

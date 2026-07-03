@@ -17,3 +17,5 @@
 - Do not rename shared plugin data keys without a migration plan.
 - Keep generated SVG resizing on `resize(...)`; `resizeWithoutConstraints(...)` does not deform SVG children.
 - Prefer helper functions here over direct Figma API access in feature modules.
+- `createDisclaimerNode`/`replaceGeneratedDisclaimerNode` take an already-resolved concrete SVG `variant` (from `pickBestAssetVariant` in `core/presets.ts`) plus the `assetGroupKey` used for naming and shared plugin data; they never choose a variant themselves.
+- Matching helpers (`isMatchingDisclaimer`, `isPluginGeneratedDisclaimer`, `isKnownDisclaimerNode`) compare against the asset **group** key/label, not a specific SVG variant, so switching between a group's variants never breaks detection.

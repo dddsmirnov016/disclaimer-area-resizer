@@ -2,7 +2,10 @@ import assert from "node:assert/strict";
 import test from "node:test";
 
 import { loadPlugin } from "./helpers/bundle.mjs";
+import { loadCopyModule } from "./helpers/copy.mjs";
 import { linkTree, makeFakeFigma, makeFakeNode } from "./helpers/fakeFigma.mjs";
+
+const copyMod = await loadCopyModule();
 
 // These tests boot the *real* bundled `src/plugin.ts` against a fake Figma
 // sandbox and drive the UI → core message bridge end to end:
@@ -35,7 +38,7 @@ function makeResizeScenario(disclaimerOverrides = {}) {
 
 const APPLY_BASE = {
   type: "apply-resize",
-  presetKey: "medicine_static_5",
+  presetKey: "medicine_video_7",
   customPercent: null,
   direction: "height",
   onlyEnlarge: false,
@@ -57,6 +60,24 @@ test("startup posts an initial ready state for a detected disclaimer", async () 
   assert.equal(harness.closed, false);
 });
 
+test("a disclaimer marked by an earlier apply is re-detected with its preset on the next state refresh", async () => {
+  const { figma, harness } = makeResizeScenario();
+  const plugin = await loadPlugin(figma);
+
+  plugin.sendFromUi({ ...APPLY_BASE, presetKey: "bad_static_10" });
+
+  const finalState = harness.postedMessages.filter((m) => m.type === "ready").at(-1);
+  assert.equal(finalState.info.detectedPresetKey, "bad_static_10");
+});
+
+test("a plain layer with no plugin data and no matching name has no detected preset", async () => {
+  const { figma, harness } = makeResizeScenario();
+  await loadPlugin(figma);
+
+  const initial = harness.postedMessages.at(-1);
+  assert.equal(initial.info.detectedPresetKey, null);
+});
+
 test("happy path: apply-resize resizes the disclaimer and reports success", async () => {
   const { figma, harness, disclaimer } = makeResizeScenario();
   const plugin = await loadPlugin(figma);
@@ -65,24 +86,11 @@ test("happy path: apply-resize resizes the disclaimer and reports success", asyn
 
   const success = harness.postedMessages.filter((m) => m.type === "success");
   assert.equal(success.length, 1);
-  assert.match(success[0].message, /Применено:/);
+  assert.match(success[0].message, new RegExp(`^${copyMod.getCopy("plugin.actions.applied")}:`));
   assert.equal(harness.notifications.length, 1);
-  // disclaimer height changed to hit ~5% of 660×82
-  assert.ok(Math.abs((disclaimer.width * disclaimer.height) / (660 * 82) * 100 - 5) < 0.1);
+  // disclaimer height changed to hit ~7% of 660×82
+  assert.ok(Math.abs((disclaimer.width * disclaimer.height) / (660 * 82) * 100 - 7) < 0.1);
   assert.equal(harness.closed, false);
-});
-
-test("validation error: custom preset without a percent surfaces a friendly error and no side effects", async () => {
-  const { figma, harness } = makeResizeScenario();
-  const plugin = await loadPlugin(figma);
-  const notificationsBefore = harness.notifications.length;
-
-  plugin.sendFromUi({ ...APPLY_BASE, presetKey: "custom", customPercent: null });
-
-  const errors = harness.postedMessages.filter((m) => m.type === "error");
-  assert.equal(errors.at(-1).message, "Укажите процент больше 0 и не больше 100.");
-  assert.equal(harness.postedMessages.some((m) => m.type === "success"), false);
-  assert.equal(harness.notifications.length, notificationsBefore);
 });
 
 test("unknown preset key produces an error and never creates nodes", async () => {
@@ -176,12 +184,63 @@ test("resize message forwards width/height to figma.ui.resize", async () => {
   assert.deepEqual(harness.resizeCalls.at(-1), { width: 432, height: 856 });
 });
 
-test("selecting a banner without a disclaimer yields info feedback (current product behavior)", async () => {
+function bannerWithBodyContainer() {
+  const text = makeFakeNode({ name: "copy", type: "TEXT", width: 600, height: 20 });
+  const body = makeFakeNode({
+    name: "body",
+    type: "FRAME",
+    width: 620,
+    height: 60,
+    x: 20,
+    y: 10,
+    layoutMode: "VERTICAL",
+    children: [text],
+  });
   const banner = makeFakeNode({
     name: "Banner",
     type: "FRAME",
     width: 660,
     height: 82,
+    layoutMode: "NONE",
+    children: [body],
+  });
+  // A real, insertable page so the banner is top-level yet cloneable.
+  const page = makeFakeNode({ name: "Page 1", type: "PAGE", children: [banner] });
+  linkTree(page);
+  return banner;
+}
+
+test("selecting a banner without a disclaimer offers the add-missing flow", async () => {
+  const banner = bannerWithBodyContainer();
+  const { figma, harness } = makeFakeFigma({ selection: [banner] });
+  await loadPlugin(figma);
+
+  const state = harness.postedMessages.at(-1);
+  assert.equal(state.type, "ready");
+  assert.equal(state.info.mode, "add-missing");
+});
+
+test("add-missing happy path: apply creates a disclaimer in the body and reports success", async () => {
+  const banner = bannerWithBodyContainer();
+  const { figma, harness } = makeFakeFigma({ selection: [banner] });
+  const plugin = await loadPlugin(figma);
+
+  plugin.sendFromUi({ ...APPLY_BASE, presetKey: "medicine_video_7", addTarget: "body" });
+
+  const success = harness.postedMessages.filter((m) => m.type === "success");
+  assert.equal(success.length, 1);
+  assert.match(success[0].message, new RegExp(`^${copyMod.getCopy("plugin.actions.added")}:`));
+  assert.equal(harness.createdNodes.length, 1);
+  assert.equal(harness.notifications.length, 1);
+});
+
+test("add-missing with no text container falls back to the banner and adds a disclaimer", async () => {
+  const banner = makeFakeNode({
+    name: "Banner",
+    type: "FRAME",
+    width: 660,
+    height: 82,
+    layoutMode: "NONE",
     parent: { type: "PAGE" },
     children: [],
   });
@@ -189,12 +248,33 @@ test("selecting a banner without a disclaimer yields info feedback (current prod
   const { figma, harness } = makeFakeFigma({ selection: [banner] });
   const plugin = await loadPlugin(figma);
 
-  const state = harness.postedMessages.at(-1);
-  assert.equal(state.type, "invalid");
-  assert.equal(state.feedbackTone, "info");
+  plugin.sendFromUi({ ...APPLY_BASE, presetKey: "medicine_video_7", addTarget: "body" });
 
-  // applying anyway must not mutate the document
-  plugin.sendFromUi({ ...APPLY_BASE });
-  assert.equal(harness.createdNodes.length, 0);
-  assert.equal(harness.notifications.length, 0);
+  const success = harness.postedMessages.filter((m) => m.type === "success").at(-1);
+  assert.ok(success, "a success message is posted");
+  assert.equal(harness.postedMessages.some((m) => m.type === "error"), false);
+  // exactly one disclaimer is created and kept (not removed) inside the banner
+  assert.equal(harness.createdNodes.length, 1);
+  assert.equal(harness.createdNodes.every((n) => n.removed), false);
+  assert.equal(banner.children.length, 1);
+  assert.equal(banner.children[0], harness.createdNodes[0]);
+  assert.equal(harness.notifications.length, 1);
+});
+
+test("add-missing create-all duplicates the banner per unique asset", async () => {
+  const banner = bannerWithBodyContainer();
+  const { figma, harness } = makeFakeFigma({ selection: [banner] });
+  const plugin = await loadPlugin(figma);
+
+  plugin.sendFromUi({
+    ...APPLY_BASE,
+    presetKey: "medicine_video_7",
+    addTarget: "body",
+    createAll: true,
+  });
+
+  const success = harness.postedMessages.filter((m) => m.type === "success").at(-1);
+  assert.ok(success, "a success message is posted");
+  assert.match(success.message, /Создали/);
+  assert.ok(harness.createdNodes.length >= 1);
 });

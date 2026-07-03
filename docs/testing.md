@@ -22,7 +22,7 @@ under a second. No network, no real Figma session, fully deterministic.
 | File | What it covers |
 | --- | --- |
 | `tests/geometry.test.mjs` | Pure math: area/dimension calculations, rounding, boundaries, `NaN`/`Infinity`/negative inputs. |
-| `tests/presets.test.mjs` | Preset → percent/asset resolution, custom-percent boundaries, unknown keys, non-finite guards. |
+| `tests/presets.test.mjs` | Preset → percent/asset resolution, unknown keys, asset-group detection. Covers all 4 active presets (БАД/Медицина/Кредит/Банкротство). |
 | `tests/message-contract.test.mjs` | Runtime validation of every UI↔core message: each type, unknown types, missing/wrong-typed/extra fields, backward-compatible payloads. |
 | `tests/figma-adapter.test.mjs` | Selection → UI state and feature functions against a typed fake Figma layer (empty/single/multi selection, locked/zero-size/unsupported nodes, rollback on failure). |
 | `tests/integration-bridge.test.mjs` | The real bundled `plugin.ts` driven through a fake `postMessage` bus end to end (happy path, validation error, Figma API error, double-click, ordering, stale state, ignored junk). |
@@ -96,5 +96,6 @@ undo/redo, Desktop vs Web) is verified with `docs/manual-qa-checklist.md`.
 - No true in-Figma E2E (the sandbox + iframe cannot be hosted headlessly in a
   stable way). Playwright was intentionally not added; jsdom covers UI behavior.
 - Coverage is not source-mapped (see above).
-- `buildState` currently only returns `resize-existing`; see the README/test
-  notes about the unreachable `add-missing` selection path.
+- `buildState` returns `add-missing` for a banner with no disclaimer,
+  `resize-existing` for one detected disclaimer, and a manual-pick info message
+  when disclaimers are ambiguous. All three paths are covered by tests.

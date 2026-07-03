@@ -1,4 +1,5 @@
 import type { AddTarget } from "../core/types";
+import { formatCopy, getCopy } from "../core/copy";
 import { getPrimaryPresetEntriesByAsset } from "../core/presets";
 import { removeKnownDisclaimers } from "../figma/disclaimerNodes";
 import { setAbsolutePositioningIfParentHasAutoLayout } from "../figma/layout";
@@ -19,13 +20,13 @@ export function createAllDisclaimerVariants(params: {
   const parent = bannerFrame.parent;
 
   if (!canInsertChildren(parent)) {
-    throw new Error("Баннер нельзя продублировать: у него нет доступного контейнера.");
+    throw new Error(getCopy("plugin.errors.bannerNotDuplicatable"));
   }
 
   const entries = getPrimaryPresetEntriesByAsset();
 
   if (entries.length === 0) {
-    throw new Error("Нет дисклеймеров для создания вариантов.");
+    throw new Error(getCopy("plugin.errors.noVariantsToCreate"));
   }
 
   const createdNodes: BannerFrame[] = [];
@@ -49,20 +50,24 @@ export function createAllDisclaimerVariants(params: {
 
       const targetPercent = entry.preset.percent;
       if (targetPercent === null) {
-        throw new Error(`Для типа «${entry.preset.label}» не задан процент.`);
+        throw new Error(
+          formatCopy("plugin.errors.presetPercentMissing", {
+            presetLabel: entry.preset.label,
+          })
+        );
       }
 
       if (addTarget === "image") {
         addDisclaimerToImage({
           bannerFrame: duplicate,
-          asset: entry.asset,
+          assetGroupKey: entry.asset.key,
           presetKey: entry.presetKey,
           targetPercent,
         });
       } else {
         addDisclaimerToBody({
           bannerFrame: duplicate,
-          asset: entry.asset,
+          assetGroupKey: entry.asset.key,
           presetKey: entry.presetKey,
           targetPercent,
         });

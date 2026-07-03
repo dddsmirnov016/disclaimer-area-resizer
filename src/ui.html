@@ -2,212 +2,308 @@
 <html lang="ru">
 <head>
 <meta charset="UTF-8" />
-<title>Disclaimer Area Resizer</title>
+<title></title>
+<!-- @generated-copy:start -->
+<script>window.UI_COPY = {"ui":{"title":"Disclaimer Area Resizer","labels":{"preset":"Дисклеймер","presetAria":"Тип дисклеймера","addToImage":"Поверх изображения","createAll":"Все типы дисклеймеров","disclaimerSize":"Размер дисклеймера","currentPercent":"Текущий процент"},"buttons":{"apply":"Применить","add":"Добавить","create":"Создать","applying":"Применяем…"},"fallbacks":{"disclaimerNotFound":"Не нашли дисклеймер.","selectLayer":"Выделите слой с дисклеймером."}}};</script>
+<!-- @generated-copy:end -->
 <style>
   *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
   body {
     font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+    background: #f5f5f5;
+    display: flex;
+    align-items: flex-start;
+    justify-content: center;
+    width: 384px;
+    min-height: 776px;
+    padding: 24px;
+  }
+
+  .card {
     background: #fff;
-    color: #000;
-    width: 432px;
+    border-radius: 40px;
+    width: 100%;
     padding: 24px 32px 32px;
     display: flex;
     flex-direction: column;
+    justify-content: space-between;
+    min-height: 728px;
   }
 
-  .main {
-    display: flex;
-    flex-direction: column;
-    gap: 48px;
-    width: 368px;
-  }
-
-  .content-top {
+  .controls {
     display: flex;
     flex-direction: column;
     gap: 32px;
-    width: 100%;
   }
 
-  /* ── Monitor ─────────────────────────────────────── */
-  .monitor {
+  /* ── Dropdown ──────────────────────────────────────── */
+  .field {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+  }
+
+  .field-label {
+    font-size: 14px;
+    font-weight: 500;
+    line-height: 20px;
+    color: #171717;
+  }
+
+  .dropdown {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+  }
+
+  /* Скрытый нативный select — источник истины для тестов и доступности */
+  #presetSelect {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    opacity: 0;
+    pointer-events: none;
+  }
+
+  .select-trigger {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    width: 100%;
+    padding: 10px 14px;
+    background: #fff;
+    border: 1px solid #d4d4d4;
+    border-radius: 8px;
+    cursor: pointer;
+    box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
+    transition: border-color 0.12s;
+    user-select: none;
+  }
+
+  .select-trigger:hover {
+    border-color: #a3a3a3;
+  }
+
+  .select-trigger.open {
+    border-color: #7f56d9;
+    box-shadow: 0 0 0 2px rgba(127, 86, 217, 0.2);
+  }
+
+  .select-trigger-text {
+    flex: 1;
+    font-size: 16px;
+    font-weight: 500;
+    line-height: 24px;
+    color: #171717;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  .select-trigger-icon {
+    flex-shrink: 0;
+    width: 20px;
+    height: 20px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: transform 0.15s;
+  }
+
+  .select-trigger.open .select-trigger-icon {
+    transform: rotate(180deg);
+  }
+
+  .select-menu-wrapper {
+    position: relative;
+  }
+
+  .select-menu {
+    position: absolute;
+    top: calc(100% + 4px);
+    left: 0;
+    right: 0;
+    background: #fff;
+    border: 1px solid #e5e5e5;
+    border-radius: 8px;
+    box-shadow: 0 12px 16px -4px rgba(0,0,0,0.08), 0 4px 6px -2px rgba(0,0,0,0.03);
+    z-index: 100;
+    padding: 4px 0;
+    display: none;
+  }
+
+  .select-menu.open {
+    display: block;
+  }
+
+  .select-menu-item {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 10px 14px;
+    cursor: pointer;
+    font-size: 16px;
+    font-weight: 500;
+    line-height: 24px;
+    color: #171717;
+    transition: background 0.08s;
+  }
+
+  .select-menu-item:hover {
+    background: #f5f5f5;
+  }
+
+  .select-menu-item.selected {
+    background: #fafafa;
+  }
+
+  .select-menu-item-text {
+    flex: 1;
+  }
+
+  .select-menu-item-check {
+    flex-shrink: 0;
+    width: 20px;
+    height: 20px;
+    display: none;
+    align-items: center;
+    justify-content: center;
+  }
+
+  .select-menu-item.selected .select-menu-item-check {
+    display: flex;
+  }
+
+  /* ── Checkboxes ────────────────────────────────────── */
+  .checkbox-row {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    min-height: 20px;
+  }
+
+  .checkbox-row input[type="checkbox"] {
+    width: 16px;
+    height: 16px;
+    flex-shrink: 0;
+    appearance: none;
+    -webkit-appearance: none;
+    border: 1px solid #d4d4d4;
+    border-radius: 4px;
+    background: #fff;
+    cursor: pointer;
+    position: relative;
+    transition: background 0.1s, border-color 0.1s;
+  }
+
+  .checkbox-row input[type="checkbox"]:checked {
+    background: #7f56d9;
+    border-color: #7f56d9;
+  }
+
+  .checkbox-row input[type="checkbox"]:checked::after {
+    content: '';
+    display: block;
+    position: absolute;
+    top: 2px;
+    left: 4px;
+    width: 5px;
+    height: 8px;
+    border: 2px solid #fff;
+    border-top: none;
+    border-left: none;
+    transform: rotate(45deg);
+  }
+
+  .checkbox-row input[type="checkbox"]:disabled {
+    opacity: 0.4;
+    cursor: not-allowed;
+  }
+
+  .checkbox-row label {
+    font-size: 14px;
+    font-weight: 500;
+    line-height: 20px;
+    color: #404040;
+    cursor: pointer;
+  }
+
+  .checkbox-row input[type="checkbox"]:disabled + label {
+    opacity: 0.4;
+    cursor: not-allowed;
+  }
+
+  /* ── Metrics ───────────────────────────────────────── */
+  .metrics {
     display: flex;
     flex-direction: column;
     gap: 16px;
-    width: 100%;
   }
 
-  .metric-block {
+  .metric-card {
+    background: #fff;
+    border: 1px solid #e5e5e5;
+    border-radius: 8px;
+    box-shadow: 0 1px 1px rgba(0,0,0,0.05);
+    padding: 24px;
     display: flex;
     flex-direction: column;
-    align-items: flex-start;
+    gap: 24px;
+    min-height: 140px;
   }
 
-  .metric-label {
-    font-size: 14px;
-    font-weight: 400;
+  .metric-card-label {
+    font-size: 16px;
+    font-weight: 600;
     line-height: 24px;
-    color: #000;
-    width: 100%;
+    color: #171717;
   }
 
   .metric-size {
     display: flex;
     align-items: baseline;
-    gap: 4px;
+    gap: 3px;
+    font-size: 36px;
+    font-weight: 600;
+    line-height: 44px;
+    letter-spacing: -0.72px;
+    color: #171717;
     white-space: nowrap;
   }
 
-  .size-num {
-    font-size: 56px;
-    font-weight: 900;
-    line-height: 56px;
-    color: #000;
-  }
-
-  .size-x {
-    font-size: 40px;
-    font-weight: 900;
-    line-height: 44px;
-    color: #000;
-  }
-
-  .metric-size.muted .size-num,
-  .metric-size.muted .size-x {
-    color: rgba(0, 0, 0, 0.2);
+  .metric-size.muted {
+    color: #d4d4d4;
   }
 
   .metric-value {
-    font-size: 56px;
-    font-weight: 900;
-    line-height: 56px;
-    color: #000;
+    font-size: 36px;
+    font-weight: 600;
+    line-height: 44px;
+    letter-spacing: -0.72px;
+    color: #171717;
   }
 
-  .metric-value.green { color: #00a941; }
-  .metric-value.red   { color: #ff0000; }
-  .metric-value.muted { color: rgba(0, 0, 0, 0.2); }
+  .metric-value.green { color: #16a34a; }
+  .metric-value.red   { color: #dc2626; }
+  .metric-value.muted { color: #d4d4d4; }
 
-  /* ── Select ──────────────────────────────────────── */
-  .field {
+  /* Empty metrics state */
+  .metrics.empty .metric-card {
+    display: none;
+  }
+
+  /* ── Footer ────────────────────────────────────────── */
+  .footer {
     display: flex;
     flex-direction: column;
     gap: 8px;
-    width: 100%;
+    margin-top: 32px;
   }
 
-  .field-label {
-    font-size: 14px;
-    font-weight: 400;
-    line-height: 16px;
-    color: #000;
-  }
-
-  .field-label.secondary {
-    line-height: 24px;
-    color: rgba(0, 0, 0, 0.5);
-  }
-
-  .select-wrapper {
-    position: relative;
-    width: 100%;
-  }
-
-  select,
-  .custom-input {
-    width: 100%;
-    padding: 16px;
-    padding-right: 48px;
-    border: 1px solid rgba(0, 0, 0, 0.3);
-    border-radius: 20px;
-    font-family: inherit;
-    font-size: 18px;
-    font-weight: 500;
-    line-height: 24px;
-    color: #000;
-    background: #fff;
-    outline: none;
-    appearance: none;
-    -webkit-appearance: none;
-  }
-
-  .custom-input {
-    padding-right: 16px;
-  }
-
-  select {
-    cursor: pointer;
-  }
-
-  select:focus,
-  .custom-input:focus {
-    border-color: rgba(0, 0, 0, 0.6);
-  }
-
-  .select-arrow {
-    position: absolute;
-    right: 16px;
-    top: 50%;
-    transform: translateY(-50%);
-    pointer-events: none;
-    width: 24px;
-    height: 24px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    line-height: 0;
-  }
-
-  .custom-block {
-    display: flex;
-    flex-direction: column;
-    gap: 8px;
-    width: 100%;
-  }
-
-  .checkbox-row {
-    display: flex;
-    align-items: center;
-    gap: 10px;
-    min-height: 24px;
-    width: 100%;
-  }
-
-  .checkbox-row input {
-    width: 18px;
-    height: 18px;
-    accent-color: #0d99ff;
-    flex: 0 0 auto;
-  }
-
-  .checkbox-row label {
-    font-size: 14px;
-    font-weight: 400;
-    line-height: 20px;
-    color: #000;
-    cursor: pointer;
-  }
-
-  .checkbox-row input:disabled + label {
-    color: rgba(0, 0, 0, 0.35);
-    cursor: default;
-  }
-
-  /* ── Actions ─────────────────────────────────────── */
-  .actions {
-    display: flex;
-    flex-direction: column;
-    gap: 8px;
-    width: 100%;
-  }
-
-  /* Слот под сообщение всегда занимает место, кнопка не прыгает */
   .feedback-slot {
     position: relative;
-    min-height: 152px;
-    width: 100%;
-    flex-shrink: 0;
+    min-height: 80px;
   }
 
   .error-box,
@@ -217,184 +313,188 @@
     top: 0;
     left: 0;
     right: 0;
-    padding: 16px;
-    border-radius: 20px;
-    font-size: 18px;
-    font-weight: 400;
-    line-height: 24px;
+    padding: 20px 16px;
+    border-radius: 8px;
+    font-size: 14px;
+    font-weight: 600;
+    line-height: 20px;
     word-break: break-word;
     visibility: hidden;
     opacity: 0;
     pointer-events: none;
   }
 
-  .error-box {
-    background: rgba(255, 0, 0, 0.1);
-    color: #ff0000;
-  }
+  .error-box   { background: #fef2f2; color: #dc2626; }
+  .success-box { background: #f0fdf4; color: #16a34a; }
+  .info-box    { background: #eff6ff; color: #2563eb; }
 
-  .error-box.visible {
-    visibility: visible;
-    opacity: 1;
-  }
-
-  .success-box {
-    background: rgba(0, 169, 65, 0.1);
-    color: #00a941;
-  }
-
-  .success-box.visible {
-    visibility: visible;
-    opacity: 1;
-  }
-
-  .info-box {
-    background: rgba(13, 153, 255, 0.12);
-    color: #0d99ff;
-  }
-
+  .error-box.visible,
+  .success-box.visible,
   .info-box.visible {
     visibility: visible;
     opacity: 1;
   }
 
   #applyBtn {
-    display: block;
+    display: flex;
+    align-items: center;
+    justify-content: center;
     width: 100%;
-    padding: 17px 20px;
-    background: #0d99ff;
+    padding: 12px 20px;
+    background: #7f56d9;
     color: #fff;
-    border: none;
-    border-radius: 20px;
+    border: 1px solid #7f56d9;
+    border-radius: 8px;
     font-family: inherit;
-    font-size: 18px;
-    font-weight: 500;
-    line-height: 22px;
-    text-align: center;
+    font-size: 16px;
+    font-weight: 600;
+    line-height: 24px;
     cursor: pointer;
-    transition: background 0.12s;
+    box-shadow: 0 1px 2px rgba(0,0,0,0.05);
+    transition: background 0.12s, border-color 0.12s;
   }
 
-  #applyBtn:hover:not(:disabled) { background: #0088e8; }
-  #applyBtn:active:not(:disabled) { background: #006ec4; }
+  #applyBtn:hover:not(:disabled) {
+    background: #6941c6;
+    border-color: #6941c6;
+  }
+
+  #applyBtn:active:not(:disabled) {
+    background: #53389e;
+    border-color: #53389e;
+  }
 
   #applyBtn:disabled {
-    background: rgba(13, 153, 255, 0.35);
+    background: #d6bbfb;
+    border-color: #d6bbfb;
     cursor: not-allowed;
   }
-
 </style>
 </head>
 <body>
 
-<div class="main">
-  <div class="content-top">
-    <div class="monitor">
-      <div class="metric-block">
-        <div class="metric-label">Баннер</div>
-        <div class="metric-size muted" id="bannerVal">
-          <span class="size-num" data-part="w">—</span>
-          <span class="size-x">×</span>
-          <span class="size-num" data-part="h">—</span>
+<div class="card">
+  <div class="controls">
+    <div class="field">
+      <label class="field-label" for="presetSelect" data-copy="labels.preset"></label>
+      <div class="dropdown">
+        <!-- Нативный select: источник истины для логики и тестов -->
+        <select id="presetSelect"></select>
+
+        <div class="select-menu-wrapper">
+          <div id="presetTrigger" class="select-trigger" role="combobox"
+               aria-haspopup="listbox" aria-expanded="false" aria-controls="presetMenu"
+               tabindex="0">
+            <span id="presetTriggerText" class="select-trigger-text"></span>
+            <span class="select-trigger-icon" aria-hidden="true">
+              <svg width="20" height="20" viewBox="0 0 20 20" fill="none">
+                <path d="M5 7.5L10 12.5L15 7.5" stroke="#667085" stroke-width="1.67"
+                      stroke-linecap="round" stroke-linejoin="round"/>
+              </svg>
+            </span>
+          </div>
+          <div id="presetMenu" class="select-menu" role="listbox"></div>
         </div>
-      </div>
-      <div class="metric-block">
-        <div class="metric-label">Дисклеймер</div>
-        <div class="metric-size muted" id="disclaimerVal">
-          <span class="size-num" data-part="w">—</span>
-          <span class="size-x">×</span>
-          <span class="size-num" data-part="h">—</span>
+
+        <div class="checkbox-row">
+          <input type="checkbox" id="addToImageInput" />
+          <label for="addToImageInput" data-copy="labels.addToImage"></label>
         </div>
-      </div>
-      <div class="metric-block">
-        <div class="metric-label">Текущая доля</div>
-        <div class="metric-value green muted" id="percentVal">—</div>
+        <div class="checkbox-row">
+          <input type="checkbox" id="createAllInput" />
+          <label for="createAllInput" data-copy="labels.createAll"></label>
+        </div>
       </div>
     </div>
 
-    <div class="field">
-      <label class="field-label" for="presetSelect">Тип дисклеймера</label>
-      <div class="select-wrapper">
-        <select id="presetSelect"></select>
-        <div class="select-arrow">
-          <svg width="14" height="9" viewBox="0 0 14 9" fill="none">
-            <path d="M1 1L7 7L13 1" stroke="#000" stroke-width="2"
-                  stroke-linecap="round" stroke-linejoin="round"/>
-          </svg>
+    <div class="metrics" id="metricsBlock">
+      <div class="metric-card" id="disclaimerSizeCard">
+        <div class="metric-card-label" data-copy="labels.disclaimerSize"></div>
+        <div class="metric-size muted" id="disclaimerVal">
+          <span data-part="w">—</span>
+          <span>×</span>
+          <span data-part="h">—</span>
         </div>
       </div>
-      <div id="customBlock" class="custom-block" style="display:none">
-        <label class="field-label secondary" for="customInput">Доля, %</label>
-        <input type="number" id="customInput" class="custom-input"
-               min="0.01" max="100" step="0.01" placeholder="Например, 7,5" />
-      </div>
-      <div class="checkbox-row">
-        <input type="checkbox" id="addToImageInput" />
-        <label for="addToImageInput">Поверх изображения</label>
-      </div>
-      <div class="checkbox-row">
-        <input type="checkbox" id="createAllInput" />
-        <label for="createAllInput">Создать все варианты</label>
+      <div class="metric-card" id="percentCard">
+        <div class="metric-card-label" data-copy="labels.currentPercent"></div>
+        <div class="metric-value muted" id="percentVal">—</div>
       </div>
     </div>
   </div>
 
-  <div class="actions">
+  <div class="footer">
     <div class="feedback-slot">
       <div id="errorBox" class="error-box"></div>
       <div id="successMsg" class="success-box"></div>
       <div id="infoMsg" class="info-box"></div>
     </div>
-    <button id="applyBtn" disabled>Применить</button>
+    <button id="applyBtn" disabled data-copy="buttons.apply"></button>
   </div>
 </div>
 
 <script>
 (function () {
-  var WINDOW_W = 432;
-  var HEIGHT_BASE = 776;
-  var HEIGHT_CUSTOM = 856;
+  var WINDOW_W = 384;
+  var WINDOW_H = 776;
+  var UI = window.UI_COPY.ui;
 
   var state = null;
   var presets = {};
   var keepFeedbackOnNextReady = false;
+  var lastDetectionIdentity = null;
 
-  var bannerVal = document.getElementById('bannerVal');
-  var disclaimerVal = document.getElementById('disclaimerVal');
-  var percentVal = document.getElementById('percentVal');
-  var presetSelect = document.getElementById('presetSelect');
-  var customBlock = document.getElementById('customBlock');
-  var customInput = document.getElementById('customInput');
+  var presetSelect    = document.getElementById('presetSelect');
+  var presetTrigger   = document.getElementById('presetTrigger');
+  var presetTriggerText = document.getElementById('presetTriggerText');
+  var presetMenu      = document.getElementById('presetMenu');
   var addToImageInput = document.getElementById('addToImageInput');
-  var createAllInput = document.getElementById('createAllInput');
-  var applyBtn = document.getElementById('applyBtn');
-  var errorBox = document.getElementById('errorBox');
-  var successMsg = document.getElementById('successMsg');
-  var infoMsg = document.getElementById('infoMsg');
+  var createAllInput  = document.getElementById('createAllInput');
+  var applyBtn        = document.getElementById('applyBtn');
+  var errorBox        = document.getElementById('errorBox');
+  var successMsg      = document.getElementById('successMsg');
+  var infoMsg         = document.getElementById('infoMsg');
+  var disclaimerVal   = document.getElementById('disclaimerVal');
+  var percentVal      = document.getElementById('percentVal');
+  var metricsBlock    = document.getElementById('metricsBlock');
+
+  function getUiCopy(path) {
+    return path.split('.').reduce(function (acc, key) {
+      return acc && acc[key];
+    }, UI);
+  }
+
+  function applyStaticCopy() {
+    document.title = UI.title;
+    presetSelect.setAttribute('aria-label', UI.labels.presetAria);
+    document.querySelectorAll('[data-copy]').forEach(function (el) {
+      el.textContent = getUiCopy(el.getAttribute('data-copy'));
+    });
+  }
+
+  applyStaticCopy();
+
+  // ── Helpers ─────────────────────────────────────────────────────────
 
   function formatRuNumber(n) {
     if (n === null || n === undefined || isNaN(n)) return '—';
     var rounded = Math.round(n * 100) / 100;
     var intPart = Math.floor(Math.abs(rounded));
     var dec = Math.round((Math.abs(rounded) - intPart) * 100);
-
     var intStr = String(intPart);
     if (intStr.length > 3) {
       intStr = intStr.replace(/\B(?=(\d{3})+(?!\d))/g, '\u00a0');
     }
-
-    if (dec === 0) return (rounded < 0 ? '−' : '') + intStr;
-
+    if (dec === 0) return (rounded < 0 ? '\u2212' : '') + intStr;
     var decStr = String(dec);
     if (decStr.length === 1) decStr = decStr + '0';
     if (decStr.endsWith('0')) decStr = decStr.slice(0, -1);
-
-    return (rounded < 0 ? '−' : '') + intStr + ',' + decStr;
+    return (rounded < 0 ? '\u2212' : '') + intStr + ',' + decStr;
   }
 
   function formatRuPercent(n) {
     if (n === null || n === undefined || isNaN(n)) return '—';
-    return formatRuNumber(n) + ' %';
+    return formatRuNumber(n) + '\u00a0%';
   }
 
   function setSizeMetric(el, w, h, empty) {
@@ -411,41 +511,120 @@
     }
   }
 
-  function populatePresets(data) {
+  // ── Custom dropdown ──────────────────────────────────────────────────
+
+  function buildMenu(data) {
     presets = data;
     presetSelect.innerHTML = '';
+    presetMenu.innerHTML = '';
+
     Object.keys(data).forEach(function (key) {
       var opt = document.createElement('option');
       opt.value = key;
       opt.textContent = data[key].label;
       presetSelect.appendChild(opt);
+
+      var item = document.createElement('div');
+      item.className = 'select-menu-item';
+      item.setAttribute('role', 'option');
+      item.setAttribute('data-value', key);
+
+      var text = document.createElement('span');
+      text.className = 'select-menu-item-text';
+      text.textContent = data[key].label;
+
+      var check = document.createElement('span');
+      check.className = 'select-menu-item-check';
+      check.setAttribute('aria-hidden', 'true');
+      check.innerHTML = '<svg width="20" height="20" viewBox="0 0 20 20" fill="none">' +
+        '<path d="M5 10.5L8.5 14L15 7" stroke="#7F56D9" stroke-width="2" ' +
+        'stroke-linecap="round" stroke-linejoin="round"/></svg>';
+
+      item.appendChild(text);
+      item.appendChild(check);
+
+      item.addEventListener('click', function () {
+        selectValue(key);
+        closeMenu();
+      });
+
+      presetMenu.appendChild(item);
     });
-    syncCustomBlock();
+
+    syncMenuSelection();
+    syncTriggerText();
   }
 
-  function syncCustomBlock() {
-    var isCustom = presetSelect.value === 'custom';
-    customBlock.style.display = isCustom ? '' : 'none';
-    if (!isCustom) customInput.value = '';
-    updateWindowHeight();
+  function syncMenuSelection() {
+    var current = presetSelect.value;
+    var items = presetMenu.querySelectorAll('.select-menu-item');
+    items.forEach(function (item) {
+      if (item.getAttribute('data-value') === current) {
+        item.classList.add('selected');
+        item.setAttribute('aria-selected', 'true');
+      } else {
+        item.classList.remove('selected');
+        item.setAttribute('aria-selected', 'false');
+      }
+    });
   }
 
-  function updateWindowHeight() {
-    var h = presetSelect.value === 'custom' ? HEIGHT_CUSTOM : HEIGHT_BASE;
-    sendResize(h);
+  function syncTriggerText() {
+    var key = presetSelect.value;
+    presetTriggerText.textContent = (presets[key] && presets[key].label) || '';
   }
 
-  function sendResize(h) {
-    parent.postMessage({ pluginMessage: { type: 'resize', width: WINDOW_W, height: h } }, '*');
+  function selectValue(key) {
+    if (!presets[key]) return;
+    presetSelect.value = key;
+    syncMenuSelection();
+    syncTriggerText();
+    presetSelect.dispatchEvent(new Event('change'));
   }
+
+  function openMenu() {
+    presetMenu.classList.add('open');
+    presetTrigger.classList.add('open');
+    presetTrigger.setAttribute('aria-expanded', 'true');
+  }
+
+  function closeMenu() {
+    presetMenu.classList.remove('open');
+    presetTrigger.classList.remove('open');
+    presetTrigger.setAttribute('aria-expanded', 'false');
+  }
+
+  function toggleMenu() {
+    if (presetMenu.classList.contains('open')) {
+      closeMenu();
+    } else {
+      openMenu();
+    }
+  }
+
+  presetTrigger.addEventListener('click', function (e) {
+    e.stopPropagation();
+    toggleMenu();
+  });
+
+  presetTrigger.addEventListener('keydown', function (e) {
+    if (e.key === 'Enter' || e.key === ' ') {
+      e.preventDefault();
+      toggleMenu();
+    } else if (e.key === 'Escape') {
+      closeMenu();
+    }
+  });
+
+  document.addEventListener('click', function () {
+    closeMenu();
+  });
+
+  // ── State rendering ──────────────────────────────────────────────────
 
   function getTargetPercent() {
     var key = presetSelect.value;
     if (!key || !presets[key]) return null;
-    if (key === 'custom') {
-      var v = parseFloat(customInput.value.replace(',', '.'));
-      return (!isNaN(v) && v > 0 && v <= 100) ? v : null;
-    }
     return presets[key].percent;
   }
 
@@ -456,13 +635,11 @@
       percentVal.classList.add('green');
       return;
     }
-
     var target = getTargetPercent();
     if (target === null) {
       percentVal.classList.add('green');
       return;
     }
-
     if (state.info.currentPercent < target) {
       percentVal.classList.add('red');
     } else {
@@ -471,18 +648,26 @@
   }
 
   function getIdleButtonLabel() {
-    if (
-      state &&
-      state.type === 'ready' &&
-      state.info &&
-      state.info.mode === 'add-missing' &&
-      createAllInput.checked
-    ) {
-      return 'Создать';
+    if (state && state.type === 'ready' && state.info && state.info.mode === 'add-missing') {
+      return createAllInput.checked ? UI.buttons.create : UI.buttons.add;
     }
-    return state && state.type === 'ready' && state.info && state.info.mode === 'add-missing'
-      ? 'Добавить'
-      : 'Применить';
+    return UI.buttons.apply;
+  }
+
+  function detectionIdentity(i) {
+    return [i.mode, i.bannerName, i.disclaimerName, i.disclaimerWidth, i.disclaimerHeight].join('|');
+  }
+
+  function applyDetectedPreset(i) {
+    var identity = detectionIdentity(i);
+    var isNewDetection = identity !== lastDetectionIdentity;
+    lastDetectionIdentity = identity;
+    if (!isNewDetection) return;
+    if (!i.detectedPresetKey || !presets[i.detectedPresetKey]) return;
+    if (presetSelect.value === i.detectedPresetKey) return;
+    presetSelect.value = i.detectedPresetKey;
+    syncMenuSelection();
+    syncTriggerText();
   }
 
   function syncAddTargetAvailability() {
@@ -493,11 +678,18 @@
     if (!canAdd) createAllInput.checked = false;
   }
 
+  function setMetricsEmpty(empty) {
+    var cards = metricsBlock.querySelectorAll('.metric-card');
+    cards.forEach(function (c) {
+      c.style.display = empty ? 'none' : '';
+    });
+  }
+
   function showError(text) {
     errorBox.textContent = text;
     errorBox.classList.add('visible');
-    hideSuccess();
-    hideInfo();
+    successMsg.classList.remove('visible');
+    infoMsg.classList.remove('visible');
   }
 
   function hideError() {
@@ -508,8 +700,8 @@
   function showSuccess(text) {
     successMsg.textContent = text;
     successMsg.classList.add('visible');
-    hideError();
-    hideInfo();
+    errorBox.classList.remove('visible');
+    infoMsg.classList.remove('visible');
   }
 
   function hideSuccess() {
@@ -520,8 +712,8 @@
   function showInfo(text) {
     infoMsg.textContent = text;
     infoMsg.classList.add('visible');
-    hideError();
-    hideSuccess();
+    errorBox.classList.remove('visible');
+    successMsg.classList.remove('visible');
   }
 
   function hideInfo() {
@@ -529,47 +721,52 @@
     infoMsg.textContent = '';
   }
 
+  function hideFeedback() {
+    hideError();
+    hideSuccess();
+    hideInfo();
+  }
+
   function renderState(msg) {
     state = msg;
 
     if (msg.presets && Object.keys(presets).length === 0) {
-      populatePresets(msg.presets);
+      buildMenu(msg.presets);
     }
 
     if (msg.type === 'no-selection') {
-      setSizeMetric(bannerVal, null, null, true);
+      setMetricsEmpty(true);
       setSizeMetric(disclaimerVal, null, null, true);
       percentVal.textContent = '—';
       percentVal.classList.add('muted');
       percentVal.classList.remove('green', 'red');
       applyBtn.disabled = true;
-      applyBtn.textContent = 'Применить';
+      applyBtn.textContent = UI.buttons.apply;
       syncAddTargetAvailability();
-      hideError();
-      hideSuccess();
-      hideInfo();
+      hideFeedback();
       return;
     }
 
     if (msg.type === 'invalid') {
-      setSizeMetric(bannerVal, null, null, true);
+      setMetricsEmpty(true);
       setSizeMetric(disclaimerVal, null, null, true);
       percentVal.textContent = '—';
       percentVal.classList.add('muted');
       percentVal.classList.remove('green', 'red');
       applyBtn.disabled = true;
-      applyBtn.textContent = 'Применить';
+      applyBtn.textContent = UI.buttons.apply;
       syncAddTargetAvailability();
       if (msg.feedbackTone === 'info') {
-        showInfo(msg.error || 'Дисклеймер не найден.');
+        showInfo(msg.error || UI.fallbacks.disclaimerNotFound);
       } else {
-        showError(msg.error || 'Выделите подходящий слой.');
+        showError(msg.error || UI.fallbacks.selectLayer);
       }
       return;
     }
 
     var i = msg.info;
-    setSizeMetric(bannerVal, i.bannerWidth, i.bannerHeight, false);
+    applyDetectedPreset(i);
+    setMetricsEmpty(false);
     setSizeMetric(disclaimerVal, i.disclaimerWidth, i.disclaimerHeight, i.disclaimerWidth === null);
     percentVal.textContent = i.currentPercent === null ? '—' : formatRuPercent(i.currentPercent);
     if (i.currentPercent === null) {
@@ -584,65 +781,44 @@
     if (keepFeedbackOnNextReady) {
       keepFeedbackOnNextReady = false;
     } else {
-      hideError();
-      hideSuccess();
-      hideInfo();
+      hideFeedback();
     }
   }
 
-  presetSelect.addEventListener('change', function () {
-    syncCustomBlock();
-    updatePercentColor();
-    hideError();
-    hideSuccess();
-    hideInfo();
-  });
+  // ── Event listeners ─────────────────────────────────────────────────
 
-  customInput.addEventListener('input', function () {
+  presetSelect.addEventListener('change', function () {
+    syncMenuSelection();
+    syncTriggerText();
     updatePercentColor();
-    hideError();
-    hideSuccess();
-    hideInfo();
+    hideFeedback();
   });
 
   createAllInput.addEventListener('change', function () {
     applyBtn.textContent = getIdleButtonLabel();
-    hideError();
-    hideSuccess();
-    hideInfo();
+    hideFeedback();
   });
 
   applyBtn.addEventListener('click', function () {
     if (!state || state.type !== 'ready') return;
-
     var key = presetSelect.value;
-    var customPct = null;
-
-    if (key === 'custom' && !createAllInput.checked) {
-      var v = parseFloat(customInput.value.replace(',', '.'));
-      if (isNaN(v) || v <= 0 || v > 100) {
-        showError('Укажите процент больше 0 и не больше 100.');
-        return;
-      }
-      customPct = v;
-    }
 
     applyBtn.disabled = true;
-    applyBtn.textContent = 'Применяем…';
-    hideError();
-    hideSuccess();
-    hideInfo();
+    applyBtn.textContent = UI.buttons.applying;
+    hideFeedback();
 
     parent.postMessage({ pluginMessage: {
       type: 'apply-resize',
       presetKey: key,
-      customPercent: customPct,
+      customPercent: null,
       direction: 'height',
       onlyEnlarge: false,
       addTarget: addToImageInput.checked ? 'image' : 'body',
       createAll: createAllInput.checked
     }}, '*');
   });
+
+  // ── Plugin message handler ───────────────────────────────────────────
 
   window.onmessage = function (evt) {
     var msg = evt.data && evt.data.pluginMessage;
@@ -670,6 +846,7 @@
   };
 
   parent.postMessage({ pluginMessage: { type: 'request-state' } }, '*');
+  parent.postMessage({ pluginMessage: { type: 'resize', width: WINDOW_W, height: WINDOW_H } }, '*');
 }());
 </script>
 </body>

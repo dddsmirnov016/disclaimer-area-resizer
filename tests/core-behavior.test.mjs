@@ -5,6 +5,10 @@ import path from "node:path";
 import { pathToFileURL } from "node:url";
 import test from "node:test";
 
+import { loadCopyModule } from "./helpers/copy.mjs";
+
+const copyMod = await loadCopyModule();
+
 function modulePath(relativePath) {
   return JSON.stringify(path.join(process.cwd(), relativePath));
 }
@@ -68,8 +72,8 @@ test("preset helpers return one primary create-all entry per unique SVG asset", 
   assert.deepEqual(
     mod.entries.map((entry) => entry.presetKey),
     [
-      "medicine_video_7",
       "bad_static_10",
+      "medicine_video_7",
       "finance_credit_5",
       "finance_custom_10",
     ]
@@ -84,7 +88,7 @@ test("bankruptcy preset keeps stable key and uses edited Russian label", async (
     export const assetKey = DISCLAIMER_PRESETS.finance_custom_10.assetKey;
   `);
 
-  assert.equal(mod.label, "Финансы: банкротство — 10 %");
+  assert.equal(mod.label, "Банкротство");
   assert.match(mod.assetKey, /^Банкротство влечёт негативные последствия/);
 });
 
@@ -96,22 +100,21 @@ test("credit preset keeps stable key and uses 10 percent area", async () => {
     export const targetPercent = getTargetPercent("finance_credit_5", null);
   `);
 
-  assert.equal(mod.label, "Финансы: кредит или заём — 10 %");
+  assert.equal(mod.label, "Кредит или заём");
   assert.equal(mod.percent, 10);
   assert.equal(mod.targetPercent, 10);
 });
 
-test("preset percent labels use non-breaking spaces before percent signs", async () => {
+test("preset labels are short Cyrillic strings without raw percent signs", async () => {
   const mod = await bundleAndImport(`
     import { DISCLAIMER_PRESETS } from ${modulePath("src/core/presets.ts")};
     export const labels = Object.values(DISCLAIMER_PRESETS).map((preset) => preset.label);
   `);
 
-  const percentLabels = mod.labels.filter((label) => /\d/.test(label));
-  assert.ok(percentLabels.length > 0, "expected labels with percentages");
-
-  for (const label of percentLabels) {
-    assert.match(label, /\d %/, label);
+  assert.equal(mod.labels.length, 4);
+  for (const label of mod.labels) {
+    assert.ok(label.length > 0, "label is non-empty");
+    assert.match(label, /[А-Яа-яЁё]/, "label contains Cyrillic");
     assert.doesNotMatch(label, /\d%/, label);
   }
 });
@@ -309,9 +312,9 @@ test("banner selection refuses ambiguous plugin-created disclaimer candidates", 
   assert.equal(mod.state.error, mod.expectedError);
 });
 
-test("banner selection reports missing or undetected disclaimer as info feedback", async () => {
+test("banner selection with no disclaimer offers the add-missing flow", async () => {
   const mod = await bundleAndImport(`
-    import { buildState, BANNER_DISCLAIMER_DETECTION_ERROR } from ${modulePath("src/state/selectionState.ts")};
+    import { buildState } from ${modulePath("src/state/selectionState.ts")};
 
     const banner = {
       id: "Banner",
@@ -333,14 +336,15 @@ test("banner selection reports missing or undetected disclaimer as info feedback
       },
     };
 
-    export const expectedError = BANNER_DISCLAIMER_DETECTION_ERROR;
     export const state = buildState([banner]);
   `);
 
-  assert.equal(mod.state.type, "invalid");
-  assert.equal(mod.state.error, mod.expectedError);
-  assert.equal(mod.state.feedbackTone, "info");
-  assert.match(mod.state.error, /Дисклеймер не найден/);
+  assert.equal(mod.state.type, "ready");
+  assert.equal(mod.state.info.mode, "add-missing");
+  assert.equal(mod.state.info.bannerName, "Banner");
+  assert.equal(mod.state.info.bannerWidth, 300);
+  assert.equal(mod.state.info.disclaimerWidth, null);
+  assert.equal(mod.state.info.currentPercent, null);
 });
 
 test("banner selection falls back to a single heuristic disclaimer candidate", async () => {
@@ -643,7 +647,7 @@ test("apply resize uses the detected disclaimer when the banner remains selected
 
     uiHandlers.message({
       type: "apply-resize",
-      presetKey: "medicine_static_5",
+      presetKey: "medicine_video_7",
       customPercent: null,
       direction: "height",
       onlyEnlarge: false,
@@ -664,9 +668,12 @@ test("apply resize uses the detected disclaimer when the banner remains selected
 
   assert.equal(mod.lastError, null);
   assert.equal(mod.selectedName, "дисклеймер — legal copy");
-  assert.equal(mod.disclaimerHeight, 17.045);
+  assert.equal(mod.disclaimerHeight, 23.864);
   assert.equal(mod.textAutoResize, "NONE");
-  assert.match(mod.lastSuccess, /Применено: 220×17,05 px — 5 % площади баннера/);
+  assert.match(
+    mod.lastSuccess,
+    new RegExp(`${copyMod.getCopy("plugin.actions.applied")}: 220×23,86\u00a0px — 7\u00a0% площади баннера`)
+  );
 });
 
 test("apply resize hides raw Figma API errors from users", async () => {
@@ -746,7 +753,7 @@ test("apply resize hides raw Figma API errors from users", async () => {
 
     uiHandlers.message({
       type: "apply-resize",
-      presetKey: "medicine_static_5",
+      presetKey: "medicine_video_7",
       customPercent: null,
       direction: "height",
       onlyEnlarge: false,
@@ -759,10 +766,7 @@ test("apply resize hides raw Figma API errors from users", async () => {
       .at(-1)?.message || null;
   `);
 
-  assert.equal(
-    mod.lastError,
-    "Нельзя изменить слой внутри инстанса. Отсоедините инстанс или выберите главный компонент."
-  );
+  assert.equal(mod.lastError, copyMod.getCopy("plugin.errors.instanceOverride"));
   assert.doesNotMatch(mod.lastError, /set_constraints|This property|overridden/i);
 });
 
@@ -876,7 +880,7 @@ test("apply resize uses the detected disclaimer when a nested banner frame remai
 
     uiHandlers.message({
       type: "apply-resize",
-      presetKey: "medicine_static_5",
+      presetKey: "medicine_video_7",
       customPercent: null,
       direction: "height",
       onlyEnlarge: false,
@@ -898,8 +902,11 @@ test("apply resize uses the detected disclaimer when a nested banner frame remai
   assert.equal(mod.lastError, null);
   assert.equal(mod.selectedName, "Disclaimer");
   assert.equal(mod.adHeight, 95);
-  assert.equal(mod.disclaimerHeight, 6.94);
-  assert.match(mod.lastSuccess, /Применено: 548×6,94 px — 5 % площади баннера/);
+  assert.equal(mod.disclaimerHeight, 9.715);
+  assert.match(
+    mod.lastSuccess,
+    new RegExp(`${copyMod.getCopy("plugin.actions.applied")}: 548×9,72\u00a0px — 7\u00a0% площади баннера`)
+  );
 });
 
 test("banner selection measures a nested actual disclaimer instead of its wrapper", async () => {
@@ -1217,7 +1224,7 @@ test("apply resize keeps a wrapper hug-sized and deforms its nested disclaimer",
 
     uiHandlers.message({
       type: "apply-resize",
-      presetKey: "medicine_static_5",
+      presetKey: "medicine_video_7",
       customPercent: null,
       direction: "height",
       onlyEnlarge: false,
@@ -1249,6 +1256,9 @@ test("apply resize keeps a wrapper hug-sized and deforms its nested disclaimer",
   assert.equal(mod.disclaimerHeight, 16);
   assert.equal(mod.wrapperHorizontalSizing, "HUG");
   assert.equal(mod.wrapperVerticalSizing, "HUG");
-  assert.equal(mod.glyphHeight, 7.743);
-  assert.match(mod.lastSuccess, /Применено: 546,74×7,74 px — 5 % площади баннера/);
+  assert.equal(mod.glyphHeight, 10.84);
+  assert.match(
+    mod.lastSuccess,
+    new RegExp(`${copyMod.getCopy("plugin.actions.applied")}: 546,74×10,84\u00a0px — 7\u00a0% площади баннера`)
+  );
 });

@@ -1,6 +1,8 @@
 import { readFile } from "node:fs/promises";
 import path from "node:path";
 
+import { buildSamplePresets, loadCopyModule } from "./copy.mjs";
+
 // Loads the real src/ui.html into jsdom and runs its inline script exactly as
 // Figma would, except `parent.postMessage` is stubbed so we can observe the
 // messages the UI emits and inject the messages the plugin sandbox would send
@@ -68,11 +70,11 @@ export async function mountUi() {
       get presetSelect() {
         return $("presetSelect");
       },
-      get customBlock() {
-        return $("customBlock");
+      get presetTrigger() {
+        return $("presetTrigger");
       },
-      get customInput() {
-        return $("customInput");
+      get presetMenu() {
+        return $("presetMenu");
       },
       get addToImageInput() {
         return $("addToImageInput");
@@ -88,9 +90,6 @@ export async function mountUi() {
       },
       get infoMsg() {
         return $("infoMsg");
-      },
-      get bannerVal() {
-        return $("bannerVal");
       },
       get disclaimerVal() {
         return $("disclaimerVal");
@@ -119,14 +118,15 @@ export function readyAddMissingState(presets) {
       bannerWidth: 660,
       bannerHeight: 82,
       currentPercent: null,
+      detectedPresetKey: null,
       isText: false,
       hasAutoLayout: true,
     },
   };
 }
 
-/** A representative `ready` (resize-existing) state. */
-export function readyResizeState(presets) {
+/** A representative `ready` (resize-existing) state. `overrides` merges into `info`. */
+export function readyResizeState(presets, overrides = {}) {
   return {
     type: "ready",
     presets,
@@ -139,17 +139,15 @@ export function readyResizeState(presets) {
       bannerWidth: 660,
       bannerHeight: 82,
       currentPercent: 7,
+      detectedPresetKey: null,
       isText: false,
       hasAutoLayout: true,
+      ...overrides,
     },
   };
 }
 
-export const SAMPLE_PRESETS = {
-  medicine_video_7: {
-    label: "Медицина — 7 %: ТВ, видео или по ТЗ",
-    percent: 7,
-    assetKey: "medicine",
-  },
-  custom: { label: "Свой процент", percent: null, assetKey: "medicine" },
-};
+export async function getSamplePresets() {
+  const { COPY } = await loadCopyModule();
+  return buildSamplePresets(COPY);
+}
