@@ -75,6 +75,8 @@ function parseApplyResize(
     onlyEnlarge: asBoolean(input.onlyEnlarge, false),
     addTarget: asAddTarget(input.addTarget),
     createAll: asBoolean(input.createAll, false),
+    expectedNodeId:
+      typeof input.expectedNodeId === "string" ? input.expectedNodeId : null,
   };
 }
 

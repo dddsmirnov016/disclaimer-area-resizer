@@ -42,3 +42,38 @@ export function canInsertChildren(
 ): node is NodeWithMutableChildren {
   return Boolean(node && "children" in node && "insertChild" in node);
 }
+
+export function isLocked(node: SceneNode): boolean {
+  return node.locked === true;
+}
+
+export function hasNonZeroSize(node: NodeWithSize): boolean {
+  return node.width > 0 && node.height > 0;
+}
+
+/**
+ * Whether the node still belongs to the document. A stale selection reference
+ * can point at a node the user already deleted; mutating it would throw a raw
+ * Figma error instead of a friendly message.
+ */
+export function isAttached(node: SceneNode): boolean {
+  return !node.removed;
+}
+
+/**
+ * Whether the node lives inside a component instance. Instance internals
+ * cannot be resized or re-parented, so features must refuse them upfront
+ * with a clear message instead of surfacing a raw Figma override error.
+ */
+export function isInsideInstance(node: SceneNode): boolean {
+  let current: BaseNode | null = node.parent;
+
+  while (current && current.type !== "PAGE" && current.type !== "DOCUMENT") {
+    if (current.type === "INSTANCE") {
+      return true;
+    }
+    current = current.parent;
+  }
+
+  return false;
+}

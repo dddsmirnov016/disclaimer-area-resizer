@@ -115,6 +115,7 @@
         "noVariantsToCreate": "\u041D\u0435\u0442 \u0434\u0438\u0441\u043A\u043B\u0435\u0439\u043C\u0435\u0440\u043E\u0432, \u0438\u0437 \u043A\u043E\u0442\u043E\u0440\u044B\u0445 \u043C\u043E\u0436\u043D\u043E \u0441\u043E\u0437\u0434\u0430\u0442\u044C \u0432\u0430\u0440\u0438\u0430\u043D\u0442\u044B.",
         "presetPercentMissing": "\u0423 \u0442\u0438\u043F\u0430 \xAB{presetLabel}\xBB \u043D\u0435 \u0437\u0430\u0434\u0430\u043D \u043F\u0440\u043E\u0446\u0435\u043D\u0442.",
         "disclaimerChangeFailed": "\u041D\u0435 \u043F\u043E\u043B\u0443\u0447\u0438\u043B\u043E\u0441\u044C \u0438\u0437\u043C\u0435\u043D\u0438\u0442\u044C \u0434\u0438\u0441\u043A\u043B\u0435\u0439\u043C\u0435\u0440.",
+        "disclaimerAssetMissing": "\u041D\u0435 \u043D\u0430\u0448\u043B\u0438 \u0438\u0437\u043E\u0431\u0440\u0430\u0436\u0435\u043D\u0438\u0435 \u0434\u0438\u0441\u043A\u043B\u0435\u0439\u043C\u0435\u0440\u0430 \u0434\u043B\u044F \u044D\u0442\u043E\u0433\u043E \u0442\u0438\u043F\u0430. \u041F\u0435\u0440\u0435\u0443\u0441\u0442\u0430\u043D\u043E\u0432\u0438\u0442\u0435 \u043F\u043B\u0430\u0433\u0438\u043D.",
         "disclaimerNotResizable": "\u0423 \u044D\u0442\u043E\u0433\u043E \u0434\u0438\u0441\u043A\u043B\u0435\u0439\u043C\u0435\u0440\u0430 \u043D\u0435\u043B\u044C\u0437\u044F \u0438\u0437\u043C\u0435\u043D\u0438\u0442\u044C \u0440\u0430\u0437\u043C\u0435\u0440.",
         "textDisclaimerChangeFailed": "\u041D\u0435 \u043F\u043E\u043B\u0443\u0447\u0438\u043B\u043E\u0441\u044C \u0438\u0437\u043C\u0435\u043D\u0438\u0442\u044C \u0442\u0435\u043A\u0441\u0442\u043E\u0432\u044B\u0439 \u0434\u0438\u0441\u043A\u043B\u0435\u0439\u043C\u0435\u0440."
       },
@@ -354,7 +355,7 @@
   function pickBestAssetVariant(assetGroupKey, targetWidth, targetHeight) {
     const variants = getAssetGroupVariants(assetGroupKey);
     if (variants.length === 0) {
-      throw new Error("No SVG variants registered for asset group: " + assetGroupKey);
+      throw new Error(getCopy("plugin.errors.disclaimerAssetMissing"));
     }
     if (variants.length === 1 || !Number.isFinite(targetWidth) || !Number.isFinite(targetHeight) || targetWidth <= 0 || targetHeight <= 0) {
       return variants[0];
@@ -475,6 +476,19 @@
   }
   function canInsertChildren(node) {
     return Boolean(node && "children" in node && "insertChild" in node);
+  }
+  function isAttached(node) {
+    return !node.removed;
+  }
+  function isInsideInstance(node) {
+    let current = node.parent;
+    while (current && current.type !== "PAGE" && current.type !== "DOCUMENT") {
+      if (current.type === "INSTANCE") {
+        return true;
+      }
+      current = current.parent;
+    }
+    return false;
   }
 
   // src/figma/traversal.ts
@@ -952,8 +966,11 @@
         nodesToRemove.push(node);
       }
     });
-    for (const node of nodesToRemove) {
-      node.remove();
+    for (let i = nodesToRemove.length - 1; i >= 0; i -= 1) {
+      const node = nodesToRemove[i];
+      if (!node.removed) {
+        node.remove();
+      }
     }
   }
   function createDisclaimerNode(assetGroupKey, variant, presetKey) {
@@ -971,7 +988,9 @@
   function replaceGeneratedDisclaimerNode(params) {
     const { node, assetGroupKey, variant, presetKey, newWidth, newHeight } = params;
     const parent = node.parent;
-    if (!canInsertChildren(parent)) return node;
+    if (!canInsertChildren(parent)) {
+      throw new Error(getCopy("plugin.errors.disclaimerChangeFailed"));
+    }
     const index = parent.children.indexOf(node);
     const replacement = createDisclaimerNode(assetGroupKey, variant, presetKey);
     try {
@@ -1076,6 +1095,9 @@
     const { bannerFrame, node, assetGroupKey, presetKey, targetPercent } = params;
     if (node.locked) {
       throw new Error(getCopy("plugin.errors.layerLocked"));
+    }
+    if (isInsideInstance(node)) {
+      throw new Error(getCopy("plugin.errors.instanceOverride"));
     }
     const overlayFrame = computeImageOverlayFrame(bannerFrame, targetPercent);
     return placeDisclaimerAtOverlayFrame({
@@ -1211,6 +1233,9 @@
     if (node.locked) {
       throw new Error(getCopy("plugin.errors.layerLocked"));
     }
+    if (isInsideInstance(node)) {
+      throw new Error(getCopy("plugin.errors.instanceOverride"));
+    }
     const currentPercent = calcActualPercent(
       node.width * node.height,
       bannerFrame.width,
@@ -1276,7 +1301,17 @@
       presets: DISCLAIMER_PRESETS
     };
   }
+  function buildInstanceOverrideState() {
+    return {
+      type: "invalid",
+      error: getCopy("plugin.errors.instanceOverride"),
+      presets: DISCLAIMER_PRESETS
+    };
+  }
   function buildAddMissingState(bannerFrame) {
+    if (bannerFrame.type === "INSTANCE" || isInsideInstance(bannerFrame)) {
+      return buildInstanceOverrideState();
+    }
     return {
       type: "ready",
       info: {
@@ -1299,6 +1334,9 @@
     return bannerHasDisclaimerCandidates(bannerFrame, index) ? buildDetectionInfoState() : buildAddMissingState(bannerFrame);
   }
   function buildResizeState(disclaimerNode, bannerFrame) {
+    if (isInsideInstance(disclaimerNode)) {
+      return buildInstanceOverrideState();
+    }
     const disclaimerArea = disclaimerNode.width * disclaimerNode.height;
     const bannerArea = bannerFrame.width * bannerFrame.height;
     const currentPercent = round2(disclaimerArea / bannerArea * 100);
@@ -1333,6 +1371,11 @@
     };
   }
   function buildState(selection) {
+    const state = buildStateForSelection(selection);
+    state.selectionId = selection.length === 1 ? selection[0].id : null;
+    return state;
+  }
+  function buildStateForSelection(selection) {
     if (selection.length !== 1) {
       return {
         type: selection.length === 0 ? "no-selection" : "invalid",
@@ -1341,6 +1384,13 @@
       };
     }
     const sceneNode = selection[0];
+    if (!isAttached(sceneNode)) {
+      return {
+        type: "invalid",
+        error: getCopy("plugin.errors.selectionChanged"),
+        presets: DISCLAIMER_PRESETS
+      };
+    }
     if (isTopLevelFrame(sceneNode)) {
       if (sceneNode.locked) {
         return {
@@ -1494,7 +1544,8 @@
       direction: asResizeDirection(input.direction),
       onlyEnlarge: asBoolean(input.onlyEnlarge, false),
       addTarget: asAddTarget(input.addTarget),
-      createAll: asBoolean(input.createAll, false)
+      createAll: asBoolean(input.createAll, false),
+      expectedNodeId: typeof input.expectedNodeId === "string" ? input.expectedNodeId : null
     };
   }
   function parseResize(input) {
@@ -1572,6 +1623,10 @@
       return;
     }
     const selectedNode = selection[0];
+    if (msg.expectedNodeId !== null && selectedNode.id !== msg.expectedNodeId) {
+      postError(getCopy("plugin.errors.selectionChanged"));
+      return;
+    }
     if (state.info.mode === "add-missing" && msg.createAll) {
       if (!isFrameLike(selectedNode)) {
         postError(getCopy("plugin.errors.selectBannerFrame"));

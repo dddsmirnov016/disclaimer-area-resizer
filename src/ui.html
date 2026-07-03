@@ -814,7 +814,8 @@
       direction: 'height',
       onlyEnlarge: false,
       addTarget: addToImageInput.checked ? 'image' : 'body',
-      createAll: createAllInput.checked
+      createAll: createAllInput.checked,
+      expectedNodeId: state.selectionId || null
     }}, '*');
   });
 

@@ -95,6 +95,14 @@ function handleApplyResize(msg: Extract<UiMessage, { type: "apply-resize" }>): v
 
   const selectedNode = selection[0];
 
+  // The UI echoes the node id its state was rendered for. If the user changed
+  // the selection between rendering and clicking Apply, refuse instead of
+  // silently operating on a different layer.
+  if (msg.expectedNodeId !== null && selectedNode.id !== msg.expectedNodeId) {
+    postError(getCopy("plugin.errors.selectionChanged"));
+    return;
+  }
+
   if (state.info.mode === "add-missing" && msg.createAll) {
     if (!isFrameLike(selectedNode)) {
       postError(getCopy("plugin.errors.selectBannerFrame"));

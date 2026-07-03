@@ -478,8 +478,14 @@ export function removeKnownDisclaimers(bannerFrame: BannerFrame): void {
     }
   });
 
-  for (const node of nodesToRemove) {
-    node.remove();
+  // The list is collected in pre-order (parents before children). Remove in
+  // reverse so nested matches go first: removing a parent also removes its
+  // descendants, and calling `.remove()` on an already-removed child throws.
+  for (let i = nodesToRemove.length - 1; i >= 0; i -= 1) {
+    const node = nodesToRemove[i];
+    if (!node.removed) {
+      node.remove();
+    }
   }
 }
 
@@ -514,7 +520,11 @@ export function replaceGeneratedDisclaimerNode(params: {
   const { node, assetGroupKey, variant, presetKey, newWidth, newHeight } = params;
   const parent = node.parent;
 
-  if (!canInsertChildren(parent)) return node;
+  if (!canInsertChildren(parent)) {
+    // A silent fallback here would look like a successful resize while the
+    // stretched old SVG variant stays in place. Fail loudly instead.
+    throw new Error(getCopy("plugin.errors.disclaimerChangeFailed"));
+  }
 
   const index = parent.children.indexOf(node);
   const replacement = createDisclaimerNode(assetGroupKey, variant, presetKey);

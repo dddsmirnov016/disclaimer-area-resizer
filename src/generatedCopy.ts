@@ -58,6 +58,7 @@ export const COPY = {
       "noVariantsToCreate": "Нет дисклеймеров, из которых можно создать варианты.",
       "presetPercentMissing": "У типа «{presetLabel}» не задан процент.",
       "disclaimerChangeFailed": "Не получилось изменить дисклеймер.",
+      "disclaimerAssetMissing": "Не нашли изображение дисклеймера для этого типа. Переустановите плагин.",
       "disclaimerNotResizable": "У этого дисклеймера нельзя изменить размер.",
       "textDisclaimerChangeFailed": "Не получилось изменить текстовый дисклеймер."
     },

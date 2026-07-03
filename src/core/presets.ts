@@ -1,5 +1,5 @@
 import { DISCLAIMER_ASSET_LIST } from "../generatedDisclaimerAssets";
-import { getPresetLabel } from "./copy";
+import { getCopy, getPresetLabel } from "./copy";
 import type { DisclaimerAsset, DisclaimerPreset, PresetAssetEntry } from "./types";
 
 export const ASSET_MEDICINE =
@@ -37,7 +37,10 @@ export function pickBestAssetVariant(
   const variants = getAssetGroupVariants(assetGroupKey);
 
   if (variants.length === 0) {
-    throw new Error("No SVG variants registered for asset group: " + assetGroupKey);
+    // Can only happen when the generated asset registry is out of sync with
+    // the preset mapping (broken build); the message must still be Russian
+    // because it surfaces in the UI.
+    throw new Error(getCopy("plugin.errors.disclaimerAssetMissing"));
   }
 
   if (

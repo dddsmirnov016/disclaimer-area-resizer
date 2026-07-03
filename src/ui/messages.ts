@@ -39,6 +39,12 @@ export interface PluginState {
   feedbackTone?: "error" | "info";
   info?: SelectionInfo;
   presets: Record<string, DisclaimerPreset>;
+  /**
+   * Id of the single selected node this state was computed for (`null` when
+   * the selection is empty or multiple). The UI echoes it back on apply so
+   * the plugin can refuse to act if the selection changed in between.
+   */
+  selectionId?: string | null;
 }
 
 export interface ApplyResizeMessage {
@@ -49,6 +55,11 @@ export interface ApplyResizeMessage {
   onlyEnlarge: boolean;
   addTarget: AddTarget;
   createAll: boolean;
+  /**
+   * `selectionId` from the state the UI rendered when the user clicked Apply.
+   * `null` when unknown (older UI builds); the plugin then skips the check.
+   */
+  expectedNodeId: string | null;
 }
 
 export interface RequestStateMessage {

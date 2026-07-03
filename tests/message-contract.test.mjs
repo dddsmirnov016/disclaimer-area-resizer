@@ -33,6 +33,7 @@ test("parseUiMessage accepts and normalizes a full apply-resize", () => {
     onlyEnlarge: true,
     addTarget: "image",
     createAll: true,
+    expectedNodeId: null,
   });
 });
 
@@ -49,6 +50,7 @@ test("parseUiMessage fills safe defaults for missing optional fields (backward c
     onlyEnlarge: false,
     addTarget: "body",
     createAll: false,
+    expectedNodeId: null,
   });
 });
 

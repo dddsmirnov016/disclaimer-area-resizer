@@ -18,6 +18,7 @@ import {
   setLayoutPositioning,
   setLayoutSizingFixed,
 } from "../figma/layout";
+import { isInsideInstance } from "../figma/nodeGuards";
 import type { BannerFrame, ResizableNode } from "../figma/nodeGuards";
 import { getRelativeBoundsFromAbsolute } from "../figma/traversal";
 import type { Bounds } from "../core/types";
@@ -144,6 +145,10 @@ export function placeDisclaimerOverImage(params: {
 
   if (node.locked) {
     throw new Error(getCopy("plugin.errors.layerLocked"));
+  }
+
+  if (isInsideInstance(node)) {
+    throw new Error(getCopy("plugin.errors.instanceOverride"));
   }
 
   const overlayFrame = computeImageOverlayFrame(bannerFrame, targetPercent);

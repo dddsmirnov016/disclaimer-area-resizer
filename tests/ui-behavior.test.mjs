@@ -116,6 +116,7 @@ test("submitting a ready add-missing form posts a well-formed apply-resize", asy
     onlyEnlarge: false,
     addTarget: "image",
     createAll: false,
+    expectedNodeId: null,
   });
   // button enters a loading state
   assert.equal(ui.elements.applyBtn.disabled, true);

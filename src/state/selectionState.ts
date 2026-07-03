@@ -17,7 +17,12 @@ import {
   PLUGIN_DATA_PRESET_KEY,
   type BannerDisclaimerIndex,
 } from "../figma/disclaimerNodes";
-import { isFrameLike, isResizable } from "../figma/nodeGuards";
+import {
+  isAttached,
+  isFrameLike,
+  isInsideInstance,
+  isResizable,
+} from "../figma/nodeGuards";
 import type { BannerFrame, ResizableNode } from "../figma/nodeGuards";
 import type { PluginState } from "../ui/messages";
 
@@ -34,7 +39,21 @@ function buildDetectionInfoState(): PluginState {
   };
 }
 
+function buildInstanceOverrideState(): PluginState {
+  return {
+    type: "invalid",
+    error: getCopy("plugin.errors.instanceOverride"),
+    presets: DISCLAIMER_PRESETS,
+  };
+}
+
 function buildAddMissingState(bannerFrame: BannerFrame): PluginState {
+  // Adding a node inside a component instance always fails in Figma; refuse
+  // upfront with a clear message instead of a raw override error on apply.
+  if (bannerFrame.type === "INSTANCE" || isInsideInstance(bannerFrame)) {
+    return buildInstanceOverrideState();
+  }
+
   return {
     type: "ready",
     info: {
@@ -72,6 +91,11 @@ function buildResizeState(
   disclaimerNode: ResizableNode,
   bannerFrame: BannerFrame
 ): PluginState {
+  // Instance internals cannot be resized; tell the user before they click.
+  if (isInsideInstance(disclaimerNode)) {
+    return buildInstanceOverrideState();
+  }
+
   const disclaimerArea = disclaimerNode.width * disclaimerNode.height;
   const bannerArea = bannerFrame.width * bannerFrame.height;
   const currentPercent = round2((disclaimerArea / bannerArea) * 100);
@@ -109,6 +133,14 @@ function buildResizeState(
 }
 
 export function buildState(selection: readonly SceneNode[]): PluginState {
+  const state = buildStateForSelection(selection);
+  state.selectionId = selection.length === 1 ? selection[0].id : null;
+  return state;
+}
+
+function buildStateForSelection(
+  selection: readonly SceneNode[]
+): PluginState {
   if (selection.length !== 1) {
     return {
       type: selection.length === 0 ? "no-selection" : "invalid",
@@ -121,6 +153,15 @@ export function buildState(selection: readonly SceneNode[]): PluginState {
   }
 
   const sceneNode = selection[0];
+
+  // A stale selection can reference a node the user already deleted.
+  if (!isAttached(sceneNode)) {
+    return {
+      type: "invalid",
+      error: getCopy("plugin.errors.selectionChanged"),
+      presets: DISCLAIMER_PRESETS,
+    };
+  }
 
   if (isTopLevelFrame(sceneNode)) {
     if (sceneNode.locked) {

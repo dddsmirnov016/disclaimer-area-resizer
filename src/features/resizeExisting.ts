@@ -9,6 +9,7 @@ import {
   resizeSvgNodeToFrame,
 } from "../figma/disclaimerNodes";
 import { setLayoutSizingFixed } from "../figma/layout";
+import { isInsideInstance } from "../figma/nodeGuards";
 import type { BannerFrame, ResizableNode } from "../figma/nodeGuards";
 
 export function resizeExistingDisclaimer(params: {
@@ -32,6 +33,10 @@ export function resizeExistingDisclaimer(params: {
 
   if (node.locked) {
     throw new Error(getCopy("plugin.errors.layerLocked"));
+  }
+
+  if (isInsideInstance(node)) {
+    throw new Error(getCopy("plugin.errors.instanceOverride"));
   }
 
   const currentPercent = calcActualPercent(
