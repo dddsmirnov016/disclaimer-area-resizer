@@ -7,11 +7,8 @@ import { getCopy } from "../core/copy";
 import { pickBestAssetVariant } from "../core/presets";
 import type { ResizeOutcome } from "../core/types";
 import { findBodyContainer, findMainImageNode } from "../figma/bannerDetection";
-import {
-  createDisclaimerNode,
-  markDisclaimerNode,
-  resizeSvgNodeToFrame,
-} from "../figma/disclaimerNodes";
+import { createDisclaimerNode, markDisclaimerNode } from "../figma/disclaimerMutation";
+import { resizeSvgNodeToFrame } from "../figma/disclaimerSvg";
 import {
   getAutoLayoutPadding,
   setAbsolutePositioningIfParentHasAutoLayout,
@@ -24,17 +21,22 @@ import { getRelativeBoundsFromAbsolute } from "../figma/traversal";
 import type { Bounds } from "../core/types";
 
 export function addDisclaimerToBody(params: {
+  /** Outermost banner frame used for target-percent area math. */
   bannerFrame: BannerFrame;
+  /** Frame the user selected; the disclaimer is inserted here. Defaults to bannerFrame. */
+  hostFrame?: BannerFrame;
   assetGroupKey: string;
   presetKey: string;
   targetPercent: number;
 }): ResizeOutcome<ResizableNode> {
   const { bannerFrame, assetGroupKey, presetKey, targetPercent } = params;
-  const bodyContainer = findBodyContainer(bannerFrame);
+  const hostFrame = params.hostFrame ?? bannerFrame;
+  const bodyContainer = findBodyContainer(hostFrame);
 
   if (!bodyContainer) {
     return addDisclaimerToBannerBottom({
       bannerFrame,
+      hostFrame,
       assetGroupKey,
       presetKey,
       targetPercent,
@@ -58,9 +60,10 @@ export function addDisclaimerToBody(params: {
   const node = createDisclaimerNode(assetGroupKey, variant, presetKey);
 
   try {
-    resizeSvgNodeToFrame(node, newWidth, newHeight);
     setLayoutPositioning(node, "AUTO");
     bodyContainer.appendChild(node);
+    setLayoutSizingFixed(node, "proportional");
+    resizeSvgNodeToFrame(node, newWidth, newHeight);
   } catch (err) {
     node.remove();
     throw err;
@@ -77,10 +80,11 @@ export function addDisclaimerToBody(params: {
 }
 
 function computeImageOverlayFrame(
-  bannerFrame: BannerFrame,
+  hostFrame: BannerFrame,
+  areaBannerFrame: BannerFrame,
   targetPercent: number
 ): Bounds {
-  const mainImage = findMainImageNode(bannerFrame);
+  const mainImage = findMainImageNode(hostFrame);
 
   if (!mainImage) {
     throw new Error(getCopy("plugin.errors.noImageOrVideo"));
@@ -88,12 +92,12 @@ function computeImageOverlayFrame(
 
   const mediaBounds = getRelativeBoundsFromAbsolute(
     mainImage.bounds,
-    bannerFrame
+    hostFrame
   );
 
   return calcImageOverlayFrame(
-    bannerFrame.width,
-    bannerFrame.height,
+    areaBannerFrame.width,
+    areaBannerFrame.height,
     targetPercent,
     mediaBounds
   );
@@ -101,16 +105,18 @@ function computeImageOverlayFrame(
 
 function placeDisclaimerAtOverlayFrame(params: {
   bannerFrame: BannerFrame;
+  hostFrame: BannerFrame;
   node: ResizableNode;
   assetGroupKey: string;
   presetKey: string;
   overlayFrame: Bounds;
 }): ResizeOutcome<ResizableNode> {
-  const { bannerFrame, node, assetGroupKey, presetKey, overlayFrame } = params;
+  const { bannerFrame, hostFrame, node, assetGroupKey, presetKey, overlayFrame } =
+    params;
 
   setLayoutSizingFixed(node, "proportional");
-  bannerFrame.appendChild(node);
-  setAbsolutePositioningIfParentHasAutoLayout(node, bannerFrame);
+  hostFrame.appendChild(node);
+  setAbsolutePositioningIfParentHasAutoLayout(node, hostFrame);
   resizeSvgNodeToFrame(node, overlayFrame.width, overlayFrame.height);
   node.x = overlayFrame.x;
   node.y = overlayFrame.y;
@@ -136,12 +142,14 @@ function placeDisclaimerAtOverlayFrame(params: {
 
 export function placeDisclaimerOverImage(params: {
   bannerFrame: BannerFrame;
+  hostFrame?: BannerFrame;
   node: ResizableNode;
   assetGroupKey: string;
   presetKey: string;
   targetPercent: number;
 }): ResizeOutcome<ResizableNode> {
   const { bannerFrame, node, assetGroupKey, presetKey, targetPercent } = params;
+  const hostFrame = params.hostFrame ?? bannerFrame;
 
   if (node.locked) {
     throw new Error(getCopy("plugin.errors.layerLocked"));
@@ -151,10 +159,15 @@ export function placeDisclaimerOverImage(params: {
     throw new Error(getCopy("plugin.errors.instanceOverride"));
   }
 
-  const overlayFrame = computeImageOverlayFrame(bannerFrame, targetPercent);
+  const overlayFrame = computeImageOverlayFrame(
+    hostFrame,
+    bannerFrame,
+    targetPercent
+  );
 
   return placeDisclaimerAtOverlayFrame({
     bannerFrame,
+    hostFrame,
     node,
     assetGroupKey,
     presetKey,
@@ -164,16 +177,18 @@ export function placeDisclaimerOverImage(params: {
 
 function addDisclaimerToBannerBottom(params: {
   bannerFrame: BannerFrame;
+  hostFrame?: BannerFrame;
   assetGroupKey: string;
   presetKey: string;
   targetPercent: number;
 }): ResizeOutcome<ResizableNode> {
   const { bannerFrame, assetGroupKey, presetKey, targetPercent } = params;
+  const hostFrame = params.hostFrame ?? bannerFrame;
   const overlayFrame = calcImageOverlayFrame(
     bannerFrame.width,
     bannerFrame.height,
     targetPercent,
-    { x: 0, y: 0, width: bannerFrame.width, height: bannerFrame.height }
+    { x: 0, y: 0, width: hostFrame.width, height: hostFrame.height }
   );
   const variant = pickBestAssetVariant(
     assetGroupKey,
@@ -185,6 +200,7 @@ function addDisclaimerToBannerBottom(params: {
   try {
     return placeDisclaimerAtOverlayFrame({
       bannerFrame,
+      hostFrame,
       node,
       assetGroupKey,
       presetKey,
@@ -198,12 +214,18 @@ function addDisclaimerToBannerBottom(params: {
 
 export function addDisclaimerToImage(params: {
   bannerFrame: BannerFrame;
+  hostFrame?: BannerFrame;
   assetGroupKey: string;
   presetKey: string;
   targetPercent: number;
 }): ResizeOutcome<ResizableNode> {
   const { bannerFrame, assetGroupKey, presetKey, targetPercent } = params;
-  const overlayFrame = computeImageOverlayFrame(bannerFrame, targetPercent);
+  const hostFrame = params.hostFrame ?? bannerFrame;
+  const overlayFrame = computeImageOverlayFrame(
+    hostFrame,
+    bannerFrame,
+    targetPercent
+  );
   const variant = pickBestAssetVariant(
     assetGroupKey,
     overlayFrame.width,
@@ -212,10 +234,9 @@ export function addDisclaimerToImage(params: {
   const node = createDisclaimerNode(assetGroupKey, variant, presetKey);
 
   try {
-    // The overlay frame is already computed above (also validating that the
-    // banner has an image), so place directly instead of recomputing it.
     return placeDisclaimerAtOverlayFrame({
       bannerFrame,
+      hostFrame,
       node,
       assetGroupKey,
       presetKey,

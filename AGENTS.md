@@ -35,14 +35,14 @@ Do not force-push, amend unrelated commits, commit secrets, or revert user chang
 | `src/figma/` | Figma Plugin API helpers: guards, traversal, layout, banner detection, disclaimer node operations. |
 | `src/features/` | User workflows: resize existing, add missing, create all variants. |
 | `src/state/` | Selection-to-UI state serialization. |
-| `src/ui/` | TypeScript message contracts for `src/ui.html`. |
+| `src/ui/` | TypeScript UI runtime (`app.ts`) and message contracts for `src/ui.html`. |
 | `src/generatedDisclaimerAssets.ts` | Generated SVG registry; never edit by hand. |
 | `copy/ru.yml` | User-facing UI copy (labels, buttons, errors); edit by hand. |
 | `src/generatedCopy.ts` | Generated copy module; never edit by hand. |
 
 Each source folder has a local `README.md` with responsibilities and safe-change rules. Read the relevant folder doc before editing that area.
 
-`src/main.ts` is only a compatibility shim for older references. Production builds bundle `src/plugin.ts`.
+Production builds bundle `src/plugin.ts` to `dist/main.js`.
 
 ## Build Pipeline
 
@@ -51,7 +51,8 @@ Each source folder has a local `README.md` with responsibilities and safe-change
 1. regenerates `src/generatedDisclaimerAssets.ts` from `svg/`;
 2. regenerates `src/generatedCopy.ts` and injects `window.UI_COPY` into `src/ui.html` from `copy/ru.yml`;
 3. runs TypeScript type checking with `tsc -p tsconfig.json`;
-4. bundles `src/plugin.ts` to `dist/main.js` with `esbuild`.
+4. bundles `src/ui/app.ts` and injects the script into `src/ui.html`;
+5. bundles `src/plugin.ts` to `dist/main.js` with `esbuild`.
 
 `npm run watch` runs the same build script in watch mode for TypeScript imports. If SVG files change, run `npm run build` to regenerate the asset module.
 

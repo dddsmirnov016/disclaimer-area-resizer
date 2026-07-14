@@ -22,45 +22,19 @@ test("round2 rounds to two decimals across signs and magnitudes", () => {
   assert.equal(geom.round2(123456.781), 123456.78);
 });
 
-test("calcNewDimensions preserves target area for each direction", () => {
+test("calcHeightForTargetArea preserves width and hits the target banner area", () => {
   const banner = { w: 660, h: 82, pct: 7 };
   const target = (banner.w * banner.h * banner.pct) / 100;
 
-  const byHeight = geom.calcNewDimensions(200, 20, banner.w, banner.h, 7, "height");
-  assert.equal(byHeight.newWidth, 200);
-  assert.ok(Math.abs(area(byHeight) - target) < 1e-6);
-
-  const byWidth = geom.calcNewDimensions(200, 20, banner.w, banner.h, 7, "width");
-  assert.equal(byWidth.newHeight, 20);
-  assert.ok(Math.abs(area(byWidth) - target) < 1e-6);
-
-  const proportional = geom.calcNewDimensions(200, 20, banner.w, banner.h, 7, "proportional");
-  assert.ok(Math.abs(area(proportional) - target) < 1e-6);
-  // proportional keeps the aspect ratio
-  assert.ok(Math.abs(proportional.newWidth / proportional.newHeight - 200 / 20) < 1e-9);
+  const result = geom.calcHeightForTargetArea(200, banner.w, banner.h, 7);
+  assert.equal(result.newWidth, 200);
+  assert.ok(Math.abs(area(result) - target) < 1e-6);
 });
 
-test("calcNewDimensions clamps zero/negative targets to the minimum dimension", () => {
-  const zero = geom.calcNewDimensions(200, 20, 660, 82, 0, "height");
-  assert.equal(zero.newHeight, MIN_DIMENSION);
-
-  const negative = geom.calcNewDimensions(200, 20, 660, 82, -50, "height");
-  assert.equal(negative.newHeight, MIN_DIMENSION);
-
-  const negativeWidth = geom.calcNewDimensions(200, 20, 660, 82, -50, "width");
-  assert.equal(negativeWidth.newWidth, MIN_DIMENSION);
-});
-
-test("calcNewDimensions propagates non-finite inputs without throwing", () => {
-  const nan = geom.calcNewDimensions(200, 20, 660, 82, Number.NaN, "height");
-  assert.ok(Number.isNaN(nan.newHeight));
-
-  const infinite = geom.calcNewDimensions(200, 20, 660, 82, Infinity, "height");
-  assert.equal(infinite.newHeight, Infinity);
-
-  // division by zero selected size yields a non-finite size, not a throw
-  const zeroSel = geom.calcNewDimensions(0, 20, 660, 82, 7, "height");
-  assert.equal(zeroSel.newHeight, Infinity);
+test("calcHeightForTargetArea propagates a zero width without throwing", () => {
+  const zeroWidth = geom.calcHeightForTargetArea(0, 660, 82, 7);
+  assert.equal(zeroWidth.newWidth, 0);
+  assert.equal(zeroWidth.newHeight, Infinity);
 });
 
 test("calcAreaWithWidth preserves area and clamps non-positive width", () => {

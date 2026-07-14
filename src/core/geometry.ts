@@ -1,4 +1,4 @@
-import type { Bounds, ResizeDirection } from "./types";
+import type { Bounds } from "./types";
 
 export const IMAGE_OVERLAY_HORIZONTAL_INSET = 8;
 export const IMAGE_OVERLAY_BOTTOM_INSET = 2;
@@ -7,35 +7,20 @@ export function round2(n: number): number {
   return Math.round(n * 100) / 100;
 }
 
-export function calcNewDimensions(
-  selW: number,
-  selH: number,
+/**
+ * Keep the node's current width and stretch its height so its area becomes
+ * `targetPercent` of the banner area. This is the only resize strategy the
+ * plugin uses for existing disclaimers.
+ */
+export function calcHeightForTargetArea(
+  width: number,
   bannerW: number,
   bannerH: number,
-  targetPercent: number,
-  direction: ResizeDirection
+  targetPercent: number
 ): { newWidth: number; newHeight: number } {
-  const bannerArea = bannerW * bannerH;
-  const targetArea = (bannerArea * targetPercent) / 100;
-  const minDimension = 0.01;
-
-  if (direction === "height") {
-    const newHeight = Math.max(minDimension, targetArea / selW);
-    return { newWidth: selW, newHeight };
-  }
-
-  if (direction === "width") {
-    const newWidth = Math.max(minDimension, targetArea / selH);
-    return { newWidth, newHeight: selH };
-  }
-
-  const disclaimerArea = selW * selH;
-  const scale = Math.sqrt(targetArea / disclaimerArea);
-
-  return {
-    newWidth: Math.max(minDimension, selW * scale),
-    newHeight: Math.max(minDimension, selH * scale),
-  };
+  const targetArea = (bannerW * bannerH * targetPercent) / 100;
+  const newHeight = Math.max(0.01, targetArea / width);
+  return { newWidth: width, newHeight };
 }
 
 export function calcAreaWithWidth(

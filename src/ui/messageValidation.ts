@@ -2,16 +2,10 @@ import type {
   AddTarget,
   ApplyResizeMessage,
   PluginMessage,
-  ResizeDirection,
   ResizeMessage,
   UiMessage,
 } from "./messages";
 
-const RESIZE_DIRECTIONS: readonly ResizeDirection[] = [
-  "height",
-  "width",
-  "proportional",
-];
 const ADD_TARGETS: readonly AddTarget[] = ["body", "image"];
 const UI_MESSAGE_TYPES = ["apply-resize", "request-state", "resize"] as const;
 const PLUGIN_MESSAGE_TYPES = [
@@ -34,32 +28,10 @@ function asBoolean(input: unknown, fallback: boolean): boolean {
   return typeof input === "boolean" ? input : fallback;
 }
 
-function asResizeDirection(input: unknown): ResizeDirection {
-  return RESIZE_DIRECTIONS.includes(input as ResizeDirection)
-    ? (input as ResizeDirection)
-    : "height";
-}
-
 function asAddTarget(input: unknown): AddTarget {
   return ADD_TARGETS.includes(input as AddTarget)
     ? (input as AddTarget)
     : "body";
-}
-
-/**
- * Normalize a `customPercent` field that may arrive as a number, a numeric
- * string (older UI builds), `null`, or be missing entirely. Returns `null`
- * when the value is absent or not a finite number; range validation lives in
- * `getTargetPercent`.
- */
-function asCustomPercent(input: unknown): number | null {
-  if (input === null || input === undefined) return null;
-  if (isFiniteNumber(input)) return input;
-  if (typeof input === "string") {
-    const parsed = Number.parseFloat(input.replace(",", "."));
-    return Number.isFinite(parsed) ? parsed : null;
-  }
-  return null;
 }
 
 function parseApplyResize(
@@ -70,9 +42,6 @@ function parseApplyResize(
   return {
     type: "apply-resize",
     presetKey: input.presetKey,
-    customPercent: asCustomPercent(input.customPercent),
-    direction: asResizeDirection(input.direction),
-    onlyEnlarge: asBoolean(input.onlyEnlarge, false),
     addTarget: asAddTarget(input.addTarget),
     createAll: asBoolean(input.createAll, false),
     expectedNodeId:

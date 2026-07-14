@@ -1,7 +1,7 @@
 /// <reference types="@figma/plugin-typings" />
 
-import { round2 } from "./core/geometry";
 import { formatCopy, getCopy, pluralizeVariantWord } from "./core/copy";
+import { formatRuNumber, formatRuPercent } from "./core/format";
 import { getPresetAndAssetGroup, getTargetPercent } from "./core/presets";
 import { addDisclaimerToBody, addDisclaimerToImage, placeDisclaimerOverImage } from "./features/addMissing";
 import { createAllDisclaimerVariants } from "./features/createAllVariants";
@@ -12,9 +12,11 @@ import {
   findContainingDisclaimerForSelection,
   findDetectedDisclaimerForBannerSelection,
   findMatchingDisclaimer,
+  isImageLedBannerFrame,
   isProbableBannerSelectionFrame,
-} from "./figma/disclaimerNodes";
-import { isFrameLike, isResizable, type ResizableNode } from "./figma/nodeGuards";
+  resolveDisclaimerAreaBannerFrame,
+} from "./figma/disclaimerDetection";
+import { isFrameLike, isResizable, hasNonZeroSize, isAttached, isLocked, type BannerFrame, type ResizableNode } from "./figma/nodeGuards";
 import {
   BANNER_DISCLAIMER_DETECTION_ERROR,
   buildState,
@@ -23,6 +25,14 @@ import { parseUiMessage } from "./ui/messageValidation";
 import type { UiMessage } from "./ui/messages";
 
 declare const __html__: string;
+
+function resolveAreaBannerFrame(hostFrame: BannerFrame): BannerFrame {
+  const index = buildBannerDisclaimerIndex(hostFrame);
+  if (isImageLedBannerFrame(hostFrame, index)) {
+    return hostFrame;
+  }
+  return findBannerFrame(hostFrame) ?? hostFrame;
+}
 
 function sendState(): void {
   figma.ui.postMessage(buildState(figma.currentPage.selection));
@@ -34,21 +44,6 @@ function postError(message: string): void {
 
 function postSuccess(message: string): void {
   figma.ui.postMessage({ type: "success", message });
-}
-
-function formatRuNumber(n: number): string {
-  const rounded = round2(n);
-  const sign = rounded < 0 ? "−" : "";
-  const abs = Math.abs(rounded);
-  const [intPart, decimalPart = ""] = String(abs).split(".");
-  const groupedInt = intPart.replace(/\B(?=(\d{3})+(?!\d))/g, " ");
-  const trimmedDecimal = decimalPart.replace(/0+$/, "");
-
-  return sign + groupedInt + (trimmedDecimal ? "," + trimmedDecimal : "");
-}
-
-function formatRuPercent(n: number): string {
-  return formatRuNumber(n) + " %";
 }
 
 function toUserErrorMessage(err: unknown): string {
@@ -95,6 +90,31 @@ function handleApplyResize(msg: Extract<UiMessage, { type: "apply-resize" }>): v
 
   const selectedNode = selection[0];
 
+  if (!isAttached(selectedNode)) {
+    postError(getCopy("plugin.errors.selectionChanged"));
+    return;
+  }
+
+  if (isLocked(selectedNode)) {
+    postError(getCopy("plugin.errors.layerLocked"));
+    return;
+  }
+
+  if (!hasNonZeroSize(selectedNode)) {
+    postError(
+      isFrameLike(selectedNode)
+        ? formatCopy("plugin.errors.bannerSizeZero", {
+            width: selectedNode.width,
+            height: selectedNode.height,
+          })
+        : formatCopy("plugin.errors.disclaimerSizeZero", {
+            width: selectedNode.width,
+            height: selectedNode.height,
+          })
+    );
+    return;
+  }
+
   // The UI echoes the node id its state was rendered for. If the user changed
   // the selection between rendering and clicking Apply, refuse instead of
   // silently operating on a different layer.
@@ -131,7 +151,7 @@ function handleApplyResize(msg: Extract<UiMessage, { type: "apply-resize" }>): v
     return;
   }
 
-  const targetPercent = getTargetPercent(msg.presetKey, msg.customPercent);
+  const targetPercent = getTargetPercent(msg.presetKey);
   if (targetPercent === null) {
     postError(getCopy("plugin.errors.invalidPercent"));
     return;
@@ -147,12 +167,15 @@ function handleApplyResize(msg: Extract<UiMessage, { type: "apply-resize" }>): v
       return;
     }
 
-    const existingDisclaimer = findMatchingDisclaimer(selectedNode, assetGroupKey);
+    const hostFrame = selectedNode;
+    const areaBannerFrame = resolveAreaBannerFrame(hostFrame);
+    const existingDisclaimer = findMatchingDisclaimer(hostFrame, assetGroupKey);
 
     if (existingDisclaimer) {
       if (msg.addTarget === "image") {
         result = placeDisclaimerOverImage({
-          bannerFrame: selectedNode,
+          bannerFrame: areaBannerFrame,
+          hostFrame,
           node: existingDisclaimer,
           assetGroupKey,
           presetKey: msg.presetKey,
@@ -162,10 +185,8 @@ function handleApplyResize(msg: Extract<UiMessage, { type: "apply-resize" }>): v
       } else {
         result = resizeExistingDisclaimer({
           node: existingDisclaimer,
-          bannerFrame: selectedNode,
+          bannerFrame: areaBannerFrame,
           targetPercent,
-          direction: msg.direction,
-          onlyEnlarge: msg.onlyEnlarge,
           assetGroupKey,
           presetKey: msg.presetKey,
         });
@@ -174,13 +195,15 @@ function handleApplyResize(msg: Extract<UiMessage, { type: "apply-resize" }>): v
       result =
         msg.addTarget === "image"
           ? addDisclaimerToImage({
-              bannerFrame: selectedNode,
+              bannerFrame: areaBannerFrame,
+              hostFrame,
               assetGroupKey,
               presetKey: msg.presetKey,
               targetPercent,
             })
           : addDisclaimerToBody({
-              bannerFrame: selectedNode,
+              bannerFrame: areaBannerFrame,
+              hostFrame,
               assetGroupKey,
               presetKey: msg.presetKey,
               targetPercent,
@@ -190,6 +213,7 @@ function handleApplyResize(msg: Extract<UiMessage, { type: "apply-resize" }>): v
   } else {
     let resizeNode: ResizableNode | null = null;
     let bannerFrame = findBannerFrame(selectedNode);
+    let bannerIndex: ReturnType<typeof buildBannerDisclaimerIndex> | null = null;
 
     if (isFrameLike(selectedNode)) {
       const selectionIndex = buildBannerDisclaimerIndex(selectedNode);
@@ -200,7 +224,12 @@ function handleApplyResize(msg: Extract<UiMessage, { type: "apply-resize" }>): v
       );
 
       if (resizeNode) {
-        bannerFrame = bannerFrame || selectedNode;
+        const fallbackBannerFrame = bannerFrame || selectedNode;
+        bannerFrame = resolveDisclaimerAreaBannerFrame(
+          resizeNode,
+          fallbackBannerFrame,
+          selectionIndex
+        );
       } else if (
         isProbableBannerSelectionFrame(selectedNode, bannerFrame, selectionIndex)
       ) {
@@ -210,14 +239,31 @@ function handleApplyResize(msg: Extract<UiMessage, { type: "apply-resize" }>): v
     }
 
     if (!resizeNode && bannerFrame) {
+      bannerIndex = buildBannerDisclaimerIndex(bannerFrame);
       resizeNode = findContainingDisclaimerForSelection(
         selectedNode,
-        bannerFrame
+        bannerFrame,
+        bannerIndex
       );
+
+      if (resizeNode) {
+        bannerFrame = resolveDisclaimerAreaBannerFrame(
+          resizeNode,
+          bannerFrame,
+          bannerIndex
+        );
+      }
     }
 
     if (!resizeNode && isResizable(selectedNode)) {
       resizeNode = selectedNode;
+      if (bannerFrame) {
+        bannerFrame = resolveDisclaimerAreaBannerFrame(
+          resizeNode,
+          bannerFrame,
+          bannerIndex || buildBannerDisclaimerIndex(bannerFrame)
+        );
+      }
     }
 
     if (!resizeNode) {
@@ -238,8 +284,6 @@ function handleApplyResize(msg: Extract<UiMessage, { type: "apply-resize" }>): v
       node: resizeNode,
       bannerFrame,
       targetPercent,
-      direction: msg.direction,
-      onlyEnlarge: msg.onlyEnlarge,
       assetGroupKey,
       presetKey: msg.presetKey,
     });

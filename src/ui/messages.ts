@@ -1,7 +1,6 @@
 import type {
   AddTarget,
   DisclaimerPreset,
-  ResizeDirection,
   SelectionMode,
 } from "../core/types";
 
@@ -10,7 +9,6 @@ export type {
   DisclaimerAsset,
   DisclaimerPreset,
   PresetAssetEntry,
-  ResizeDirection,
   SelectionMode,
 } from "../core/types";
 
@@ -50,9 +48,6 @@ export interface PluginState {
 export interface ApplyResizeMessage {
   type: "apply-resize";
   presetKey: string;
-  customPercent: number | null;
-  direction: ResizeDirection;
-  onlyEnlarge: boolean;
   addTarget: AddTarget;
   createAll: boolean;
   /**

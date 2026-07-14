@@ -111,9 +111,6 @@ test("submitting a ready add-missing form posts a well-formed apply-resize", asy
   assert.deepEqual(plain(msg), {
     type: "apply-resize",
     presetKey: "medicine_video_7",
-    customPercent: null,
-    direction: "height",
-    onlyEnlarge: false,
     addTarget: "image",
     createAll: false,
     expectedNodeId: null,

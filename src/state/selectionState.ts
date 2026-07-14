@@ -12,11 +12,12 @@ import {
   findContainingDisclaimerForSelection,
   findDetectedDisclaimerForBannerSelection,
   isProbableBannerSelectionFrame,
+  resolveDisclaimerAreaBannerFrame,
   PLUGIN_DATA_ASSET_KEY,
   PLUGIN_DATA_NAMESPACE,
   PLUGIN_DATA_PRESET_KEY,
   type BannerDisclaimerIndex,
-} from "../figma/disclaimerNodes";
+} from "../figma/disclaimerDetection";
 import {
   isAttached,
   isFrameLike,
@@ -194,7 +195,14 @@ function buildStateForSelection(
       return buildBannerWithoutResolvedDisclaimerState(sceneNode, selectionIndex);
     }
 
-    return buildResizeState(detectedDisclaimer, sceneNode);
+    return buildResizeState(
+      detectedDisclaimer,
+      resolveDisclaimerAreaBannerFrame(
+        detectedDisclaimer,
+        sceneNode,
+        selectionIndex
+      )
+    );
   }
 
   if (!isResizable(sceneNode)) {
@@ -237,7 +245,12 @@ function buildStateForSelection(
     );
 
     if (detectedDisclaimer) {
-      const bannerFrame = containingBannerFrame || sceneNode;
+      const fallbackBannerFrame = containingBannerFrame || sceneNode;
+      const bannerFrame = resolveDisclaimerAreaBannerFrame(
+        detectedDisclaimer,
+        fallbackBannerFrame,
+        selectionIndex
+      );
       if (bannerFrame.width <= 0 || bannerFrame.height <= 0) {
         return {
           type: "invalid",
@@ -262,26 +275,44 @@ function buildStateForSelection(
     }
   }
 
-  const bannerFrame = containingBannerFrame || findBannerFrame(sceneNode);
+  const fallbackBannerFrame =
+    containingBannerFrame || findBannerFrame(sceneNode);
+  const fallbackIndex = fallbackBannerFrame
+    ? buildBannerDisclaimerIndex(fallbackBannerFrame)
+    : null;
 
-  if (bannerFrame) {
+  if (fallbackBannerFrame && fallbackIndex) {
     const containingDisclaimer = findContainingDisclaimerForSelection(
       sceneNode,
-      bannerFrame
+      fallbackBannerFrame,
+      fallbackIndex
     );
 
     if (containingDisclaimer) {
-      return buildResizeState(containingDisclaimer, bannerFrame);
+      return buildResizeState(
+        containingDisclaimer,
+        resolveDisclaimerAreaBannerFrame(
+          containingDisclaimer,
+          fallbackBannerFrame,
+          fallbackIndex
+        )
+      );
     }
   }
 
-  if (!bannerFrame) {
+  if (!fallbackBannerFrame) {
     return {
       type: "invalid",
       error: getCopy("plugin.errors.selectDisclaimerOrBanner"),
       presets: DISCLAIMER_PRESETS,
     };
   }
+
+  const bannerFrame = resolveDisclaimerAreaBannerFrame(
+    sceneNode,
+    fallbackBannerFrame,
+    fallbackIndex || undefined
+  );
 
   if (bannerFrame.width <= 0 || bannerFrame.height <= 0) {
     return {

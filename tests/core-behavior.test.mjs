@@ -120,7 +120,7 @@ test("preset labels are short Cyrillic strings without raw percent signs", async
 });
 
 test("figma disclaimer helpers resize generated SVGs with resize instead of resizeWithoutConstraints", async () => {
-  const source = await readFile("src/figma/disclaimerNodes.ts", "utf8");
+  const source = await readFile("src/figma/disclaimerSvg.ts", "utf8");
   const helper = source.match(/function resizeSvgNodeToFrame[\s\S]*?\n}\n/);
 
   assert.ok(helper, "expected resizeSvgNodeToFrame helper");
@@ -130,7 +130,7 @@ test("figma disclaimer helpers resize generated SVGs with resize instead of resi
 
 test("SVG resize still runs when descendant constraint preparation is read-only", async () => {
   const mod = await bundleAndImport(`
-    import { resizeSvgNodeToFrame } from ${modulePath("src/figma/disclaimerNodes.ts")};
+    import { resizeSvgNodeToFrame } from ${modulePath("src/figma/disclaimerSvg.ts")};
 
     const child = {
       id: "Vector",
@@ -186,7 +186,7 @@ test("create-all variants remove known disclaimers before inserting new ones", a
 test("banner selection prefers plugin-created disclaimer nodes for resize state", async () => {
   const mod = await bundleAndImport(`
     import { buildState } from ${modulePath("src/state/selectionState.ts")};
-    import { PLUGIN_DATA_NAMESPACE, PLUGIN_DATA_ASSET_KEY } from ${modulePath("src/figma/disclaimerNodes.ts")};
+    import { PLUGIN_DATA_NAMESPACE, PLUGIN_DATA_ASSET_KEY } from ${modulePath("src/figma/disclaimerDetection.ts")};
 
     function makeNode(overrides) {
       return {
@@ -198,6 +198,7 @@ test("banner selection prefers plugin-created disclaimer nodes for resize state"
         x: overrides.x || 0,
         y: overrides.y || 0,
         locked: false,
+        removed: false,
         visible: true,
         layoutMode: overrides.layoutMode || "NONE",
         parent: null,
@@ -253,7 +254,7 @@ test("banner selection prefers plugin-created disclaimer nodes for resize state"
 test("banner selection refuses ambiguous plugin-created disclaimer candidates", async () => {
   const mod = await bundleAndImport(`
     import { buildState, BANNER_DISCLAIMER_DETECTION_ERROR } from ${modulePath("src/state/selectionState.ts")};
-    import { PLUGIN_DATA_NAMESPACE, PLUGIN_DATA_ASSET_KEY } from ${modulePath("src/figma/disclaimerNodes.ts")};
+    import { PLUGIN_DATA_NAMESPACE, PLUGIN_DATA_ASSET_KEY } from ${modulePath("src/figma/disclaimerDetection.ts")};
 
     function makeNode(overrides) {
       return {
@@ -265,6 +266,7 @@ test("banner selection refuses ambiguous plugin-created disclaimer candidates", 
         x: overrides.x || 0,
         y: overrides.y || 0,
         locked: false,
+        removed: false,
         visible: true,
         layoutMode: overrides.layoutMode || "NONE",
         parent: null,
@@ -347,6 +349,160 @@ test("banner selection with no disclaimer offers the add-missing flow", async ()
   assert.equal(mod.state.info.currentPercent, null);
 });
 
+test("nested native ad with no disclaimer offers the add-missing flow", async () => {
+  const mod = await bundleAndImport(`
+    import { buildState } from ${modulePath("src/state/selectionState.ts")};
+    import { isProbableBannerSelectionFrame } from ${modulePath("src/figma/disclaimerDetection.ts")};
+
+    function makeNode(overrides) {
+      return {
+        id: overrides.id,
+        name: overrides.name,
+        type: overrides.type || "FRAME",
+        width: overrides.width,
+        height: overrides.height,
+        x: overrides.x || 0,
+        y: overrides.y || 0,
+        locked: false,
+        removed: false,
+        visible: overrides.visible !== false,
+        layoutMode: overrides.layoutMode || "NONE",
+        fills: overrides.fills || [],
+        parent: null,
+        children: overrides.children || [],
+        resizeWithoutConstraints() {},
+        absoluteTransform: [
+          [1, 0, overrides.absoluteX || 0],
+          [0, 1, overrides.absoluteY || 0],
+        ],
+        getSharedPluginData() {
+          return "";
+        },
+      };
+    }
+
+    const image = makeNode({
+      id: "10:1148",
+      name: "Image",
+      type: "RECTANGLE",
+      width: 195,
+      height: 195,
+      absoluteX: 16,
+      absoluteY: 209.6201171875,
+      fills: [{ type: "IMAGE" }],
+    });
+    const overflowMenu = makeNode({
+      id: "10:1149",
+      name: "Vector",
+      type: "VECTOR",
+      width: 12,
+      height: 2.6666667461395264,
+      x: 169,
+      y: 248.3798828125,
+    });
+    const hiddenContainer = makeNode({
+      id: "10:1150",
+      name: "Container",
+      width: 179,
+      height: 32,
+      x: 8,
+      y: 247,
+      visible: false,
+    });
+    const headline = makeNode({
+      id: "10:1151",
+      name: "Получи до 3000 ₽ на карту ВТБ",
+      type: "TEXT",
+      width: 175,
+      height: 30,
+      x: 8,
+      y: 205.3798828125,
+    });
+    const domain = makeNode({
+      id: "10:1153",
+      name: "Domain",
+      type: "TEXT",
+      width: 36,
+      height: 18,
+    });
+    const separator = makeNode({
+      id: "10:1154",
+      name: "·",
+      type: "TEXT",
+      width: 4,
+      height: 18,
+      x: 40,
+    });
+    const label = makeNode({
+      id: "10:1155",
+      name: "Label",
+      type: "TEXT",
+      width: 54,
+      height: 18,
+      x: 48,
+    });
+    const domainAndLabel = makeNode({
+      id: "10:1152",
+      name: "Domain + Label",
+      width: 102,
+      height: 18,
+      x: 8,
+      y: 240.3798828125,
+      children: [domain, separator, label],
+    });
+    const ad = makeNode({
+      id: "10:1147",
+      name: "AD",
+      width: 195,
+      height: 325,
+      x: 16,
+      y: 209.6201171875,
+      absoluteX: 16,
+      absoluteY: 209.6201171875,
+      children: [
+        image,
+        overflowMenu,
+        hiddenContainer,
+        headline,
+        domainAndLabel,
+      ],
+    });
+    const layoutFrame = makeNode({
+      id: "7:9",
+      name: "Page 5",
+      width: 500,
+      height: 830,
+      children: [ad],
+    });
+    layoutFrame.parent = { type: "PAGE" };
+    ad.parent = layoutFrame;
+    image.parent = ad;
+    overflowMenu.parent = ad;
+    hiddenContainer.parent = ad;
+    headline.parent = ad;
+    domainAndLabel.parent = ad;
+    domain.parent = domainAndLabel;
+    separator.parent = domainAndLabel;
+    label.parent = domainAndLabel;
+
+    export const state = buildState([ad]);
+    export const probableWithoutPrebuiltIndex =
+      isProbableBannerSelectionFrame(ad, layoutFrame);
+  `);
+
+  assert.equal(mod.probableWithoutPrebuiltIndex, true);
+  assert.equal(mod.state.type, "ready");
+  assert.equal(mod.state.info.mode, "add-missing");
+  assert.equal(mod.state.info.bannerName, "AD");
+  assert.equal(mod.state.info.bannerWidth, 195);
+  assert.equal(mod.state.info.bannerHeight, 325);
+  assert.equal(mod.state.info.disclaimerName, null);
+  assert.equal(mod.state.info.disclaimerWidth, null);
+  assert.equal(mod.state.info.disclaimerHeight, null);
+  assert.equal(mod.state.info.currentPercent, null);
+  assert.equal(mod.state.info.detectedPresetKey, null);
+});
+
 test("banner selection falls back to a single heuristic disclaimer candidate", async () => {
   const mod = await bundleAndImport(`
     import { buildState } from ${modulePath("src/state/selectionState.ts")};
@@ -361,6 +517,7 @@ test("banner selection falls back to a single heuristic disclaimer candidate", a
         x: overrides.x || 0,
         y: overrides.y || 0,
         locked: false,
+        removed: false,
         visible: true,
         layoutMode: overrides.layoutMode || "NONE",
         parent: null,
@@ -420,6 +577,7 @@ test("banner selection treats nested heuristic matches as one disclaimer contain
         x: overrides.x || 0,
         y: overrides.y || 0,
         locked: false,
+        removed: false,
         visible: true,
         layoutMode: overrides.layoutMode || "NONE",
         parent: null,
@@ -496,6 +654,7 @@ test("nested banner frame selection uses its detected disclaimer, not the frame 
         x: overrides.x || 0,
         y: overrides.y || 0,
         locked: false,
+        removed: false,
         visible: true,
         layoutMode: overrides.layoutMode || "NONE",
         parent: null,
@@ -583,6 +742,7 @@ test("apply resize uses the detected disclaimer when the banner remains selected
         x: overrides.x || 0,
         y: overrides.y || 0,
         locked: false,
+        removed: false,
         visible: true,
         layoutMode: overrides.layoutMode || "NONE",
         parent: null,
@@ -648,11 +808,9 @@ test("apply resize uses the detected disclaimer when the banner remains selected
     uiHandlers.message({
       type: "apply-resize",
       presetKey: "medicine_video_7",
-      customPercent: null,
-      direction: "height",
-      onlyEnlarge: false,
       addTarget: "body",
       createAll: false,
+      expectedNodeId: null,
     });
 
     export const selectedName = globalThis.figma.currentPage.selection[0].name;
@@ -692,6 +850,7 @@ test("apply resize hides raw Figma API errors from users", async () => {
         x: overrides.x || 0,
         y: overrides.y || 0,
         locked: false,
+        removed: false,
         visible: true,
         layoutMode: overrides.layoutMode || "NONE",
         parent: null,
@@ -754,11 +913,9 @@ test("apply resize hides raw Figma API errors from users", async () => {
     uiHandlers.message({
       type: "apply-resize",
       presetKey: "medicine_video_7",
-      customPercent: null,
-      direction: "height",
-      onlyEnlarge: false,
       addTarget: "body",
       createAll: false,
+      expectedNodeId: null,
     });
 
     export const lastError = postedMessages
@@ -786,6 +943,7 @@ test("apply resize uses the detected disclaimer when a nested banner frame remai
         x: overrides.x || 0,
         y: overrides.y || 0,
         locked: false,
+        removed: false,
         visible: true,
         layoutMode: overrides.layoutMode || "NONE",
         parent: null,
@@ -881,11 +1039,9 @@ test("apply resize uses the detected disclaimer when a nested banner frame remai
     uiHandlers.message({
       type: "apply-resize",
       presetKey: "medicine_video_7",
-      customPercent: null,
-      direction: "height",
-      onlyEnlarge: false,
       addTarget: "body",
       createAll: false,
+      expectedNodeId: null,
     });
 
     export const selectedName = globalThis.figma.currentPage.selection[0].name;
@@ -923,6 +1079,7 @@ test("banner selection measures a nested actual disclaimer instead of its wrappe
         x: overrides.x || 0,
         y: overrides.y || 0,
         locked: false,
+        removed: false,
         visible: true,
         layoutMode: overrides.layoutMode || "NONE",
         layoutSizingHorizontal: overrides.layoutSizingHorizontal || "FIXED",
@@ -1015,7 +1172,7 @@ test("banner selection measures a nested actual disclaimer instead of its wrappe
 test("banner selection resolves a previously marked wrapper to its nested visible disclaimer", async () => {
   const mod = await bundleAndImport(`
     import { buildState } from ${modulePath("src/state/selectionState.ts")};
-    import { PLUGIN_DATA_NAMESPACE, PLUGIN_DATA_ASSET_KEY } from ${modulePath("src/figma/disclaimerNodes.ts")};
+    import { PLUGIN_DATA_NAMESPACE, PLUGIN_DATA_ASSET_KEY } from ${modulePath("src/figma/disclaimerDetection.ts")};
 
     function makeNode(overrides) {
       const pluginData = overrides.pluginData || {};
@@ -1028,6 +1185,7 @@ test("banner selection resolves a previously marked wrapper to its nested visibl
         x: overrides.x || 0,
         y: overrides.y || 0,
         locked: false,
+        removed: false,
         visible: true,
         layoutMode: overrides.layoutMode || "NONE",
         layoutSizingHorizontal: overrides.layoutSizingHorizontal || "FIXED",
@@ -1107,7 +1265,7 @@ test("banner selection resolves a previously marked wrapper to its nested visibl
 
 test("apply resize keeps a wrapper hug-sized and deforms its nested disclaimer", async () => {
   const mod = await bundleAndImport(`
-    import { PLUGIN_DATA_NAMESPACE, PLUGIN_DATA_ASSET_KEY } from ${modulePath("src/figma/disclaimerNodes.ts")};
+    import { PLUGIN_DATA_NAMESPACE, PLUGIN_DATA_ASSET_KEY } from ${modulePath("src/figma/disclaimerDetection.ts")};
 
     const uiHandlers = {};
     const postedMessages = [];
@@ -1123,6 +1281,7 @@ test("apply resize keeps a wrapper hug-sized and deforms its nested disclaimer",
         x: overrides.x || 0,
         y: overrides.y || 0,
         locked: false,
+        removed: false,
         visible: true,
         layoutMode: overrides.layoutMode || "NONE",
         layoutSizingHorizontal: overrides.layoutSizingHorizontal || "FIXED",
@@ -1225,11 +1384,9 @@ test("apply resize keeps a wrapper hug-sized and deforms its nested disclaimer",
     uiHandlers.message({
       type: "apply-resize",
       presetKey: "medicine_video_7",
-      customPercent: null,
-      direction: "height",
-      onlyEnlarge: false,
       addTarget: "body",
       createAll: false,
+      expectedNodeId: null,
     });
 
     export const initialDisclaimerName = initialState.info?.disclaimerName || null;

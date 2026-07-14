@@ -39,11 +39,9 @@ function makeResizeScenario(disclaimerOverrides = {}) {
 const APPLY_BASE = {
   type: "apply-resize",
   presetKey: "medicine_video_7",
-  customPercent: null,
-  direction: "height",
-  onlyEnlarge: false,
   addTarget: "body",
   createAll: false,
+  expectedNodeId: null,
 };
 
 function typesOf(harness) {
@@ -210,6 +208,91 @@ function bannerWithBodyContainer() {
   return banner;
 }
 
+function nativeAdInLayoutFrame() {
+  const image = makeFakeNode({
+    id: "10:1148",
+    name: "Image",
+    type: "RECTANGLE",
+    width: 195,
+    height: 195,
+    fills: [{ type: "IMAGE" }],
+  });
+  const headline = makeFakeNode({
+    id: "10:1151",
+    name: "Получи до 3000 ₽ на карту ВТБ",
+    type: "TEXT",
+    width: 175,
+    height: 30,
+    x: 8,
+    y: 205.38,
+  });
+  const ad = makeFakeNode({
+    id: "10:1147",
+    name: "AD",
+    type: "FRAME",
+    width: 195,
+    height: 325,
+    x: 16,
+    y: 209.62,
+    children: [image, headline],
+  });
+  const layoutFrame = makeFakeNode({
+    id: "7:9",
+    name: "Page 5",
+    type: "FRAME",
+    width: 500,
+    height: 830,
+    children: [ad],
+  });
+  const page = makeFakeNode({
+    name: "Drafts",
+    type: "PAGE",
+    children: [layoutFrame],
+  });
+  linkTree(page);
+  return { ad, layoutFrame };
+}
+
+function ordinaryNestedContentFrame() {
+  const text = makeFakeNode({
+    name: "Copy",
+    type: "TEXT",
+    width: 320,
+    height: 40,
+  });
+  const body = makeFakeNode({
+    name: "Body",
+    type: "FRAME",
+    width: 350,
+    height: 300,
+    x: 25,
+    y: 25,
+    layoutMode: "VERTICAL",
+    children: [text],
+  });
+  const contentFrame = makeFakeNode({
+    name: "Content",
+    type: "FRAME",
+    width: 400,
+    height: 500,
+    children: [body],
+  });
+  const layoutFrame = makeFakeNode({
+    name: "Layout",
+    type: "FRAME",
+    width: 500,
+    height: 830,
+    children: [contentFrame],
+  });
+  const page = makeFakeNode({
+    name: "Drafts",
+    type: "PAGE",
+    children: [layoutFrame],
+  });
+  linkTree(page);
+  return { contentFrame, layoutFrame, body };
+}
+
 test("selecting a banner without a disclaimer offers the add-missing flow", async () => {
   const banner = bannerWithBodyContainer();
   const { figma, harness } = makeFakeFigma({ selection: [banner] });
@@ -232,6 +315,105 @@ test("add-missing happy path: apply creates a disclaimer in the body and reports
   assert.match(success[0].message, new RegExp(`^${copyMod.getCopy("plugin.actions.added")}:`));
   assert.equal(harness.createdNodes.length, 1);
   assert.equal(harness.notifications.length, 1);
+});
+
+test("adding a BAD disclaimer to a nested native ad uses the ad area for size and status", async () => {
+  const { ad } = nativeAdInLayoutFrame();
+  const { figma, harness } = makeFakeFigma({ selection: [ad] });
+  const plugin = await loadPlugin(figma);
+
+  const initialState = harness.postedMessages.at(-1);
+  assert.equal(initialState.type, "ready");
+  assert.equal(initialState.info.mode, "add-missing");
+  assert.equal(initialState.info.bannerWidth, 195);
+  assert.equal(initialState.info.bannerHeight, 325);
+
+  plugin.sendFromUi({
+    ...APPLY_BASE,
+    presetKey: "bad_static_10",
+    addTarget: "body",
+  });
+
+  const disclaimer = harness.createdNodes.at(-1);
+  assert.ok(disclaimer, "a disclaimer is created");
+  assert.equal(disclaimer.parent, ad);
+  const actualAdPercent =
+    ((disclaimer.width * disclaimer.height) / (ad.width * ad.height)) * 100;
+  assert.ok(Math.abs(actualAdPercent - 10) < 0.1);
+
+  const finalState = harness.postedMessages
+    .filter((message) => message.type === "ready")
+    .at(-1);
+  assert.equal(finalState.info.mode, "resize-existing");
+  assert.equal(finalState.info.bannerWidth, 195);
+  assert.equal(finalState.info.bannerHeight, 325);
+  assert.equal(finalState.info.currentPercent, 10);
+
+  const success = harness.postedMessages
+    .filter((message) => message.type === "success")
+    .at(-1);
+  assert.match(success.message, /10\s?%/);
+
+  const nestedVector = makeFakeNode({
+    name: "BAD glyph",
+    type: "VECTOR",
+    width: 20,
+    height: 5,
+  });
+  disclaimer.appendChild(nestedVector);
+  figma.currentPage.selection = [nestedVector];
+  plugin.sendFromUi({ type: "request-state" });
+
+  const nestedSelectionState = harness.postedMessages
+    .filter((message) => message.type === "ready")
+    .at(-1);
+  assert.equal(nestedSelectionState.info.mode, "resize-existing");
+  assert.equal(nestedSelectionState.info.bannerWidth, 195);
+  assert.equal(nestedSelectionState.info.bannerHeight, 325);
+  assert.equal(nestedSelectionState.info.currentPercent, 10);
+
+  plugin.sendFromUi({
+    ...APPLY_BASE,
+    presetKey: "bad_static_10",
+    addTarget: "body",
+  });
+
+  const reappliedDisclaimer = figma.currentPage.selection[0];
+  const reappliedPercent =
+    ((reappliedDisclaimer.width * reappliedDisclaimer.height) /
+      (ad.width * ad.height)) *
+    100;
+  assert.ok(Math.abs(reappliedPercent - 10) < 0.1);
+});
+
+test("an ordinary nested content frame keeps the outer layout area basis", async () => {
+  const { contentFrame, layoutFrame, body } = ordinaryNestedContentFrame();
+  const { figma, harness } = makeFakeFigma({ selection: [contentFrame] });
+  const plugin = await loadPlugin(figma);
+
+  plugin.sendFromUi({
+    ...APPLY_BASE,
+    presetKey: "bad_static_10",
+    addTarget: "body",
+  });
+
+  const disclaimer = harness.createdNodes.at(-1);
+  assert.ok(disclaimer, "a disclaimer is created");
+  assert.equal(disclaimer.parent, body);
+
+  const actualOuterPercent =
+    ((disclaimer.width * disclaimer.height) /
+      (layoutFrame.width * layoutFrame.height)) *
+    100;
+  assert.ok(Math.abs(actualOuterPercent - 10) < 0.1);
+
+  const finalState = harness.postedMessages
+    .filter((message) => message.type === "ready")
+    .at(-1);
+  assert.equal(finalState.info.mode, "resize-existing");
+  assert.equal(finalState.info.bannerWidth, 500);
+  assert.equal(finalState.info.bannerHeight, 830);
+  assert.equal(finalState.info.currentPercent, 10);
 });
 
 test("add-missing with no text container falls back to the banner and adds a disclaimer", async () => {

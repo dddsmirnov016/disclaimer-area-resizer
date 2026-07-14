@@ -1,62 +1,5 @@
 "use strict";
 (() => {
-  // src/core/geometry.ts
-  var IMAGE_OVERLAY_HORIZONTAL_INSET = 8;
-  var IMAGE_OVERLAY_BOTTOM_INSET = 2;
-  function round2(n) {
-    return Math.round(n * 100) / 100;
-  }
-  function calcNewDimensions(selW, selH, bannerW, bannerH, targetPercent, direction) {
-    const bannerArea = bannerW * bannerH;
-    const targetArea = bannerArea * targetPercent / 100;
-    const minDimension = 0.01;
-    if (direction === "height") {
-      const newHeight = Math.max(minDimension, targetArea / selW);
-      return { newWidth: selW, newHeight };
-    }
-    if (direction === "width") {
-      const newWidth = Math.max(minDimension, targetArea / selH);
-      return { newWidth, newHeight: selH };
-    }
-    const disclaimerArea = selW * selH;
-    const scale = Math.sqrt(targetArea / disclaimerArea);
-    return {
-      newWidth: Math.max(minDimension, selW * scale),
-      newHeight: Math.max(minDimension, selH * scale)
-    };
-  }
-  function calcAreaWithWidth(bannerW, bannerH, targetPercent, width) {
-    const targetArea = bannerW * bannerH * targetPercent / 100;
-    const newWidth = Math.max(0.01, width);
-    const newHeight = Math.max(0.01, targetArea / newWidth);
-    return { newWidth, newHeight };
-  }
-  function calcImageOverlayFrame(bannerW, bannerH, targetPercent, mediaBounds) {
-    const horizontalInset = Math.min(
-      IMAGE_OVERLAY_HORIZONTAL_INSET,
-      Math.max(0, (mediaBounds.width - 0.01) / 2)
-    );
-    const bottomInset = Math.min(
-      IMAGE_OVERLAY_BOTTOM_INSET,
-      Math.max(0, mediaBounds.height)
-    );
-    const { newWidth, newHeight } = calcAreaWithWidth(
-      bannerW,
-      bannerH,
-      targetPercent,
-      mediaBounds.width - horizontalInset * 2
-    );
-    return {
-      x: mediaBounds.x + (mediaBounds.width - newWidth) / 2,
-      y: mediaBounds.y + mediaBounds.height - bottomInset - newHeight,
-      width: newWidth,
-      height: newHeight
-    };
-  }
-  function calcActualPercent(nodeArea, bannerW, bannerH) {
-    return round2(nodeArea / (bannerW * bannerH) * 100);
-  }
-
   // src/generatedCopy.ts
   var COPY = {
     "meta": {
@@ -180,6 +123,63 @@
   function pluralizeVariantWord(count) {
     const forms = COPY.plugin.plural.variant;
     return pluralizeRu(count, forms.one, forms.few, forms.many);
+  }
+
+  // src/core/geometry.ts
+  var IMAGE_OVERLAY_HORIZONTAL_INSET = 8;
+  var IMAGE_OVERLAY_BOTTOM_INSET = 2;
+  function round2(n) {
+    return Math.round(n * 100) / 100;
+  }
+  function calcHeightForTargetArea(width, bannerW, bannerH, targetPercent) {
+    const targetArea = bannerW * bannerH * targetPercent / 100;
+    const newHeight = Math.max(0.01, targetArea / width);
+    return { newWidth: width, newHeight };
+  }
+  function calcAreaWithWidth(bannerW, bannerH, targetPercent, width) {
+    const targetArea = bannerW * bannerH * targetPercent / 100;
+    const newWidth = Math.max(0.01, width);
+    const newHeight = Math.max(0.01, targetArea / newWidth);
+    return { newWidth, newHeight };
+  }
+  function calcImageOverlayFrame(bannerW, bannerH, targetPercent, mediaBounds) {
+    const horizontalInset = Math.min(
+      IMAGE_OVERLAY_HORIZONTAL_INSET,
+      Math.max(0, (mediaBounds.width - 0.01) / 2)
+    );
+    const bottomInset = Math.min(
+      IMAGE_OVERLAY_BOTTOM_INSET,
+      Math.max(0, mediaBounds.height)
+    );
+    const { newWidth, newHeight } = calcAreaWithWidth(
+      bannerW,
+      bannerH,
+      targetPercent,
+      mediaBounds.width - horizontalInset * 2
+    );
+    return {
+      x: mediaBounds.x + (mediaBounds.width - newWidth) / 2,
+      y: mediaBounds.y + mediaBounds.height - bottomInset - newHeight,
+      width: newWidth,
+      height: newHeight
+    };
+  }
+  function calcActualPercent(nodeArea, bannerW, bannerH) {
+    return round2(nodeArea / (bannerW * bannerH) * 100);
+  }
+
+  // src/core/format.ts
+  function formatRuNumber(n) {
+    const rounded = round2(n);
+    const sign = rounded < 0 ? "\u2212" : "";
+    const abs = Math.abs(rounded);
+    const [intPart, decimalPart = ""] = String(abs).split(".");
+    const groupedInt = intPart.replace(/\B(?=(\d{3})+(?!\d))/g, "\xA0");
+    const trimmedDecimal = decimalPart.replace(/0+$/, "");
+    return sign + groupedInt + (trimmedDecimal ? "," + trimmedDecimal : "");
+  }
+  function formatRuPercent(n) {
+    return formatRuNumber(n) + "\xA0%";
   }
 
   // src/generatedDisclaimerAssets.ts
@@ -394,13 +394,7 @@
       assetKey: ASSET_BANKRUPTCY
     }
   };
-  function getTargetPercent(presetKey, customPercent) {
-    if (presetKey === "custom") {
-      if (customPercent === null || !Number.isFinite(customPercent) || customPercent <= 0 || customPercent > 100) {
-        return null;
-      }
-      return customPercent;
-    }
+  function getTargetPercent(presetKey) {
     const preset = DISCLAIMER_PRESETS[presetKey];
     return preset && preset.percent !== null ? preset.percent : null;
   }
@@ -477,6 +471,12 @@
   function canInsertChildren(node) {
     return Boolean(node && "children" in node && "insertChild" in node);
   }
+  function isLocked(node) {
+    return node.locked === true;
+  }
+  function hasNonZeroSize(node) {
+    return node.width > 0 && node.height > 0;
+  }
   function isAttached(node) {
     return !node.removed;
   }
@@ -498,19 +498,6 @@
       visitor(child);
       visitDescendants(child, visitor);
     }
-  }
-  function isVisibleInHierarchy(node, root) {
-    let current = node;
-    while (current) {
-      if ("visible" in current && !current.visible) {
-        return false;
-      }
-      if (current === root) {
-        return true;
-      }
-      current = current.parent;
-    }
-    return false;
   }
   function getAbsoluteBounds(node) {
     const box = node.absoluteBoundingBox;
@@ -555,6 +542,223 @@
     };
   }
 
+  // src/figma/pluginData.ts
+  var PLUGIN_DATA_NAMESPACE = "disclaimerAreaResizer";
+  var PLUGIN_DATA_ASSET_KEY = "assetKey";
+  var PLUGIN_DATA_PRESET_KEY = "presetKey";
+
+  // src/figma/bannerIndex.ts
+  var HEURISTIC_DISCLAIMER_NAME_RE = /disclaimer|дисклеймер|legal|warning|предупрежд|противопоказан|лекарств|условия кредита|займ|банкротств/i;
+  function hasHeuristicDisclaimerName(node) {
+    return HEURISTIC_DISCLAIMER_NAME_RE.test(node.name);
+  }
+  var PluginDataReader = class {
+    constructor() {
+      this.cache = /* @__PURE__ */ new Map();
+    }
+    get(node, namespace, key) {
+      const nodeKey = "id" in node && node.id ? String(node.id) : `${node.type}:${node.name}`;
+      let values = this.cache.get(nodeKey);
+      if (!values) {
+        values = {};
+        if ("getSharedPluginData" in node) {
+          const sceneNode = node;
+          values[PLUGIN_DATA_ASSET_KEY] = sceneNode.getSharedPluginData(
+            PLUGIN_DATA_NAMESPACE,
+            PLUGIN_DATA_ASSET_KEY
+          );
+          values[PLUGIN_DATA_PRESET_KEY] = sceneNode.getSharedPluginData(
+            PLUGIN_DATA_NAMESPACE,
+            PLUGIN_DATA_PRESET_KEY
+          );
+        }
+        this.cache.set(nodeKey, values);
+      }
+      if (key in values) {
+        return values[key];
+      }
+      if ("getSharedPluginData" in node) {
+        const value = node.getSharedPluginData(namespace, key);
+        values[key] = value;
+        return value;
+      }
+      return "";
+    }
+    hasAssetKey(node) {
+      return Boolean(this.get(node, PLUGIN_DATA_NAMESPACE, PLUGIN_DATA_ASSET_KEY));
+    }
+    getAssetKey(node) {
+      return this.get(node, PLUGIN_DATA_NAMESPACE, PLUGIN_DATA_ASSET_KEY);
+    }
+  };
+  function normalizedName(node) {
+    return node.name.toLowerCase();
+  }
+  function isLikelyBodyName(node) {
+    return /body|copy|text|content|текст|контент|описание|оффер/.test(
+      normalizedName(node)
+    );
+  }
+  function hasImageFill(node) {
+    if (!("fills" in node)) return false;
+    const fills = node.fills;
+    return Array.isArray(fills) && fills.some((paint) => paint.type === "IMAGE");
+  }
+  function isPluginCreatedDisclaimerCandidate(node, reader) {
+    return reader.hasAssetKey(node) || node.name.startsWith("Disclaimer \u2014 ");
+  }
+  function uniqueCandidates(candidates) {
+    const unique = [];
+    for (const candidate of candidates) {
+      if (!unique.includes(candidate)) {
+        unique.push(candidate);
+      }
+    }
+    return unique;
+  }
+  function getSingleCandidate(candidates) {
+    return candidates.length === 1 ? candidates[0] : null;
+  }
+  function hasHugSizing(node) {
+    return "layoutSizingHorizontal" in node && node.layoutSizingHorizontal === "HUG" || "layoutSizingVertical" in node && node.layoutSizingVertical === "HUG";
+  }
+  function isDirectVectorDisclaimerForWrapper(wrapper, nested) {
+    if (wrapper === nested) return false;
+    if (!isFrameLike(wrapper)) return false;
+    if (isFrameLike(nested)) return false;
+    if (!hasChildren(wrapper) || nested.parent !== wrapper) return false;
+    const wrapperName = wrapper.name.trim().toLowerCase();
+    const nestedName = nested.name.trim().toLowerCase();
+    return Boolean(wrapperName && nestedName.startsWith(wrapperName + "-")) || hasHugSizing(wrapper);
+  }
+  function findDirectDisclaimerChildForWrapper(wrapper, parentVisible) {
+    if (!isFrameLike(wrapper) || !hasChildren(wrapper)) return null;
+    return getSingleCandidate(
+      wrapper.children.filter(
+        (child) => isResizable(child) && !isFrameLike(child) && parentVisible && child.visible !== false && isDirectVectorDisclaimerForWrapper(wrapper, child)
+      )
+    );
+  }
+  function resolveHeuristicWrapperCandidate(candidate, candidates) {
+    const nestedCandidate = getSingleCandidate(
+      candidates.filter(
+        (nested) => isDirectVectorDisclaimerForWrapper(candidate, nested)
+      )
+    );
+    return nestedCandidate || candidate;
+  }
+  function resolveMarkedWrapperCandidate(candidate, parentVisible) {
+    return findDirectDisclaimerChildForWrapper(candidate, parentVisible) || candidate;
+  }
+  function hasAncestorInSet(node, candidates, root) {
+    let current = node.parent;
+    while (current && current !== root) {
+      if (candidates.includes(current)) {
+        return true;
+      }
+      current = current.parent;
+    }
+    return false;
+  }
+  function resolveTopLevelCandidates(candidates, bannerFrame) {
+    const resolvedCandidates = uniqueCandidates(candidates);
+    return resolvedCandidates.filter(
+      (candidate) => !hasAncestorInSet(candidate, resolvedCandidates, bannerFrame)
+    );
+  }
+  function matchesHeuristicLimits(node, bannerFrame) {
+    const bannerArea = bannerFrame.width * bannerFrame.height;
+    if (bannerArea <= 0) return false;
+    const areaPercent = node.width * node.height / bannerArea * 100;
+    return node.width >= 8 && node.height >= 4 && node.width <= bannerFrame.width * 1.05 && node.height <= bannerFrame.height * 0.35 && areaPercent >= 0.05 && areaPercent <= 20;
+  }
+  function buildBannerIndex(bannerFrame) {
+    const reader = new PluginDataReader();
+    const pluginCandidates = [];
+    const heuristicCandidates = [];
+    const bannerArea = bannerFrame.width * bannerFrame.height;
+    const bannerBounds = getAbsoluteBounds(bannerFrame);
+    const bannerVisible = bannerFrame.visible !== false;
+    let bestBody = null;
+    let bestBodyScore = Number.NEGATIVE_INFINITY;
+    let bestImage = null;
+    let bestImageArea = 0;
+    const visibleImages = [];
+    const indexedImageNodes = /* @__PURE__ */ new Set();
+    const considerBody = (node, textCount) => {
+      if (!isFrameLike(node) || node.layoutMode !== "VERTICAL") return;
+      if (textCount === 0) return;
+      const areaRatio = bannerArea > 0 ? node.width * node.height / bannerArea : 1;
+      const score = textCount * 20 + (isLikelyBodyName(node) ? 100 : 0) - areaRatio * 10 - (node === bannerFrame ? 50 : 0);
+      if (score > bestBodyScore) {
+        bestBody = node;
+        bestBodyScore = score;
+      }
+    };
+    const considerImage = (node, parentVisible) => {
+      if (!parentVisible || !isResizable(node) || !hasImageFill(node)) return;
+      if (indexedImageNodes.has(node)) return;
+      const visibleBounds = getIntersectionBounds(
+        getAbsoluteBounds(node),
+        bannerBounds
+      );
+      const area = intersectionArea(visibleBounds);
+      if (!visibleBounds || area <= 0) return;
+      indexedImageNodes.add(node);
+      const image = { node, bounds: visibleBounds };
+      visibleImages.push(image);
+      if (area > bestImageArea) {
+        bestImage = image;
+        bestImageArea = area;
+      }
+    };
+    const walk = (node, parentVisible) => {
+      let textCount = 0;
+      if (hasChildren(node)) {
+        for (const child of node.children) {
+          const childVisible = parentVisible && child.visible !== false;
+          if (child.type === "TEXT") textCount += 1;
+          textCount += walk(child, childVisible);
+        }
+      }
+      if (isResizable(node)) {
+        if (isPluginCreatedDisclaimerCandidate(node, reader)) {
+          pluginCandidates.push(node);
+        }
+        if (parentVisible && hasHeuristicDisclaimerName(node) && matchesHeuristicLimits(node, bannerFrame)) {
+          heuristicCandidates.push(node);
+        }
+      }
+      considerBody(node, textCount);
+      considerImage(node, parentVisible);
+      return textCount;
+    };
+    if (bannerVisible) {
+      considerImage(bannerFrame, bannerVisible);
+      walk(bannerFrame, bannerVisible);
+    }
+    return {
+      pluginDisclaimers: resolveTopLevelCandidates(
+        pluginCandidates.map(
+          (candidate) => resolveMarkedWrapperCandidate(candidate, bannerVisible)
+        ),
+        bannerFrame
+      ),
+      heuristicDisclaimers: resolveTopLevelCandidates(
+        heuristicCandidates.map(
+          (candidate) => resolveHeuristicWrapperCandidate(candidate, heuristicCandidates)
+        ),
+        bannerFrame
+      ),
+      bodyContainer: bestBody,
+      mainImage: bestImage,
+      visibleImages
+    };
+  }
+  function buildBannerDisclaimerIndex(bannerFrame) {
+    return buildBannerIndex(bannerFrame);
+  }
+
   // src/figma/bannerDetection.ts
   function findBannerFrame(node) {
     let result = null;
@@ -584,80 +788,187 @@
     }
     return false;
   }
-  function normalizedName(node) {
-    return node.name.toLowerCase();
+  function findBodyContainer(bannerFrame, index) {
+    return (index != null ? index : buildBannerIndex(bannerFrame)).bodyContainer;
   }
-  function isLikelyBodyName(node) {
-    return /body|copy|text|content|текст|контент|описание|оффер/.test(
-      normalizedName(node)
+  function findMainImageNode(bannerFrame, index) {
+    return (index != null ? index : buildBannerIndex(bannerFrame)).mainImage;
+  }
+
+  // src/figma/disclaimerDetection.ts
+  var HEURISTIC_DISCLAIMER_NAME_RE2 = /disclaimer|дисклеймер|legal|warning|предупрежд|противопоказан|лекарств|условия кредита|займ|банкротств/i;
+  var MIN_BANNER_SELECTION_AREA_RATIO = 0.4;
+  var MIN_PRIMARY_IMAGE_AREA_RATIO = 0.25;
+  function hasHeuristicDisclaimerName2(node) {
+    return HEURISTIC_DISCLAIMER_NAME_RE2.test(node.name);
+  }
+  function isMatchingDisclaimer(node, assetKey) {
+    return node.getSharedPluginData(PLUGIN_DATA_NAMESPACE, PLUGIN_DATA_ASSET_KEY) === assetKey || node.name.includes(assetKey);
+  }
+  function isPluginGeneratedDisclaimer(node, assetKey) {
+    return node.getSharedPluginData(PLUGIN_DATA_NAMESPACE, PLUGIN_DATA_ASSET_KEY) === assetKey || node.name.startsWith("Disclaimer \u2014 ");
+  }
+  function isPluginCreatedDisclaimerCandidate2(node) {
+    return Boolean(
+      node.getSharedPluginData(PLUGIN_DATA_NAMESPACE, PLUGIN_DATA_ASSET_KEY)
+    ) || node.name.startsWith("Disclaimer \u2014 ");
+  }
+  function getIndex(bannerFrame, index) {
+    return index || buildBannerDisclaimerIndex(bannerFrame);
+  }
+  function getSingleCandidate2(candidates) {
+    return candidates.length === 1 ? candidates[0] : null;
+  }
+  function nodeContainsSelection(container, selectedNode) {
+    let current = selectedNode;
+    while (current) {
+      if (current === container) {
+        return true;
+      }
+      current = current.parent;
+    }
+    return false;
+  }
+  function findSingleCandidateContainingSelection(selectedNode, candidates) {
+    return getSingleCandidate2(
+      candidates.filter(
+        (candidate) => nodeContainsSelection(candidate, selectedNode) || nodeContainsSelection(selectedNode, candidate)
+      )
     );
   }
-  function hasImageFill(node) {
-    if (!("fills" in node)) return false;
-    const fills = node.fills;
-    return Array.isArray(fills) && fills.some((paint) => paint.type === "IMAGE");
+  function findContainingDisclaimerForSelection(selectedNode, bannerFrame, index) {
+    const bannerIndex = getIndex(bannerFrame, index);
+    const pluginCandidate = findSingleCandidateContainingSelection(
+      selectedNode,
+      bannerIndex.pluginDisclaimers
+    );
+    if (pluginCandidate) {
+      return pluginCandidate;
+    }
+    return findSingleCandidateContainingSelection(
+      selectedNode,
+      bannerIndex.heuristicDisclaimers
+    );
   }
-  function findBodyContainer(bannerFrame) {
-    let bestNode = null;
-    let bestScore = Number.NEGATIVE_INFINITY;
-    const bannerArea = bannerFrame.width * bannerFrame.height;
-    const consider = (node, textCount) => {
-      if (!isFrameLike(node) || node.layoutMode !== "VERTICAL") return;
-      if (textCount === 0) return;
-      const areaRatio = bannerArea > 0 ? node.width * node.height / bannerArea : 1;
-      const score = textCount * 20 + (isLikelyBodyName(node) ? 100 : 0) - areaRatio * 10 - (node === bannerFrame ? 50 : 0);
-      if (score > bestScore) {
-        bestNode = node;
-        bestScore = score;
-      }
-    };
-    const walk = (node) => {
-      let textCount = 0;
-      if (hasChildren(node)) {
-        for (const child of node.children) {
-          if (child.type === "TEXT") textCount += 1;
-          textCount += walk(child);
+  function findDetectedDisclaimer(bannerFrame, index) {
+    const bannerIndex = getIndex(bannerFrame, index);
+    if (bannerIndex.pluginDisclaimers.length > 0) {
+      return getSingleCandidate2(bannerIndex.pluginDisclaimers);
+    }
+    return getSingleCandidate2(bannerIndex.heuristicDisclaimers);
+  }
+  function bannerHasDisclaimerCandidates(bannerFrame, index) {
+    const bannerIndex = getIndex(bannerFrame, index);
+    return bannerIndex.pluginDisclaimers.length > 0 || bannerIndex.heuristicDisclaimers.length > 0;
+  }
+  function isImageLedBannerFrame(selectedFrame, index) {
+    const selectedFrameIndex = index || buildBannerDisclaimerIndex(selectedFrame);
+    if (!("mainImage" in selectedFrameIndex)) return false;
+    const mainImage = selectedFrameIndex.mainImage;
+    if (!mainImage || mainImage.node === selectedFrame) return false;
+    const selectedArea = selectedFrame.width * selectedFrame.height;
+    if (selectedArea <= 0) return false;
+    const imageArea = mainImage.bounds.width * mainImage.bounds.height;
+    return imageArea / selectedArea >= MIN_PRIMARY_IMAGE_AREA_RATIO;
+  }
+  function resolveDisclaimerAreaBannerFrame(disclaimerNode, fallbackBannerFrame, index) {
+    const bannerIndex = index || buildBannerDisclaimerIndex(fallbackBannerFrame);
+    let current = disclaimerNode.parent;
+    while (current && current.type !== "PAGE" && current.type !== "DOCUMENT") {
+      if (current.type === "FRAME" || current.type === "COMPONENT" || current.type === "INSTANCE") {
+        const frame = current;
+        const frameArea = frame.width * frame.height;
+        const frameBounds = getAbsoluteBounds(frame);
+        const hasPrimaryImage = frameArea > 0 && bannerIndex.visibleImages.some(
+          (image) => image.node !== frame && nodeContainsSelection(frame, image.node) && intersectionArea(
+            getIntersectionBounds(image.bounds, frameBounds)
+          ) / frameArea >= MIN_PRIMARY_IMAGE_AREA_RATIO
+        );
+        if (hasPrimaryImage) {
+          return frame;
         }
       }
-      consider(node, textCount);
-      return textCount;
-    };
-    walk(bannerFrame);
-    return bestNode;
-  }
-  function findMainImageNode(bannerFrame) {
-    let best = null;
-    let bestArea = 0;
-    const bannerBounds = getAbsoluteBounds(bannerFrame);
-    const consider = (node) => {
-      if (!isResizable(node)) return;
-      if (!hasImageFill(node)) return;
-      const visibleBounds = getIntersectionBounds(
-        getAbsoluteBounds(node),
-        bannerBounds
-      );
-      const area = intersectionArea(visibleBounds);
-      if (!visibleBounds || area <= 0) return;
-      if (area > bestArea) {
-        best = { node, bounds: visibleBounds };
-        bestArea = area;
+      if (current === fallbackBannerFrame) {
+        break;
       }
-    };
-    const walk = (parent, parentVisible) => {
-      if (!hasChildren(parent)) return;
-      for (const child of parent.children) {
-        const childVisible = parentVisible && child.visible !== false;
-        if (!childVisible) continue;
-        consider(child);
-        walk(child, childVisible);
-      }
-    };
-    const bannerVisible = bannerFrame.visible !== false;
-    if (bannerVisible) {
-      consider(bannerFrame);
-      walk(bannerFrame, bannerVisible);
+      current = current.parent;
     }
-    return best;
+    return fallbackBannerFrame;
+  }
+  function isProbableBannerSelectionFrame(selectedFrame, containingBannerFrame, index) {
+    if (isPluginCreatedDisclaimerCandidate2(selectedFrame)) {
+      return false;
+    }
+    if (hasHeuristicDisclaimerName2(selectedFrame) && !bannerHasDisclaimerCandidates(selectedFrame, index)) {
+      return false;
+    }
+    if (!containingBannerFrame) {
+      return true;
+    }
+    const containingArea = containingBannerFrame.width * containingBannerFrame.height;
+    if (containingArea <= 0) return false;
+    const selectedArea = selectedFrame.width * selectedFrame.height;
+    return selectedArea / containingArea >= MIN_BANNER_SELECTION_AREA_RATIO || isImageLedBannerFrame(selectedFrame, index);
+  }
+  function findDetectedDisclaimerForBannerSelection(selectedFrame, containingBannerFrame, index) {
+    const selectedFrameIndex = getIndex(selectedFrame, index);
+    if (!isProbableBannerSelectionFrame(
+      selectedFrame,
+      containingBannerFrame,
+      selectedFrameIndex
+    )) {
+      return null;
+    }
+    return findDetectedDisclaimer(selectedFrame, selectedFrameIndex);
+  }
+  function findMatchingDisclaimer(bannerFrame, assetKey) {
+    let result = null;
+    visitDescendants(bannerFrame, (node) => {
+      if (!result && isResizable(node) && isMatchingDisclaimer(node, assetKey)) {
+        result = node;
+      }
+    });
+    return result;
+  }
+  function isKnownDisclaimerNode(node) {
+    if (node.getSharedPluginData(PLUGIN_DATA_NAMESPACE, PLUGIN_DATA_ASSET_KEY)) {
+      return true;
+    }
+    if (node.name.startsWith("Disclaimer \u2014 ")) {
+      return true;
+    }
+    return ASSET_GROUP_KEYS.some((assetGroupKey) => node.name.includes(assetGroupKey));
+  }
+
+  // src/figma/disclaimerSvg.ts
+  function prepareSvgNodeForDeformation(node) {
+    if ("clipsContent" in node) {
+      try {
+        node.clipsContent = true;
+      } catch (e) {
+      }
+    }
+    visitDescendants(node, (child) => {
+      if ("constraints" in child) {
+        try {
+          child.constraints = {
+            horizontal: "SCALE",
+            vertical: "SCALE"
+          };
+        } catch (e) {
+        }
+      }
+    });
+  }
+  function resizeSvgNodeToFrame(node, width, height) {
+    prepareSvgNodeForDeformation(node);
+    if (!("resize" in node) || typeof node.resize !== "function") {
+      throw new Error(getCopy("plugin.errors.disclaimerChangeFailed"));
+    }
+    node.resize(
+      width,
+      height
+    );
   }
 
   // src/figma/layout.ts
@@ -715,44 +1026,7 @@
     return !parentHasAutoLayout || !childIsAutoLayoutChild;
   }
 
-  // src/figma/disclaimerNodes.ts
-  var PLUGIN_DATA_NAMESPACE = "disclaimerAreaResizer";
-  var PLUGIN_DATA_ASSET_KEY = "assetKey";
-  var PLUGIN_DATA_PRESET_KEY = "presetKey";
-  var HEURISTIC_DISCLAIMER_NAME_RE = /disclaimer|дисклеймер|legal|warning|предупрежд|противопоказан|лекарств|условия кредита|займ|банкротств/i;
-  var MIN_BANNER_SELECTION_AREA_RATIO = 0.4;
-  function hasHeuristicDisclaimerName(node) {
-    return HEURISTIC_DISCLAIMER_NAME_RE.test(node.name);
-  }
-  function prepareSvgNodeForDeformation(node) {
-    if ("clipsContent" in node) {
-      try {
-        node.clipsContent = true;
-      } catch (e) {
-      }
-    }
-    visitDescendants(node, (child) => {
-      if ("constraints" in child) {
-        try {
-          child.constraints = {
-            horizontal: "SCALE",
-            vertical: "SCALE"
-          };
-        } catch (e) {
-        }
-      }
-    });
-  }
-  function resizeSvgNodeToFrame(node, width, height) {
-    prepareSvgNodeForDeformation(node);
-    if (!("resize" in node) || typeof node.resize !== "function") {
-      throw new Error(getCopy("plugin.errors.disclaimerChangeFailed"));
-    }
-    node.resize(
-      width,
-      height
-    );
-  }
+  // src/figma/disclaimerMutation.ts
   function markDisclaimerNode(node, assetGroupKey, presetKey) {
     node.setSharedPluginData(PLUGIN_DATA_NAMESPACE, PLUGIN_DATA_ASSET_KEY, assetGroupKey);
     node.setSharedPluginData(
@@ -760,204 +1034,6 @@
       PLUGIN_DATA_PRESET_KEY,
       presetKey
     );
-  }
-  function isMatchingDisclaimer(node, assetKey) {
-    return node.getSharedPluginData(PLUGIN_DATA_NAMESPACE, PLUGIN_DATA_ASSET_KEY) === assetKey || node.name.includes(assetKey);
-  }
-  function isPluginGeneratedDisclaimer(node, assetKey) {
-    return node.getSharedPluginData(PLUGIN_DATA_NAMESPACE, PLUGIN_DATA_ASSET_KEY) === assetKey || node.name.startsWith("Disclaimer \u2014 ");
-  }
-  function isPluginCreatedDisclaimerCandidate(node) {
-    return Boolean(
-      node.getSharedPluginData(PLUGIN_DATA_NAMESPACE, PLUGIN_DATA_ASSET_KEY)
-    ) || node.name.startsWith("Disclaimer \u2014 ");
-  }
-  function buildBannerDisclaimerIndex(bannerFrame) {
-    const pluginCandidates = [];
-    const heuristicCandidates = [];
-    const bannerArea = bannerFrame.width * bannerFrame.height;
-    const bannerVisible = bannerFrame.visible !== false;
-    const matchesHeuristicLimits = (node) => {
-      if (bannerArea <= 0) return false;
-      const areaPercent = node.width * node.height / bannerArea * 100;
-      return node.width >= 8 && node.height >= 4 && node.width <= bannerFrame.width * 1.05 && node.height <= bannerFrame.height * 0.35 && areaPercent >= 0.05 && areaPercent <= 20;
-    };
-    const walk = (parent, parentVisible) => {
-      if (!hasChildren(parent)) return;
-      for (const child of parent.children) {
-        const childVisible = parentVisible && child.visible !== false;
-        if (isResizable(child)) {
-          if (isPluginCreatedDisclaimerCandidate(child)) {
-            pluginCandidates.push(child);
-          }
-          if (childVisible && hasHeuristicDisclaimerName(child) && matchesHeuristicLimits(child)) {
-            heuristicCandidates.push(child);
-          }
-        }
-        walk(child, childVisible);
-      }
-    };
-    walk(bannerFrame, bannerVisible);
-    return {
-      pluginDisclaimers: resolveTopLevelCandidates(
-        pluginCandidates.map(resolveMarkedWrapperCandidate),
-        bannerFrame
-      ),
-      heuristicDisclaimers: resolveTopLevelCandidates(
-        heuristicCandidates.map(
-          (candidate) => resolveHeuristicWrapperCandidate(candidate, heuristicCandidates)
-        ),
-        bannerFrame
-      )
-    };
-  }
-  function resolveTopLevelCandidates(candidates, bannerFrame) {
-    const resolvedCandidates = uniqueCandidates(candidates);
-    return resolvedCandidates.filter(
-      (candidate) => !hasAncestorInSet(candidate, resolvedCandidates, bannerFrame)
-    );
-  }
-  function getIndex(bannerFrame, index) {
-    return index || buildBannerDisclaimerIndex(bannerFrame);
-  }
-  function getSingleCandidate(candidates) {
-    return candidates.length === 1 ? candidates[0] : null;
-  }
-  function uniqueCandidates(candidates) {
-    const unique = [];
-    for (const candidate of candidates) {
-      if (!unique.includes(candidate)) {
-        unique.push(candidate);
-      }
-    }
-    return unique;
-  }
-  function resolveHeuristicWrapperCandidate(candidate, candidates) {
-    const nestedCandidate = getSingleCandidate(
-      candidates.filter(
-        (nested) => isDirectVectorDisclaimerForWrapper(candidate, nested)
-      )
-    );
-    return nestedCandidate || candidate;
-  }
-  function resolveMarkedWrapperCandidate(candidate) {
-    return findDirectDisclaimerChildForWrapper(candidate) || candidate;
-  }
-  function findDirectDisclaimerChildForWrapper(wrapper) {
-    if (!isFrameLike(wrapper) || !hasChildren(wrapper)) return null;
-    return getSingleCandidate(
-      wrapper.children.filter(
-        (child) => isResizable(child) && !isFrameLike(child) && isVisibleInHierarchy(child, wrapper) && isDirectVectorDisclaimerForWrapper(wrapper, child)
-      )
-    );
-  }
-  function isDirectVectorDisclaimerForWrapper(wrapper, nested) {
-    if (wrapper === nested) return false;
-    if (!isFrameLike(wrapper)) return false;
-    if (isFrameLike(nested)) return false;
-    if (!hasChildren(wrapper) || nested.parent !== wrapper) return false;
-    const wrapperName = wrapper.name.trim().toLowerCase();
-    const nestedName = nested.name.trim().toLowerCase();
-    return Boolean(wrapperName && nestedName.startsWith(wrapperName + "-")) || hasHugSizing(wrapper);
-  }
-  function hasHugSizing(node) {
-    return "layoutSizingHorizontal" in node && node.layoutSizingHorizontal === "HUG" || "layoutSizingVertical" in node && node.layoutSizingVertical === "HUG";
-  }
-  function hasAncestorInSet(node, candidates, root) {
-    let current = node.parent;
-    while (current && current !== root) {
-      if (candidates.includes(current)) {
-        return true;
-      }
-      current = current.parent;
-    }
-    return false;
-  }
-  function nodeContainsSelection(container, selectedNode) {
-    let current = selectedNode;
-    while (current) {
-      if (current === container) {
-        return true;
-      }
-      current = current.parent;
-    }
-    return false;
-  }
-  function findSingleCandidateContainingSelection(selectedNode, candidates) {
-    return getSingleCandidate(
-      candidates.filter(
-        (candidate) => nodeContainsSelection(candidate, selectedNode) || nodeContainsSelection(selectedNode, candidate)
-      )
-    );
-  }
-  function findContainingDisclaimerForSelection(selectedNode, bannerFrame, index) {
-    const bannerIndex = getIndex(bannerFrame, index);
-    const pluginCandidate = findSingleCandidateContainingSelection(
-      selectedNode,
-      bannerIndex.pluginDisclaimers
-    );
-    if (pluginCandidate) {
-      return pluginCandidate;
-    }
-    return findSingleCandidateContainingSelection(
-      selectedNode,
-      bannerIndex.heuristicDisclaimers
-    );
-  }
-  function findDetectedDisclaimer(bannerFrame, index) {
-    const bannerIndex = getIndex(bannerFrame, index);
-    if (bannerIndex.pluginDisclaimers.length > 0) {
-      return getSingleCandidate(bannerIndex.pluginDisclaimers);
-    }
-    return getSingleCandidate(bannerIndex.heuristicDisclaimers);
-  }
-  function bannerHasDisclaimerCandidates(bannerFrame, index) {
-    const bannerIndex = getIndex(bannerFrame, index);
-    return bannerIndex.pluginDisclaimers.length > 0 || bannerIndex.heuristicDisclaimers.length > 0;
-  }
-  function isProbableBannerSelectionFrame(selectedFrame, containingBannerFrame, index) {
-    if (isPluginCreatedDisclaimerCandidate(selectedFrame)) {
-      return false;
-    }
-    if (hasHeuristicDisclaimerName(selectedFrame) && !bannerHasDisclaimerCandidates(selectedFrame, index)) {
-      return false;
-    }
-    if (!containingBannerFrame) {
-      return true;
-    }
-    const containingArea = containingBannerFrame.width * containingBannerFrame.height;
-    if (containingArea <= 0) return false;
-    const selectedArea = selectedFrame.width * selectedFrame.height;
-    return selectedArea / containingArea >= MIN_BANNER_SELECTION_AREA_RATIO;
-  }
-  function findDetectedDisclaimerForBannerSelection(selectedFrame, containingBannerFrame, index) {
-    const selectedFrameIndex = getIndex(selectedFrame, index);
-    if (!isProbableBannerSelectionFrame(
-      selectedFrame,
-      containingBannerFrame,
-      selectedFrameIndex
-    )) {
-      return null;
-    }
-    return findDetectedDisclaimer(selectedFrame, selectedFrameIndex);
-  }
-  function findMatchingDisclaimer(bannerFrame, assetKey) {
-    let result = null;
-    visitDescendants(bannerFrame, (node) => {
-      if (!result && isResizable(node) && isMatchingDisclaimer(node, assetKey)) {
-        result = node;
-      }
-    });
-    return result;
-  }
-  function isKnownDisclaimerNode(node) {
-    if (node.getSharedPluginData(PLUGIN_DATA_NAMESPACE, PLUGIN_DATA_ASSET_KEY)) {
-      return true;
-    }
-    if (node.name.startsWith("Disclaimer \u2014 ")) {
-      return true;
-    }
-    return ASSET_GROUP_KEYS.some((assetGroupKey) => node.name.includes(assetGroupKey));
   }
   function removeKnownDisclaimers(bannerFrame) {
     const nodesToRemove = [];
@@ -1011,11 +1087,14 @@
 
   // src/features/addMissing.ts
   function addDisclaimerToBody(params) {
+    var _a;
     const { bannerFrame, assetGroupKey, presetKey, targetPercent } = params;
-    const bodyContainer = findBodyContainer(bannerFrame);
+    const hostFrame = (_a = params.hostFrame) != null ? _a : bannerFrame;
+    const bodyContainer = findBodyContainer(hostFrame);
     if (!bodyContainer) {
       return addDisclaimerToBannerBottom({
         bannerFrame,
+        hostFrame,
         assetGroupKey,
         presetKey,
         targetPercent
@@ -1035,9 +1114,10 @@
     const variant = pickBestAssetVariant(assetGroupKey, newWidth, newHeight);
     const node = createDisclaimerNode(assetGroupKey, variant, presetKey);
     try {
-      resizeSvgNodeToFrame(node, newWidth, newHeight);
       setLayoutPositioning(node, "AUTO");
       bodyContainer.appendChild(node);
+      setLayoutSizingFixed(node, "proportional");
+      resizeSvgNodeToFrame(node, newWidth, newHeight);
     } catch (err) {
       node.remove();
       throw err;
@@ -1051,27 +1131,27 @@
       )
     };
   }
-  function computeImageOverlayFrame(bannerFrame, targetPercent) {
-    const mainImage = findMainImageNode(bannerFrame);
+  function computeImageOverlayFrame(hostFrame, areaBannerFrame, targetPercent) {
+    const mainImage = findMainImageNode(hostFrame);
     if (!mainImage) {
       throw new Error(getCopy("plugin.errors.noImageOrVideo"));
     }
     const mediaBounds = getRelativeBoundsFromAbsolute(
       mainImage.bounds,
-      bannerFrame
+      hostFrame
     );
     return calcImageOverlayFrame(
-      bannerFrame.width,
-      bannerFrame.height,
+      areaBannerFrame.width,
+      areaBannerFrame.height,
       targetPercent,
       mediaBounds
     );
   }
   function placeDisclaimerAtOverlayFrame(params) {
-    const { bannerFrame, node, assetGroupKey, presetKey, overlayFrame } = params;
+    const { bannerFrame, hostFrame, node, assetGroupKey, presetKey, overlayFrame } = params;
     setLayoutSizingFixed(node, "proportional");
-    bannerFrame.appendChild(node);
-    setAbsolutePositioningIfParentHasAutoLayout(node, bannerFrame);
+    hostFrame.appendChild(node);
+    setAbsolutePositioningIfParentHasAutoLayout(node, hostFrame);
     resizeSvgNodeToFrame(node, overlayFrame.width, overlayFrame.height);
     node.x = overlayFrame.x;
     node.y = overlayFrame.y;
@@ -1092,16 +1172,23 @@
     };
   }
   function placeDisclaimerOverImage(params) {
+    var _a;
     const { bannerFrame, node, assetGroupKey, presetKey, targetPercent } = params;
+    const hostFrame = (_a = params.hostFrame) != null ? _a : bannerFrame;
     if (node.locked) {
       throw new Error(getCopy("plugin.errors.layerLocked"));
     }
     if (isInsideInstance(node)) {
       throw new Error(getCopy("plugin.errors.instanceOverride"));
     }
-    const overlayFrame = computeImageOverlayFrame(bannerFrame, targetPercent);
+    const overlayFrame = computeImageOverlayFrame(
+      hostFrame,
+      bannerFrame,
+      targetPercent
+    );
     return placeDisclaimerAtOverlayFrame({
       bannerFrame,
+      hostFrame,
       node,
       assetGroupKey,
       presetKey,
@@ -1109,12 +1196,14 @@
     });
   }
   function addDisclaimerToBannerBottom(params) {
+    var _a;
     const { bannerFrame, assetGroupKey, presetKey, targetPercent } = params;
+    const hostFrame = (_a = params.hostFrame) != null ? _a : bannerFrame;
     const overlayFrame = calcImageOverlayFrame(
       bannerFrame.width,
       bannerFrame.height,
       targetPercent,
-      { x: 0, y: 0, width: bannerFrame.width, height: bannerFrame.height }
+      { x: 0, y: 0, width: hostFrame.width, height: hostFrame.height }
     );
     const variant = pickBestAssetVariant(
       assetGroupKey,
@@ -1125,6 +1214,7 @@
     try {
       return placeDisclaimerAtOverlayFrame({
         bannerFrame,
+        hostFrame,
         node,
         assetGroupKey,
         presetKey,
@@ -1136,8 +1226,14 @@
     }
   }
   function addDisclaimerToImage(params) {
+    var _a;
     const { bannerFrame, assetGroupKey, presetKey, targetPercent } = params;
-    const overlayFrame = computeImageOverlayFrame(bannerFrame, targetPercent);
+    const hostFrame = (_a = params.hostFrame) != null ? _a : bannerFrame;
+    const overlayFrame = computeImageOverlayFrame(
+      hostFrame,
+      bannerFrame,
+      targetPercent
+    );
     const variant = pickBestAssetVariant(
       assetGroupKey,
       overlayFrame.width,
@@ -1147,6 +1243,7 @@
     try {
       return placeDisclaimerAtOverlayFrame({
         bannerFrame,
+        hostFrame,
         node,
         assetGroupKey,
         presetKey,
@@ -1221,44 +1318,26 @@
 
   // src/features/resizeExisting.ts
   function resizeExistingDisclaimer(params) {
-    const {
-      node,
-      bannerFrame,
-      targetPercent,
-      direction,
-      onlyEnlarge,
-      assetGroupKey,
-      presetKey
-    } = params;
+    const { node, bannerFrame, targetPercent, assetGroupKey, presetKey } = params;
     if (node.locked) {
       throw new Error(getCopy("plugin.errors.layerLocked"));
     }
     if (isInsideInstance(node)) {
       throw new Error(getCopy("plugin.errors.instanceOverride"));
     }
-    const currentPercent = calcActualPercent(
-      node.width * node.height,
-      bannerFrame.width,
-      bannerFrame.height
-    );
     const shouldRefreshGeneratedSvg = node.type !== "TEXT" && isPluginGeneratedDisclaimer(node, assetGroupKey);
-    if (onlyEnlarge && currentPercent >= targetPercent && !shouldRefreshGeneratedSvg) {
-      return { node, actualPercent: round2(currentPercent) };
-    }
     if (node.type === "TEXT") {
       const textNode = node;
       if (textNode.textAutoResize !== "NONE") {
         textNode.textAutoResize = "NONE";
       }
     }
-    setLayoutSizingFixed(node, direction);
-    const { newWidth, newHeight } = calcNewDimensions(
+    setLayoutSizingFixed(node, "height");
+    const { newWidth, newHeight } = calcHeightForTargetArea(
       node.width,
-      node.height,
       bannerFrame.width,
       bannerFrame.height,
-      targetPercent,
-      direction
+      targetPercent
     );
     const resizedNode = shouldRefreshGeneratedSvg ? replaceGeneratedDisclaimerNode({
       node,
@@ -1418,7 +1497,14 @@
       if (!detectedDisclaimer) {
         return buildBannerWithoutResolvedDisclaimerState(sceneNode, selectionIndex);
       }
-      return buildResizeState(detectedDisclaimer, sceneNode);
+      return buildResizeState(
+        detectedDisclaimer,
+        resolveDisclaimerAreaBannerFrame(
+          detectedDisclaimer,
+          sceneNode,
+          selectionIndex
+        )
+      );
     }
     if (!isResizable(sceneNode)) {
       return {
@@ -1453,7 +1539,12 @@
         selectionIndex
       );
       if (detectedDisclaimer) {
-        const bannerFrame2 = containingBannerFrame || sceneNode;
+        const fallbackBannerFrame2 = containingBannerFrame || sceneNode;
+        const bannerFrame2 = resolveDisclaimerAreaBannerFrame(
+          detectedDisclaimer,
+          fallbackBannerFrame2,
+          selectionIndex
+        );
         if (bannerFrame2.width <= 0 || bannerFrame2.height <= 0) {
           return {
             type: "invalid",
@@ -1474,23 +1565,37 @@
         return buildBannerWithoutResolvedDisclaimerState(sceneNode, selectionIndex);
       }
     }
-    const bannerFrame = containingBannerFrame || findBannerFrame(sceneNode);
-    if (bannerFrame) {
+    const fallbackBannerFrame = containingBannerFrame || findBannerFrame(sceneNode);
+    const fallbackIndex = fallbackBannerFrame ? buildBannerDisclaimerIndex(fallbackBannerFrame) : null;
+    if (fallbackBannerFrame && fallbackIndex) {
       const containingDisclaimer = findContainingDisclaimerForSelection(
         sceneNode,
-        bannerFrame
+        fallbackBannerFrame,
+        fallbackIndex
       );
       if (containingDisclaimer) {
-        return buildResizeState(containingDisclaimer, bannerFrame);
+        return buildResizeState(
+          containingDisclaimer,
+          resolveDisclaimerAreaBannerFrame(
+            containingDisclaimer,
+            fallbackBannerFrame,
+            fallbackIndex
+          )
+        );
       }
     }
-    if (!bannerFrame) {
+    if (!fallbackBannerFrame) {
       return {
         type: "invalid",
         error: getCopy("plugin.errors.selectDisclaimerOrBanner"),
         presets: DISCLAIMER_PRESETS
       };
     }
+    const bannerFrame = resolveDisclaimerAreaBannerFrame(
+      sceneNode,
+      fallbackBannerFrame,
+      fallbackIndex || void 0
+    );
     if (bannerFrame.width <= 0 || bannerFrame.height <= 0) {
       return {
         type: "invalid",
@@ -1505,11 +1610,6 @@
   }
 
   // src/ui/messageValidation.ts
-  var RESIZE_DIRECTIONS = [
-    "height",
-    "width",
-    "proportional"
-  ];
   var ADD_TARGETS = ["body", "image"];
   function isRecord(input) {
     return typeof input === "object" && input !== null;
@@ -1520,29 +1620,14 @@
   function asBoolean(input, fallback) {
     return typeof input === "boolean" ? input : fallback;
   }
-  function asResizeDirection(input) {
-    return RESIZE_DIRECTIONS.includes(input) ? input : "height";
-  }
   function asAddTarget(input) {
     return ADD_TARGETS.includes(input) ? input : "body";
-  }
-  function asCustomPercent(input) {
-    if (input === null || input === void 0) return null;
-    if (isFiniteNumber(input)) return input;
-    if (typeof input === "string") {
-      const parsed = Number.parseFloat(input.replace(",", "."));
-      return Number.isFinite(parsed) ? parsed : null;
-    }
-    return null;
   }
   function parseApplyResize(input) {
     if (typeof input.presetKey !== "string") return null;
     return {
       type: "apply-resize",
       presetKey: input.presetKey,
-      customPercent: asCustomPercent(input.customPercent),
-      direction: asResizeDirection(input.direction),
-      onlyEnlarge: asBoolean(input.onlyEnlarge, false),
       addTarget: asAddTarget(input.addTarget),
       createAll: asBoolean(input.createAll, false),
       expectedNodeId: typeof input.expectedNodeId === "string" ? input.expectedNodeId : null
@@ -1570,6 +1655,14 @@
   }
 
   // src/plugin.ts
+  function resolveAreaBannerFrame(hostFrame) {
+    var _a;
+    const index = buildBannerDisclaimerIndex(hostFrame);
+    if (isImageLedBannerFrame(hostFrame, index)) {
+      return hostFrame;
+    }
+    return (_a = findBannerFrame(hostFrame)) != null ? _a : hostFrame;
+  }
   function sendState() {
     figma.ui.postMessage(buildState(figma.currentPage.selection));
   }
@@ -1578,18 +1671,6 @@
   }
   function postSuccess(message) {
     figma.ui.postMessage({ type: "success", message });
-  }
-  function formatRuNumber(n) {
-    const rounded = round2(n);
-    const sign = rounded < 0 ? "\u2212" : "";
-    const abs = Math.abs(rounded);
-    const [intPart, decimalPart = ""] = String(abs).split(".");
-    const groupedInt = intPart.replace(/\B(?=(\d{3})+(?!\d))/g, "\xA0");
-    const trimmedDecimal = decimalPart.replace(/0+$/, "");
-    return sign + groupedInt + (trimmedDecimal ? "," + trimmedDecimal : "");
-  }
-  function formatRuPercent(n) {
-    return formatRuNumber(n) + "\xA0%";
   }
   function toUserErrorMessage(err) {
     const rawMessage = String(err instanceof Error ? err.message : err);
@@ -1623,6 +1704,26 @@
       return;
     }
     const selectedNode = selection[0];
+    if (!isAttached(selectedNode)) {
+      postError(getCopy("plugin.errors.selectionChanged"));
+      return;
+    }
+    if (isLocked(selectedNode)) {
+      postError(getCopy("plugin.errors.layerLocked"));
+      return;
+    }
+    if (!hasNonZeroSize(selectedNode)) {
+      postError(
+        isFrameLike(selectedNode) ? formatCopy("plugin.errors.bannerSizeZero", {
+          width: selectedNode.width,
+          height: selectedNode.height
+        }) : formatCopy("plugin.errors.disclaimerSizeZero", {
+          width: selectedNode.width,
+          height: selectedNode.height
+        })
+      );
+      return;
+    }
     if (msg.expectedNodeId !== null && selectedNode.id !== msg.expectedNodeId) {
       postError(getCopy("plugin.errors.selectionChanged"));
       return;
@@ -1651,7 +1752,7 @@
       postError(getCopy("plugin.errors.noDisclaimerForPreset"));
       return;
     }
-    const targetPercent = getTargetPercent(msg.presetKey, msg.customPercent);
+    const targetPercent = getTargetPercent(msg.presetKey);
     if (targetPercent === null) {
       postError(getCopy("plugin.errors.invalidPercent"));
       return;
@@ -1664,11 +1765,14 @@
         postError(getCopy("plugin.errors.selectBannerFrame"));
         return;
       }
-      const existingDisclaimer = findMatchingDisclaimer(selectedNode, assetGroupKey);
+      const hostFrame = selectedNode;
+      const areaBannerFrame = resolveAreaBannerFrame(hostFrame);
+      const existingDisclaimer = findMatchingDisclaimer(hostFrame, assetGroupKey);
       if (existingDisclaimer) {
         if (msg.addTarget === "image") {
           result = placeDisclaimerOverImage({
-            bannerFrame: selectedNode,
+            bannerFrame: areaBannerFrame,
+            hostFrame,
             node: existingDisclaimer,
             assetGroupKey,
             presetKey: msg.presetKey,
@@ -1678,22 +1782,22 @@
         } else {
           result = resizeExistingDisclaimer({
             node: existingDisclaimer,
-            bannerFrame: selectedNode,
+            bannerFrame: areaBannerFrame,
             targetPercent,
-            direction: msg.direction,
-            onlyEnlarge: msg.onlyEnlarge,
             assetGroupKey,
             presetKey: msg.presetKey
           });
         }
       } else {
         result = msg.addTarget === "image" ? addDisclaimerToImage({
-          bannerFrame: selectedNode,
+          bannerFrame: areaBannerFrame,
+          hostFrame,
           assetGroupKey,
           presetKey: msg.presetKey,
           targetPercent
         }) : addDisclaimerToBody({
-          bannerFrame: selectedNode,
+          bannerFrame: areaBannerFrame,
+          hostFrame,
           assetGroupKey,
           presetKey: msg.presetKey,
           targetPercent
@@ -1703,6 +1807,7 @@
     } else {
       let resizeNode = null;
       let bannerFrame = findBannerFrame(selectedNode);
+      let bannerIndex = null;
       if (isFrameLike(selectedNode)) {
         const selectionIndex = buildBannerDisclaimerIndex(selectedNode);
         resizeNode = findDetectedDisclaimerForBannerSelection(
@@ -1711,20 +1816,41 @@
           selectionIndex
         );
         if (resizeNode) {
-          bannerFrame = bannerFrame || selectedNode;
+          const fallbackBannerFrame = bannerFrame || selectedNode;
+          bannerFrame = resolveDisclaimerAreaBannerFrame(
+            resizeNode,
+            fallbackBannerFrame,
+            selectionIndex
+          );
         } else if (isProbableBannerSelectionFrame(selectedNode, bannerFrame, selectionIndex)) {
           postError(BANNER_DISCLAIMER_DETECTION_ERROR);
           return;
         }
       }
       if (!resizeNode && bannerFrame) {
+        bannerIndex = buildBannerDisclaimerIndex(bannerFrame);
         resizeNode = findContainingDisclaimerForSelection(
           selectedNode,
-          bannerFrame
+          bannerFrame,
+          bannerIndex
         );
+        if (resizeNode) {
+          bannerFrame = resolveDisclaimerAreaBannerFrame(
+            resizeNode,
+            bannerFrame,
+            bannerIndex
+          );
+        }
       }
       if (!resizeNode && isResizable(selectedNode)) {
         resizeNode = selectedNode;
+        if (bannerFrame) {
+          bannerFrame = resolveDisclaimerAreaBannerFrame(
+            resizeNode,
+            bannerFrame,
+            bannerIndex || buildBannerDisclaimerIndex(bannerFrame)
+          );
+        }
       }
       if (!resizeNode) {
         postError(
@@ -1740,8 +1866,6 @@
         node: resizeNode,
         bannerFrame,
         targetPercent,
-        direction: msg.direction,
-        onlyEnlarge: msg.onlyEnlarge,
         assetGroupKey,
         presetKey: msg.presetKey
       });

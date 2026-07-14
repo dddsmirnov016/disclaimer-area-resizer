@@ -433,234 +433,224 @@
   </div>
 </div>
 
+<!-- @generated-ui-script:start -->
 <script>
-(function () {
+"use strict";
+(() => {
+  // src/core/geometry.ts
+  function round2(n) {
+    return Math.round(n * 100) / 100;
+  }
+
+  // src/core/format.ts
+  function formatRuNumber(n) {
+    const rounded = round2(n);
+    const sign = rounded < 0 ? "\u2212" : "";
+    const abs = Math.abs(rounded);
+    const [intPart, decimalPart = ""] = String(abs).split(".");
+    const groupedInt = intPart.replace(/\B(?=(\d{3})+(?!\d))/g, "\xA0");
+    const trimmedDecimal = decimalPart.replace(/0+$/, "");
+    return sign + groupedInt + (trimmedDecimal ? "," + trimmedDecimal : "");
+  }
+  function formatRuPercent(n) {
+    return formatRuNumber(n) + "\xA0%";
+  }
+  function formatRuNumberOrDash(n) {
+    if (n === null || n === void 0 || !Number.isFinite(n)) return "\u2014";
+    return formatRuNumber(n);
+  }
+  function formatRuPercentOrDash(n) {
+    if (n === null || n === void 0 || !Number.isFinite(n)) return "\u2014";
+    return formatRuPercent(n);
+  }
+
+  // src/ui/app.ts
   var WINDOW_W = 384;
   var WINDOW_H = 776;
   var UI = window.UI_COPY.ui;
-
   var state = null;
   var presets = {};
   var keepFeedbackOnNextReady = false;
   var lastDetectionIdentity = null;
-
-  var presetSelect    = document.getElementById('presetSelect');
-  var presetTrigger   = document.getElementById('presetTrigger');
-  var presetTriggerText = document.getElementById('presetTriggerText');
-  var presetMenu      = document.getElementById('presetMenu');
-  var addToImageInput = document.getElementById('addToImageInput');
-  var createAllInput  = document.getElementById('createAllInput');
-  var applyBtn        = document.getElementById('applyBtn');
-  var errorBox        = document.getElementById('errorBox');
-  var successMsg      = document.getElementById('successMsg');
-  var infoMsg         = document.getElementById('infoMsg');
-  var disclaimerVal   = document.getElementById('disclaimerVal');
-  var percentVal      = document.getElementById('percentVal');
-  var metricsBlock    = document.getElementById('metricsBlock');
-
+  var presetSelect = document.getElementById("presetSelect");
+  var presetTrigger = document.getElementById("presetTrigger");
+  var presetTriggerText = document.getElementById(
+    "presetTriggerText"
+  );
+  var presetMenu = document.getElementById("presetMenu");
+  var addToImageInput = document.getElementById(
+    "addToImageInput"
+  );
+  var createAllInput = document.getElementById("createAllInput");
+  var applyBtn = document.getElementById("applyBtn");
+  var errorBox = document.getElementById("errorBox");
+  var successMsg = document.getElementById("successMsg");
+  var infoMsg = document.getElementById("infoMsg");
+  var disclaimerVal = document.getElementById("disclaimerVal");
+  var percentVal = document.getElementById("percentVal");
+  var metricsBlock = document.getElementById("metricsBlock");
   function getUiCopy(path) {
-    return path.split('.').reduce(function (acc, key) {
-      return acc && acc[key];
+    return path.split(".").reduce((acc, key) => {
+      if (acc && typeof acc === "object") {
+        return acc[key];
+      }
+      return void 0;
     }, UI);
   }
-
   function applyStaticCopy() {
     document.title = UI.title;
-    presetSelect.setAttribute('aria-label', UI.labels.presetAria);
-    document.querySelectorAll('[data-copy]').forEach(function (el) {
-      el.textContent = getUiCopy(el.getAttribute('data-copy'));
-    });
-  }
-
-  applyStaticCopy();
-
-  // ── Helpers ─────────────────────────────────────────────────────────
-
-  function formatRuNumber(n) {
-    if (n === null || n === undefined || isNaN(n)) return '—';
-    var rounded = Math.round(n * 100) / 100;
-    var intPart = Math.floor(Math.abs(rounded));
-    var dec = Math.round((Math.abs(rounded) - intPart) * 100);
-    var intStr = String(intPart);
-    if (intStr.length > 3) {
-      intStr = intStr.replace(/\B(?=(\d{3})+(?!\d))/g, '\u00a0');
-    }
-    if (dec === 0) return (rounded < 0 ? '\u2212' : '') + intStr;
-    var decStr = String(dec);
-    if (decStr.length === 1) decStr = decStr + '0';
-    if (decStr.endsWith('0')) decStr = decStr.slice(0, -1);
-    return (rounded < 0 ? '\u2212' : '') + intStr + ',' + decStr;
-  }
-
-  function formatRuPercent(n) {
-    if (n === null || n === undefined || isNaN(n)) return '—';
-    return formatRuNumber(n) + '\u00a0%';
-  }
-
-  function setSizeMetric(el, w, h, empty) {
-    var wEl = el.querySelector('[data-part="w"]');
-    var hEl = el.querySelector('[data-part="h"]');
-    if (empty) {
-      wEl.textContent = '—';
-      hEl.textContent = '—';
-      el.classList.add('muted');
-    } else {
-      wEl.textContent = formatRuNumber(w);
-      hEl.textContent = formatRuNumber(h);
-      el.classList.remove('muted');
-    }
-  }
-
-  // ── Custom dropdown ──────────────────────────────────────────────────
-
-  function buildMenu(data) {
-    presets = data;
-    presetSelect.innerHTML = '';
-    presetMenu.innerHTML = '';
-
-    Object.keys(data).forEach(function (key) {
-      var opt = document.createElement('option');
-      opt.value = key;
-      opt.textContent = data[key].label;
-      presetSelect.appendChild(opt);
-
-      var item = document.createElement('div');
-      item.className = 'select-menu-item';
-      item.setAttribute('role', 'option');
-      item.setAttribute('data-value', key);
-
-      var text = document.createElement('span');
-      text.className = 'select-menu-item-text';
-      text.textContent = data[key].label;
-
-      var check = document.createElement('span');
-      check.className = 'select-menu-item-check';
-      check.setAttribute('aria-hidden', 'true');
-      check.innerHTML = '<svg width="20" height="20" viewBox="0 0 20 20" fill="none">' +
-        '<path d="M5 10.5L8.5 14L15 7" stroke="#7F56D9" stroke-width="2" ' +
-        'stroke-linecap="round" stroke-linejoin="round"/></svg>';
-
-      item.appendChild(text);
-      item.appendChild(check);
-
-      item.addEventListener('click', function () {
-        selectValue(key);
-        closeMenu();
-      });
-
-      presetMenu.appendChild(item);
-    });
-
-    syncMenuSelection();
-    syncTriggerText();
-  }
-
-  function syncMenuSelection() {
-    var current = presetSelect.value;
-    var items = presetMenu.querySelectorAll('.select-menu-item');
-    items.forEach(function (item) {
-      if (item.getAttribute('data-value') === current) {
-        item.classList.add('selected');
-        item.setAttribute('aria-selected', 'true');
-      } else {
-        item.classList.remove('selected');
-        item.setAttribute('aria-selected', 'false');
+    presetSelect.setAttribute("aria-label", UI.labels.presetAria);
+    document.querySelectorAll("[data-copy]").forEach((el) => {
+      const path = el.getAttribute("data-copy");
+      if (path) {
+        el.textContent = getUiCopy(path);
       }
     });
   }
-
-  function syncTriggerText() {
-    var key = presetSelect.value;
-    presetTriggerText.textContent = (presets[key] && presets[key].label) || '';
+  applyStaticCopy();
+  function setSizeMetric(el, w, h, empty) {
+    const wEl = el.querySelector('[data-part="w"]');
+    const hEl = el.querySelector('[data-part="h"]');
+    if (!wEl || !hEl) return;
+    if (empty) {
+      wEl.textContent = "\u2014";
+      hEl.textContent = "\u2014";
+      el.classList.add("muted");
+    } else {
+      wEl.textContent = formatRuNumberOrDash(w);
+      hEl.textContent = formatRuNumberOrDash(h);
+      el.classList.remove("muted");
+    }
   }
-
+  function buildMenu(data) {
+    presets = data;
+    presetSelect.innerHTML = "";
+    presetMenu.innerHTML = "";
+    Object.keys(data).forEach((key) => {
+      const opt = document.createElement("option");
+      opt.value = key;
+      opt.textContent = data[key].label;
+      presetSelect.appendChild(opt);
+      const item = document.createElement("div");
+      item.className = "select-menu-item";
+      item.setAttribute("role", "option");
+      item.setAttribute("data-value", key);
+      const text = document.createElement("span");
+      text.className = "select-menu-item-text";
+      text.textContent = data[key].label;
+      const check = document.createElement("span");
+      check.className = "select-menu-item-check";
+      check.setAttribute("aria-hidden", "true");
+      check.innerHTML = '<svg width="20" height="20" viewBox="0 0 20 20" fill="none"><path d="M5 10.5L8.5 14L15 7" stroke="#7F56D9" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>';
+      item.appendChild(text);
+      item.appendChild(check);
+      item.addEventListener("click", () => {
+        selectValue(key);
+        closeMenu();
+      });
+      presetMenu.appendChild(item);
+    });
+    syncMenuSelection();
+    syncTriggerText();
+  }
+  function syncMenuSelection() {
+    const current = presetSelect.value;
+    presetMenu.querySelectorAll(".select-menu-item").forEach((item) => {
+      if (item.getAttribute("data-value") === current) {
+        item.classList.add("selected");
+        item.setAttribute("aria-selected", "true");
+      } else {
+        item.classList.remove("selected");
+        item.setAttribute("aria-selected", "false");
+      }
+    });
+  }
+  function syncTriggerText() {
+    const key = presetSelect.value;
+    presetTriggerText.textContent = presets[key] && presets[key].label || "";
+  }
   function selectValue(key) {
     if (!presets[key]) return;
     presetSelect.value = key;
     syncMenuSelection();
     syncTriggerText();
-    presetSelect.dispatchEvent(new Event('change'));
+    presetSelect.dispatchEvent(new Event("change"));
   }
-
   function openMenu() {
-    presetMenu.classList.add('open');
-    presetTrigger.classList.add('open');
-    presetTrigger.setAttribute('aria-expanded', 'true');
+    presetMenu.classList.add("open");
+    presetTrigger.classList.add("open");
+    presetTrigger.setAttribute("aria-expanded", "true");
   }
-
   function closeMenu() {
-    presetMenu.classList.remove('open');
-    presetTrigger.classList.remove('open');
-    presetTrigger.setAttribute('aria-expanded', 'false');
+    presetMenu.classList.remove("open");
+    presetTrigger.classList.remove("open");
+    presetTrigger.setAttribute("aria-expanded", "false");
   }
-
   function toggleMenu() {
-    if (presetMenu.classList.contains('open')) {
+    if (presetMenu.classList.contains("open")) {
       closeMenu();
     } else {
       openMenu();
     }
   }
-
-  presetTrigger.addEventListener('click', function (e) {
+  presetTrigger.addEventListener("click", (e) => {
     e.stopPropagation();
     toggleMenu();
   });
-
-  presetTrigger.addEventListener('keydown', function (e) {
-    if (e.key === 'Enter' || e.key === ' ') {
+  presetTrigger.addEventListener("keydown", (e) => {
+    if (e.key === "Enter" || e.key === " ") {
       e.preventDefault();
       toggleMenu();
-    } else if (e.key === 'Escape') {
+    } else if (e.key === "Escape") {
       closeMenu();
     }
   });
-
-  document.addEventListener('click', function () {
+  document.addEventListener("click", () => {
     closeMenu();
   });
-
-  // ── State rendering ──────────────────────────────────────────────────
-
   function getTargetPercent() {
-    var key = presetSelect.value;
+    const key = presetSelect.value;
     if (!key || !presets[key]) return null;
     return presets[key].percent;
   }
-
   function updatePercentColor() {
-    percentVal.classList.remove('green', 'red');
-    if (!state || state.type !== 'ready') return;
-    if (state.info.currentPercent === null || state.info.currentPercent === undefined) {
-      percentVal.classList.add('green');
+    var _a, _b;
+    percentVal.classList.remove("green", "red");
+    if (!state || state.type !== "ready") return;
+    if (((_a = state.info) == null ? void 0 : _a.currentPercent) === null || ((_b = state.info) == null ? void 0 : _b.currentPercent) === void 0) {
+      percentVal.classList.add("green");
       return;
     }
-    var target = getTargetPercent();
+    const target = getTargetPercent();
     if (target === null) {
-      percentVal.classList.add('green');
+      percentVal.classList.add("green");
       return;
     }
     if (state.info.currentPercent < target) {
-      percentVal.classList.add('red');
+      percentVal.classList.add("red");
     } else {
-      percentVal.classList.add('green');
+      percentVal.classList.add("green");
     }
   }
-
   function getIdleButtonLabel() {
-    if (state && state.type === 'ready' && state.info && state.info.mode === 'add-missing') {
+    var _a;
+    if ((state == null ? void 0 : state.type) === "ready" && ((_a = state.info) == null ? void 0 : _a.mode) === "add-missing") {
       return createAllInput.checked ? UI.buttons.create : UI.buttons.add;
     }
     return UI.buttons.apply;
   }
-
   function detectionIdentity(i) {
-    return [i.mode, i.bannerName, i.disclaimerName, i.disclaimerWidth, i.disclaimerHeight].join('|');
+    return [
+      i.mode,
+      i.bannerName,
+      i.disclaimerName,
+      i.disclaimerWidth,
+      i.disclaimerHeight
+    ].join("|");
   }
-
   function applyDetectedPreset(i) {
-    var identity = detectionIdentity(i);
-    var isNewDetection = identity !== lastDetectionIdentity;
+    const identity = detectionIdentity(i);
+    const isNewDetection = identity !== lastDetectionIdentity;
     lastDetectionIdentity = identity;
     if (!isNewDetection) return;
     if (!i.detectedPresetKey || !presets[i.detectedPresetKey]) return;
@@ -669,110 +659,102 @@
     syncMenuSelection();
     syncTriggerText();
   }
-
   function syncAddTargetAvailability() {
-    var canAdd = state && state.type === 'ready' && state.info && state.info.mode === 'add-missing';
+    var _a;
+    const canAdd = (state == null ? void 0 : state.type) === "ready" && ((_a = state.info) == null ? void 0 : _a.mode) === "add-missing";
     addToImageInput.disabled = !canAdd;
     createAllInput.disabled = !canAdd;
     if (!canAdd) addToImageInput.checked = false;
     if (!canAdd) createAllInput.checked = false;
   }
-
   function setMetricsEmpty(empty) {
-    var cards = metricsBlock.querySelectorAll('.metric-card');
-    cards.forEach(function (c) {
-      c.style.display = empty ? 'none' : '';
+    metricsBlock.querySelectorAll(".metric-card").forEach((card) => {
+      card.style.display = empty ? "none" : "";
     });
   }
-
   function showError(text) {
     errorBox.textContent = text;
-    errorBox.classList.add('visible');
-    successMsg.classList.remove('visible');
-    infoMsg.classList.remove('visible');
+    errorBox.classList.add("visible");
+    successMsg.classList.remove("visible");
+    infoMsg.classList.remove("visible");
   }
-
   function hideError() {
-    errorBox.classList.remove('visible');
-    errorBox.textContent = '';
+    errorBox.classList.remove("visible");
+    errorBox.textContent = "";
   }
-
   function showSuccess(text) {
     successMsg.textContent = text;
-    successMsg.classList.add('visible');
-    errorBox.classList.remove('visible');
-    infoMsg.classList.remove('visible');
+    successMsg.classList.add("visible");
+    errorBox.classList.remove("visible");
+    infoMsg.classList.remove("visible");
   }
-
   function hideSuccess() {
-    successMsg.classList.remove('visible');
-    successMsg.textContent = '';
+    successMsg.classList.remove("visible");
+    successMsg.textContent = "";
   }
-
   function showInfo(text) {
     infoMsg.textContent = text;
-    infoMsg.classList.add('visible');
-    errorBox.classList.remove('visible');
-    successMsg.classList.remove('visible');
+    infoMsg.classList.add("visible");
+    errorBox.classList.remove("visible");
+    successMsg.classList.remove("visible");
   }
-
   function hideInfo() {
-    infoMsg.classList.remove('visible');
-    infoMsg.textContent = '';
+    infoMsg.classList.remove("visible");
+    infoMsg.textContent = "";
   }
-
   function hideFeedback() {
     hideError();
     hideSuccess();
     hideInfo();
   }
-
   function renderState(msg) {
     state = msg;
-
     if (msg.presets && Object.keys(presets).length === 0) {
       buildMenu(msg.presets);
     }
-
-    if (msg.type === 'no-selection') {
+    if (msg.type === "no-selection") {
       setMetricsEmpty(true);
       setSizeMetric(disclaimerVal, null, null, true);
-      percentVal.textContent = '—';
-      percentVal.classList.add('muted');
-      percentVal.classList.remove('green', 'red');
+      percentVal.textContent = "\u2014";
+      percentVal.classList.add("muted");
+      percentVal.classList.remove("green", "red");
       applyBtn.disabled = true;
       applyBtn.textContent = UI.buttons.apply;
       syncAddTargetAvailability();
       hideFeedback();
       return;
     }
-
-    if (msg.type === 'invalid') {
+    if (msg.type === "invalid") {
       setMetricsEmpty(true);
       setSizeMetric(disclaimerVal, null, null, true);
-      percentVal.textContent = '—';
-      percentVal.classList.add('muted');
-      percentVal.classList.remove('green', 'red');
+      percentVal.textContent = "\u2014";
+      percentVal.classList.add("muted");
+      percentVal.classList.remove("green", "red");
       applyBtn.disabled = true;
       applyBtn.textContent = UI.buttons.apply;
       syncAddTargetAvailability();
-      if (msg.feedbackTone === 'info') {
+      if (msg.feedbackTone === "info") {
         showInfo(msg.error || UI.fallbacks.disclaimerNotFound);
       } else {
         showError(msg.error || UI.fallbacks.selectLayer);
       }
       return;
     }
-
-    var i = msg.info;
+    const i = msg.info;
+    if (!i) return;
     applyDetectedPreset(i);
     setMetricsEmpty(false);
-    setSizeMetric(disclaimerVal, i.disclaimerWidth, i.disclaimerHeight, i.disclaimerWidth === null);
-    percentVal.textContent = i.currentPercent === null ? '—' : formatRuPercent(i.currentPercent);
+    setSizeMetric(
+      disclaimerVal,
+      i.disclaimerWidth,
+      i.disclaimerHeight,
+      i.disclaimerWidth === null
+    );
+    percentVal.textContent = i.currentPercent === null ? "\u2014" : formatRuPercentOrDash(i.currentPercent);
     if (i.currentPercent === null) {
-      percentVal.classList.add('muted');
+      percentVal.classList.add("muted");
     } else {
-      percentVal.classList.remove('muted');
+      percentVal.classList.remove("muted");
     }
     updatePercentColor();
     applyBtn.disabled = false;
@@ -784,71 +766,63 @@
       hideFeedback();
     }
   }
-
-  // ── Event listeners ─────────────────────────────────────────────────
-
-  presetSelect.addEventListener('change', function () {
+  presetSelect.addEventListener("change", () => {
     syncMenuSelection();
     syncTriggerText();
     updatePercentColor();
     hideFeedback();
   });
-
-  createAllInput.addEventListener('change', function () {
+  createAllInput.addEventListener("change", () => {
     applyBtn.textContent = getIdleButtonLabel();
     hideFeedback();
   });
-
-  applyBtn.addEventListener('click', function () {
-    if (!state || state.type !== 'ready') return;
-    var key = presetSelect.value;
-
+  applyBtn.addEventListener("click", () => {
+    var _a;
+    if (!state || state.type !== "ready") return;
+    const key = presetSelect.value;
     applyBtn.disabled = true;
     applyBtn.textContent = UI.buttons.applying;
     hideFeedback();
-
-    parent.postMessage({ pluginMessage: {
-      type: 'apply-resize',
+    const message = {
+      type: "apply-resize",
       presetKey: key,
-      customPercent: null,
-      direction: 'height',
-      onlyEnlarge: false,
-      addTarget: addToImageInput.checked ? 'image' : 'body',
+      addTarget: addToImageInput.checked ? "image" : "body",
       createAll: createAllInput.checked,
-      expectedNodeId: state.selectionId || null
-    }}, '*');
+      expectedNodeId: (_a = state.selectionId) != null ? _a : null
+    };
+    parent.postMessage({ pluginMessage: message }, "*");
   });
-
-  // ── Plugin message handler ───────────────────────────────────────────
-
-  window.onmessage = function (evt) {
-    var msg = evt.data && evt.data.pluginMessage;
+  window.onmessage = (evt) => {
+    var _a;
+    const msg = (_a = evt.data) == null ? void 0 : _a.pluginMessage;
     if (!msg) return;
-
-    if (msg.type === 'no-selection' || msg.type === 'invalid' || msg.type === 'ready') {
-      if (msg.type === 'ready') applyBtn.disabled = false;
+    if (msg.type === "no-selection" || msg.type === "invalid" || msg.type === "ready") {
+      if (msg.type === "ready") applyBtn.disabled = false;
       renderState(msg);
       return;
     }
-    if (msg.type === 'success') {
+    if (msg.type === "success") {
       applyBtn.textContent = getIdleButtonLabel();
       applyBtn.disabled = false;
       keepFeedbackOnNextReady = true;
       showSuccess(msg.message);
       return;
     }
-    if (msg.type === 'error') {
+    if (msg.type === "error") {
       applyBtn.textContent = getIdleButtonLabel();
       applyBtn.disabled = false;
       keepFeedbackOnNextReady = false;
       showError(msg.message);
-      return;
     }
   };
+  parent.postMessage({ pluginMessage: { type: "request-state" } }, "*");
+  parent.postMessage(
+    { pluginMessage: { type: "resize", width: WINDOW_W, height: WINDOW_H } },
+    "*"
+  );
+})();
 
-  parent.postMessage({ pluginMessage: { type: 'request-state' } }, '*');
-  parent.postMessage({ pluginMessage: { type: 'resize', width: WINDOW_W, height: WINDOW_H } }, '*');
-}());
 </script>
+<!-- @generated-ui-script:end -->
 </body>
 </html>

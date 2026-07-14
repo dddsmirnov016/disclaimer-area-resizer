@@ -1,7 +1,7 @@
 import type { AddTarget } from "../core/types";
 import { formatCopy, getCopy } from "../core/copy";
 import { getPrimaryPresetEntriesByAsset } from "../core/presets";
-import { removeKnownDisclaimers } from "../figma/disclaimerNodes";
+import { removeKnownDisclaimers } from "../figma/disclaimerMutation";
 import { setAbsolutePositioningIfParentHasAutoLayout } from "../figma/layout";
 import { canInsertChildren, type BannerFrame } from "../figma/nodeGuards";
 import { addDisclaimerToBody, addDisclaimerToImage } from "./addMissing";

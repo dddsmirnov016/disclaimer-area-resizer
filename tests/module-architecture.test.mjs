@@ -10,13 +10,17 @@ const MODULE_READMES = [
   "src/ui/README.md",
 ];
 
-test("build pipeline uses esbuild entrypoint instead of TypeScript outFile", async () => {
+test("build pipeline bundles plugin and UI scripts with esbuild", async () => {
   const packageJson = JSON.parse(await readFile("package.json", "utf8"));
-  const tsconfig = JSON.parse(await readFile("tsconfig.json", "utf8"));
+  const buildScript = await readFile("scripts/build-plugin.mjs", "utf8");
 
   assert.equal(packageJson.scripts.build, "node scripts/build-plugin.mjs");
   assert.equal(packageJson.scripts.watch, "node scripts/build-plugin.mjs --watch");
   assert.ok(packageJson.devDependencies.esbuild);
+  assert.match(buildScript, /UI_ENTRY_FILE/);
+  assert.match(buildScript, /@generated-ui-script:start/);
+
+  const tsconfig = JSON.parse(await readFile("tsconfig.json", "utf8"));
   assert.equal(tsconfig.compilerOptions.module, "ESNext");
   assert.equal(tsconfig.compilerOptions.noEmit, true);
   assert.equal(tsconfig.compilerOptions.outFile, undefined);
@@ -32,8 +36,13 @@ test("source modules and agent documentation are present", async () => {
     "src/figma/nodeGuards.ts",
     "src/figma/traversal.ts",
     "src/figma/layout.ts",
-    "src/figma/disclaimerNodes.ts",
+    "src/figma/bannerIndex.ts",
+    "src/figma/pluginData.ts",
+    "src/figma/disclaimerDetection.ts",
+    "src/figma/disclaimerMutation.ts",
+    "src/figma/disclaimerSvg.ts",
     "src/figma/bannerDetection.ts",
+    "src/ui/app.ts",
     "src/features/resizeExisting.ts",
     "src/features/addMissing.ts",
     "src/features/createAllVariants.ts",
@@ -83,8 +92,8 @@ test("UI renders undetected-disclaimer feedback as fixed-height info message", a
   assert.match(slotRule[0], /min-height:\s*80px/);
   assert.match(uiHtml, /\.info-box/);
   assert.match(uiHtml, /id="infoMsg"/);
-  assert.match(uiHtml, /function showInfo/);
-  assert.match(uiHtml, /feedbackTone === 'info'/);
+  assert.match(uiHtml, /function showInfo|showInfo\(/);
+  assert.match(uiHtml, /feedbackTone === ["']info["']/);
 });
 
 test("visible Russian copy avoids technical wording", async () => {
@@ -117,8 +126,9 @@ test("visible Russian copy avoids technical wording", async () => {
 });
 
 test("new generated disclaimer layers use Russian naming", async () => {
-  const source = await readFile("src/figma/disclaimerNodes.ts", "utf8");
+  const mutationSource = await readFile("src/figma/disclaimerMutation.ts", "utf8");
+  const detectionSource = await readFile("src/figma/disclaimerDetection.ts", "utf8");
 
-  assert.match(source, /node\.name = "Дисклеймер — " \+ assetGroupKey/);
-  assert.match(source, /node\.name\.startsWith\("Disclaimer — "\)/);
+  assert.match(mutationSource, /node\.name = "Дисклеймер — " \+ assetGroupKey/);
+  assert.match(detectionSource, /node\.name\.startsWith\("Disclaimer — "\)/);
 });

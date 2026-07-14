@@ -19,70 +19,57 @@ test("parseUiMessage accepts and normalizes a full apply-resize", () => {
   const result = v.parseUiMessage({
     type: "apply-resize",
     presetKey: "medicine_video_7",
-    customPercent: null,
-    direction: "width",
-    onlyEnlarge: true,
     addTarget: "image",
     createAll: true,
+    expectedNodeId: "node-1",
   });
   assert.deepEqual(result, {
     type: "apply-resize",
     presetKey: "medicine_video_7",
-    customPercent: null,
-    direction: "width",
-    onlyEnlarge: true,
     addTarget: "image",
     createAll: true,
-    expectedNodeId: null,
+    expectedNodeId: "node-1",
   });
 });
 
 test("parseUiMessage fills safe defaults for missing optional fields (backward compatible)", () => {
   const result = v.parseUiMessage({
     type: "apply-resize",
-    presetKey: "custom",
+    presetKey: "bad_static_10",
   });
   assert.deepEqual(result, {
     type: "apply-resize",
-    presetKey: "custom",
-    customPercent: null,
-    direction: "height",
-    onlyEnlarge: false,
+    presetKey: "bad_static_10",
     addTarget: "body",
     createAll: false,
     expectedNodeId: null,
   });
 });
 
-test("parseUiMessage coerces a legacy numeric-string customPercent", () => {
+test("parseUiMessage falls back to safe enum values for unknown addTarget", () => {
   const result = v.parseUiMessage({
     type: "apply-resize",
-    presetKey: "custom",
-    customPercent: "7,5",
-  });
-  assert.equal(result.customPercent, 7.5);
-});
-
-test("parseUiMessage falls back to safe enum values for unknown enums", () => {
-  const result = v.parseUiMessage({
-    type: "apply-resize",
-    presetKey: "custom",
-    direction: "diagonal",
+    presetKey: "bad_static_10",
     addTarget: "sky",
   });
-  assert.equal(result.direction, "height");
   assert.equal(result.addTarget, "body");
 });
 
 test("parseUiMessage ignores unknown/extra fields (forward compatible)", () => {
   const result = v.parseUiMessage({
     type: "apply-resize",
-    presetKey: "custom",
+    presetKey: "bad_static_10",
     futureFlag: true,
     nested: { a: 1 },
+    customPercent: 7,
+    direction: "width",
+    onlyEnlarge: true,
   });
   assert.equal("futureFlag" in result, false);
   assert.equal("nested" in result, false);
+  assert.equal("customPercent" in result, false);
+  assert.equal("direction" in result, false);
+  assert.equal("onlyEnlarge" in result, false);
 });
 
 test("parseUiMessage rejects apply-resize without a string presetKey", () => {

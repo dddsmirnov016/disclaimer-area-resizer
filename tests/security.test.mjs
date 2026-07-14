@@ -69,8 +69,8 @@ test("the UI posts only to its parent and never trusts unvalidated messages blin
   // outbound is scoped to the plugin parent
   assert.match(ui, /parent\.postMessage\(/);
   // inbound is read via the pluginMessage envelope and dispatched on a type allowlist
-  assert.match(ui, /evt\.data && evt\.data\.pluginMessage/);
-  assert.match(ui, /msg\.type === 'no-selection' \|\| msg\.type === 'invalid' \|\| msg\.type === 'ready'/);
+  assert.match(ui, /window\.onmessage[\s\S]*pluginMessage/);
+  assert.match(ui, /msg\.type === ["']no-selection["'] \|\| msg\.type === ["']invalid["'] \|\| msg\.type === ["']ready["']/);
 });
 
 test("inbound plugin messages are validated before handling", async () => {

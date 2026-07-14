@@ -1,13 +1,7 @@
 import type { Bounds } from "../core/types";
+import { buildBannerIndex, type BannerIndex } from "./bannerIndex";
 import {
-  getAbsoluteBounds,
-  getIntersectionBounds,
-  intersectionArea,
-} from "./traversal";
-import {
-  hasChildren,
   isFrameLike,
-  isResizable,
   type AutoLayoutFrame,
   type BannerFrame,
   type ResizableNode,
@@ -55,113 +49,16 @@ export function nodeHasAutoLayout(node: SceneNode): boolean {
   return false;
 }
 
-function normalizedName(node: BaseNode): string {
-  return node.name.toLowerCase();
-}
-
-function isLikelyBodyName(node: BaseNode): boolean {
-  return /body|copy|text|content|текст|контент|описание|оффер/.test(
-    normalizedName(node)
-  );
-}
-
-function hasImageFill(node: SceneNode): boolean {
-  if (!("fills" in node)) return false;
-  const fills = (node as { fills: readonly Paint[] | PluginAPI["mixed"] })
-    .fills;
-  return Array.isArray(fills) && fills.some((paint) => paint.type === "IMAGE");
-}
-
 export function findBodyContainer(
-  bannerFrame: BannerFrame
+  bannerFrame: BannerFrame,
+  index?: BannerIndex
 ): AutoLayoutFrame | null {
-  let bestNode: AutoLayoutFrame | null = null;
-  let bestScore = Number.NEGATIVE_INFINITY;
-  const bannerArea = bannerFrame.width * bannerFrame.height;
-
-  const consider = (node: SceneNode, textCount: number): void => {
-    if (!isFrameLike(node) || node.layoutMode !== "VERTICAL") return;
-    if (textCount === 0) return;
-
-    const areaRatio =
-      bannerArea > 0 ? (node.width * node.height) / bannerArea : 1;
-    const score =
-      textCount * 20 +
-      (isLikelyBodyName(node) ? 100 : 0) -
-      areaRatio * 10 -
-      (node === bannerFrame ? 50 : 0);
-
-    if (score > bestScore) {
-      bestNode = node;
-      bestScore = score;
-    }
-  };
-
-  // Post-order walk: text counts bubble up so every frame is scored with its
-  // descendant text count in a single pass instead of one sub-walk per frame.
-  const walk = (node: SceneNode): number => {
-    let textCount = 0;
-
-    if (hasChildren(node)) {
-      for (const child of node.children) {
-        if (child.type === "TEXT") textCount += 1;
-        textCount += walk(child);
-      }
-    }
-
-    consider(node, textCount);
-    return textCount;
-  };
-
-  walk(bannerFrame);
-
-  return bestNode;
+  return (index ?? buildBannerIndex(bannerFrame)).bodyContainer;
 }
 
 export function findMainImageNode(
-  bannerFrame: BannerFrame
+  bannerFrame: BannerFrame,
+  index?: BannerIndex
 ): { node: ResizableNode; bounds: Bounds } | null {
-  let best: { node: ResizableNode; bounds: Bounds } | null = null;
-  let bestArea = 0;
-  const bannerBounds = getAbsoluteBounds(bannerFrame);
-
-  const consider = (node: SceneNode): void => {
-    if (!isResizable(node)) return;
-    if (!hasImageFill(node)) return;
-
-    const visibleBounds = getIntersectionBounds(
-      getAbsoluteBounds(node),
-      bannerBounds
-    );
-    const area = intersectionArea(visibleBounds);
-
-    if (!visibleBounds || area <= 0) return;
-
-    if (area > bestArea) {
-      best = { node, bounds: visibleBounds };
-      bestArea = area;
-    }
-  };
-
-  // Visibility is threaded down the walk, so hidden subtrees are skipped
-  // without re-checking every ancestor per node.
-  const walk = (parent: BaseNode, parentVisible: boolean): void => {
-    if (!hasChildren(parent)) return;
-
-    for (const child of parent.children) {
-      const childVisible = parentVisible && child.visible !== false;
-      if (!childVisible) continue;
-
-      consider(child);
-      walk(child, childVisible);
-    }
-  };
-
-  const bannerVisible = bannerFrame.visible !== false;
-  if (bannerVisible) {
-    consider(bannerFrame);
-    walk(bannerFrame, bannerVisible);
-  }
-
-  return best;
+  return (index ?? buildBannerIndex(bannerFrame)).mainImage;
 }

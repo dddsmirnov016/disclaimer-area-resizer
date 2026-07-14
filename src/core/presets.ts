@@ -90,22 +90,7 @@ export const DISCLAIMER_PRESETS: Record<string, DisclaimerPreset> = {
     assetKey: ASSET_BANKRUPTCY,
   },
 };
-export function getTargetPercent(
-  presetKey: string,
-  customPercent: number | null
-): number | null {
-  if (presetKey === "custom") {
-    if (
-      customPercent === null ||
-      !Number.isFinite(customPercent) ||
-      customPercent <= 0 ||
-      customPercent > 100
-    ) {
-      return null;
-    }
-    return customPercent;
-  }
-
+export function getTargetPercent(presetKey: string): number | null {
   const preset = DISCLAIMER_PRESETS[presetKey];
   return preset && preset.percent !== null ? preset.percent : null;
 }

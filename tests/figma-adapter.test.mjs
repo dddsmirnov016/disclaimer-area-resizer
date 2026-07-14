@@ -24,7 +24,7 @@ const features = await bundleAndImport(`
     PLUGIN_DATA_NAMESPACE,
     PLUGIN_DATA_ASSET_KEY,
     PLUGIN_DATA_PRESET_KEY,
-  } from ${modulePath("src/figma/disclaimerNodes.ts")};
+  } from ${modulePath("src/figma/disclaimerDetection.ts")};
 `);
 
 function bannerWithDisclaimer(disclaimerOverrides = {}) {
@@ -295,8 +295,6 @@ test("resizeExistingDisclaimer refuses a locked layer and changes nothing", () =
         node,
         bannerFrame: banner,
         targetPercent: 7,
-        direction: "height",
-        onlyEnlarge: false,
         assetGroupKey: "x",
         presetKey: "custom",
       }),
@@ -315,8 +313,6 @@ test("resizeExistingDisclaimer resizes a text node and marks plugin data", () =>
     node,
     bannerFrame: banner,
     targetPercent: 7,
-    direction: "height",
-    onlyEnlarge: false,
     assetGroupKey,
     presetKey: "bad_static_10",
   });
@@ -327,6 +323,54 @@ test("resizeExistingDisclaimer resizes a text node and marks plugin data", () =>
     node.getSharedPluginData(features.PLUGIN_DATA_NAMESPACE, features.PLUGIN_DATA_ASSET_KEY),
     "Не является лекарством"
   );
+});
+
+test("addDisclaimerToBody sizes against the outer banner when a nested frame is selected", async () => {
+  const { figma } = makeFakeFigma();
+  const text = makeFakeNode({ name: "copy", type: "TEXT", width: 300, height: 20 });
+  const body = makeFakeNode({
+    name: "body",
+    type: "FRAME",
+    width: 398,
+    height: 200,
+    layoutMode: "VERTICAL",
+    children: [text],
+  });
+  const inner = makeFakeNode({
+    name: "Inner Ad",
+    type: "FRAME",
+    width: 398,
+    height: 628,
+    layoutMode: "NONE",
+    children: [body],
+  });
+  const outer = makeFakeNode({
+    name: "Outer Banner",
+    type: "FRAME",
+    width: 398,
+    height: 1008,
+    layoutMode: "NONE",
+    children: [inner],
+  });
+  linkTree(outer);
+
+  const assetGroupKey =
+    "Есть противопоказания. Посоветуйтесь с врачом . Возможен вред здоровью и бесплодие.";
+  const outcome = await withFakeFigma(figma, () =>
+    features.addDisclaimerToBody({
+      bannerFrame: outer,
+      hostFrame: inner,
+      assetGroupKey,
+      presetKey: "medicine_video_7",
+      targetPercent: 7,
+    })
+  );
+
+  const targetArea = (outer.width * outer.height * 7) / 100;
+  const expectedHeight = targetArea / 398;
+  assert.ok(Math.abs(outcome.node.height - expectedHeight) < 0.5);
+  assert.ok(Math.abs(outcome.actualPercent - 7) < 0.1);
+  assert.equal(outcome.node.parent, body);
 });
 
 test("addDisclaimerToBody falls back to the banner bottom when there is no text container", async () => {
