@@ -100,11 +100,14 @@ function isLikelyBodyName(node: BaseNode): boolean {
   );
 }
 
-function hasImageFill(node: SceneNode): boolean {
+function hasImageOrVideoFill(node: SceneNode): boolean {
   if (!("fills" in node)) return false;
   const fills = (node as { fills: readonly Paint[] | PluginAPI["mixed"] })
     .fills;
-  return Array.isArray(fills) && fills.some((paint) => paint.type === "IMAGE");
+  return (
+    Array.isArray(fills) &&
+    fills.some((paint) => paint.type === "IMAGE" || paint.type === "VIDEO")
+  );
 }
 
 function isPluginCreatedDisclaimerCandidate(
@@ -285,7 +288,9 @@ export function buildBannerIndex(bannerFrame: BannerFrame): BannerIndex {
   };
 
   const considerImage = (node: SceneNode, parentVisible: boolean): void => {
-    if (!parentVisible || !isResizable(node) || !hasImageFill(node)) return;
+    if (!parentVisible || !isResizable(node) || !hasImageOrVideoFill(node)) {
+      return;
+    }
     if (indexedImageNodes.has(node)) return;
 
     const visibleBounds = getIntersectionBounds(

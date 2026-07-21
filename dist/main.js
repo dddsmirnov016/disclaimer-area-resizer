@@ -599,10 +599,10 @@
       normalizedName(node)
     );
   }
-  function hasImageFill(node) {
+  function hasImageOrVideoFill(node) {
     if (!("fills" in node)) return false;
     const fills = node.fills;
-    return Array.isArray(fills) && fills.some((paint) => paint.type === "IMAGE");
+    return Array.isArray(fills) && fills.some((paint) => paint.type === "IMAGE" || paint.type === "VIDEO");
   }
   function isPluginCreatedDisclaimerCandidate(node, reader) {
     return reader.hasAssetKey(node) || node.name.startsWith("Disclaimer \u2014 ");
@@ -696,7 +696,9 @@
       }
     };
     const considerImage = (node, parentVisible) => {
-      if (!parentVisible || !isResizable(node) || !hasImageFill(node)) return;
+      if (!parentVisible || !isResizable(node) || !hasImageOrVideoFill(node)) {
+        return;
+      }
       if (indexedImageNodes.has(node)) return;
       const visibleBounds = getIntersectionBounds(
         getAbsoluteBounds(node),

@@ -147,6 +147,54 @@ test("buildState offers add-missing when a banner has no disclaimer at all", () 
   assert.equal(result.info.bannerWidth, 300);
 });
 
+test("buildState treats a nested video ad without a disclaimer as a banner", () => {
+  const video = makeFakeNode({
+    name: "Img",
+    type: "RECTANGLE",
+    width: 247.6,
+    height: 440.728,
+    fills: [{ type: "VIDEO" }],
+  });
+  const adDisclosure = makeFakeNode({
+    name: "Реклама • +16",
+    type: "TEXT",
+    width: 180,
+    height: 6,
+    x: 20,
+    y: 420,
+  });
+  const selectedAd = makeFakeNode({
+    name: "Products ",
+    type: "FRAME",
+    width: 247.6,
+    height: 544.728,
+    children: [video, adDisclosure],
+  });
+  const variantsFrame = makeFakeNode({
+    name: "Frame 1",
+    type: "FRAME",
+    width: 667,
+    height: 647,
+    parent: { type: "PAGE" },
+    children: [selectedAd],
+  });
+  linkTree(variantsFrame);
+  variantsFrame.parent = { type: "PAGE" };
+
+  const result = state.buildState([selectedAd]);
+
+  assert.equal(result.type, "ready");
+  assert.equal(result.info.mode, "add-missing");
+  assert.equal(result.info.bannerName, "Products ");
+  assert.equal(result.info.bannerWidth, 247.6);
+  assert.equal(result.info.bannerHeight, 544.73);
+  assert.equal(result.info.disclaimerName, null);
+  assert.equal(result.info.disclaimerWidth, null);
+  assert.equal(result.info.disclaimerHeight, null);
+  assert.equal(result.info.currentPercent, null);
+  assert.equal(result.info.detectedPresetKey, null);
+});
+
 test("buildState surfaces the stored preset key as detectedPresetKey", () => {
   const { banner } = bannerWithDisclaimer({
     pluginData: {
